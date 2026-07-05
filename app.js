@@ -8,8 +8,8 @@ const CONFIG_KEY = "school_attendance_config";
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1TY5QNusQpKayPX8MZXFvUcx--bae7B5Wty38FfzbW90/edit?usp=sharing";
 
 let config = {
-    sheetUrl: DEFAULT_SHEET_URL,
-    scriptUrl: ""
+    sheetUrl: (typeof GLOBAL_CONFIG !== "undefined" && GLOBAL_CONFIG.sheetUrl) ? GLOBAL_CONFIG.sheetUrl : DEFAULT_SHEET_URL,
+    scriptUrl: (typeof GLOBAL_CONFIG !== "undefined" && GLOBAL_CONFIG.scriptUrl) ? GLOBAL_CONFIG.scriptUrl : ""
 };
 
 // สถานะการทำงานของระบบ (Global State)
@@ -42,20 +42,32 @@ let selectedMisconductStudent = null; // นักเรียนที่กำ
 // โหลดการตั้งค่าเมื่อเริ่มต้น
 function loadConfig() {
     const saved = localStorage.getItem(CONFIG_KEY);
+    
+    // หากมี GLOBAL_CONFIG ที่ใส่ใน config.js เราจะให้ความสำคัญกับค่านั้นเป็นหลักก่อน
+    // เพื่อให้ทำงานได้ทุกเครื่องโดยไม่ต้องไปตั้งค่าในแอดมิน (เว้นแต่จะมีการเซฟทับ)
+    if (typeof GLOBAL_CONFIG !== "undefined" && GLOBAL_CONFIG.scriptUrl) {
+        config.scriptUrl = GLOBAL_CONFIG.scriptUrl;
+    }
+    if (typeof GLOBAL_CONFIG !== "undefined" && GLOBAL_CONFIG.sheetUrl) {
+        config.sheetUrl = GLOBAL_CONFIG.sheetUrl;
+    }
+
     if (saved) {
         try {
-            config = JSON.parse(saved);
-            
-            // นำค่าที่บันทึกไว้ไปแสดงในช่องกรอกของหน้าแอดมิน เพื่อไม่ให้ช่องว่างเปล่า
-            const sheetInput = document.getElementById("config-sheet-url");
-            const scriptInput = document.getElementById("config-script-url");
-            if (sheetInput) sheetInput.value = config.sheetUrl || "";
-            if (scriptInput) scriptInput.value = config.scriptUrl || "";
-            
+            const parsedConfig = JSON.parse(saved);
+            // โหลดทับด้วยค่าใน LocalStorage ถ้ามี (เผื่อครูอยากเปลี่ยนเล่นชั่วคราว)
+            if (parsedConfig.scriptUrl) config.scriptUrl = parsedConfig.scriptUrl;
+            if (parsedConfig.sheetUrl) config.sheetUrl = parsedConfig.sheetUrl;
         } catch (e) {
             console.error("โหลดตั้งค่าผิดพลาด", e);
         }
     }
+    
+    // นำค่าไปแสดงในช่องกรอกของหน้าแอดมิน เพื่อไม่ให้ช่องว่างเปล่า
+    const sheetInput = document.getElementById("config-sheet-url");
+    const scriptInput = document.getElementById("config-script-url");
+    if (sheetInput) sheetInput.value = config.sheetUrl || "";
+    if (scriptInput) scriptInput.value = config.scriptUrl || "";
 }
 
 // แยก Sheet ID จาก URL
