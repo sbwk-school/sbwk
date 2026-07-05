@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบเช็คชื่อนักเรียนออนไลน์</title>
+    <!-- Google Fonts (Outfit & Sarabun) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Custom Style Sheet -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <!-- การโหลดแบบ Fullscreen (ปรับเป็นสีโปร่งแสงแบบกระจกเบลอแทนสีขาวทึบ) -->
+    <div id="app-loading" class="fullscreen-overlay">
+        <div class="loader-content">
+            <div class="spinner"></div>
+            <p>กำลังโหลดรายชื่อนักเรียนและข้อมูล...</p>
+        </div>
+    </div>
+
+    <!-- หน้าต่างการแจ้งเตือนแบบ Toast -->
+    <div id="toast-container"></div>
+
+    <div class="app-container">
+        <!-- 1. แถบเมนูด้านซ้าย (Sidebar) -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-icon" style="background: transparent; box-shadow: none;">
+                    <img src="logo.png" alt="Logo">
+                </div>
+                <div class="logo-text">
+                    <h2 style="font-size: 15px; white-space: nowrap;">โรงเรียนซับบอนวิทยาคม</h2>
+                    <span>กลุ่มงานบริหารทั่วไป</span>
+                </div>
+            </div>
+            
+            <nav class="sidebar-menu">
+                <a href="#" class="menu-item active" id="menu-home">
+                    <i class="fa-solid fa-house"></i>
+                    <span>หน้าแรก</span>
+                </a>
+                <a href="#" class="menu-item" id="menu-stats">
+                    <i class="fa-solid fa-chart-simple"></i>
+                    <span>สถิติเข้าเรียน</span>
+                </a>
+                <a href="#" class="menu-item" id="menu-misconduct">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <span>บันทึกความประพฤติ</span>
+                </a>
+                <div class="menu-separator"></div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <a href="#" class="menu-item" id="menu-register">
+                    <i class="fa-solid fa-user-plus"></i>
+                    <span>ลงทะเบียนครู</span>
+                </a>
+                <a href="#" class="menu-item" id="menu-admin">
+                    <i class="fa-solid fa-lock"></i>
+                    <span>ผู้ดูแลระบบ (Admin)</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- 2. พื้นที่แสดงผลด้านขวา (Main Content) -->
+        <main class="main-content">
+            
+            <!-- SECTION 1: หน้าแรก (Home Dashboard) -->
+            <section id="view-home" class="content-view active">
+                <div class="view-header">
+                    <div>
+                        <h1>สรุปบันทึกการมาเรียน</h1>
+                        <div class="date-selector-container">
+                            <p class="current-date-display" id="home-date-display">-</p>
+                            <div class="date-picker-wrapper" title="คลิกเลือกวันที่">
+                                <i class="fa-solid fa-calendar-days date-picker-icon"></i>
+                                <input type="date" id="home-date-picker" class="home-date-input">
+                            </div>
+                        </div>
+                    </div>
+                    <div id="holiday-status-badge" class="badge">กำลังตรวจสอบวันหยุด...</div>
+                </div>
+
+                <!-- การ์ด 5 บล็อกแสดงผลเปอร์เซ็นต์/จำนวนรวม (ปรับสลับ เปอร์เซ็นต์ตัวใหญ่ จำนวนตัวเล็ก) -->
+                <div class="stats-grid">
+                    <div class="stat-card present">
+                        <div class="stat-icon"><i class="fa-solid fa-circle-check"></i></div>
+                        <div class="stat-info">
+                            <h3>มาเรียน</h3>
+                            <div class="stat-value" id="pct-present">-%</div>
+                            <div class="stat-percentage" id="total-present">- คน</div>
+                        </div>
+                    </div>
+                    <div class="stat-card leave">
+                        <div class="stat-icon"><i class="fa-solid fa-envelope"></i></div>
+                        <div class="stat-info">
+                            <h3>ลา</h3>
+                            <div class="stat-value" id="pct-leave">-%</div>
+                            <div class="stat-percentage" id="total-leave">- คน</div>
+                        </div>
+                    </div>
+                    <div class="stat-card absent">
+                        <div class="stat-icon"><i class="fa-solid fa-circle-xmark"></i></div>
+                        <div class="stat-info">
+                            <h3>ขาด</h3>
+                            <div class="stat-value" id="pct-absent">-%</div>
+                            <div class="stat-percentage" id="total-absent">- คน</div>
+                        </div>
+                    </div>
+                    <div class="stat-card late">
+                        <div class="stat-icon"><i class="fa-solid fa-clock"></i></div>
+                        <div class="stat-info">
+                            <h3>สาย</h3>
+                            <div class="stat-value" id="pct-late">-%</div>
+                            <div class="stat-percentage" id="total-late">- คน</div>
+                        </div>
+                    </div>
+                    <div class="stat-card cut">
+                        <div class="stat-icon"><i class="fa-solid fa-person-running"></i></div>
+                        <div class="stat-info">
+                            <h3>โดดเรียน</h3>
+                            <div class="stat-value" id="pct-cut">-%</div>
+                            <div class="stat-percentage" id="total-cut">- คน</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- การเลือกกรองระดับชั้นแสดงห้องเรียน -->
+                <div class="section-title-bar">
+                    <h2>สถานะการเช็คชื่อแยกแต่ละห้อง</h2>
+                    <div class="filter-pills" id="grade-filters">
+                        <button class="pill active" data-grade="ALL">ทั้งหมด</button>
+                        <button class="pill" data-grade="ม.1">ม.1</button>
+                        <button class="pill" data-grade="ม.2">ม.2</button>
+                        <button class="pill" data-grade="ม.4">ม.4</button>
+                        <button class="pill" data-grade="ม.6">ม.6</button>
+                    </div>
+                </div>
+
+                <!-- กริดรายการห้องเรียน -->
+                <div class="rooms-grid" id="rooms-list-container">
+                    <!-- สร้างไดนามิกจาก JS -->
+                </div>
+            </section>
+
+            <!-- SECTION 2: หน้าเช็คชื่อรายห้อง (Single-column layout) -->
+            <section id="view-attendance-check" class="content-view">
+                
+                <div class="view-header">
+                    <div>
+                        <h1 id="attendance-title">เช็คชื่อชั้น ม.1 ห้อง 1</h1>
+                        <div class="date-selector-container">
+                            <p class="current-date-display" id="attendance-date-display">-</p>
+                            <div class="date-picker-wrapper" title="คลิกเลือกวันที่">
+                                <i class="fa-solid fa-calendar-days date-picker-icon"></i>
+                                <input type="date" id="checking-date-picker" class="home-date-input">
+                            </div>
+                        </div>
+                    </div>
+                    <div id="attendance-holiday-badge" class="badge">กำลังตรวจสอบวันหยุด...</div>
+                </div>
+                
+                <!-- แถบเครื่องมือจัดการการเช็คชื่อ -->
+                <div class="attendance-toolbar" style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 15px; background: #fff; padding: 12px 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); margin-bottom: 20px; border: 1px solid #eee;">
+                    <div class="toolbar-left" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                        <button class="btn btn-secondary back-btn" id="btn-back-home" style="height: 38px; border-radius: 8px;">
+                            <i class="fa-solid fa-arrow-left"></i> กลับ
+                        </button>
+                    </div>
+                    <div class="toolbar-actions" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn btn-outline" id="btn-select-all-present" style="height: 38px; border-radius: 8px;">
+                            <i class="fa-solid fa-check-double"></i> "มา" ทั้งหมด
+                        </button>
+                        <button class="btn btn-primary" id="btn-preview-from-checking" style="height: 38px; border-radius: 8px;">
+                            <i class="fa-solid fa-file-lines"></i> สรุป
+                        </button>
+                    </div>
+                </div>
+
+                <!-- รายการเช็คชื่อแบบคอลัมน์เดี่ยว -->
+                <div class="attendance-list-wrapper">
+                    <div class="attendance-table-header">
+                        <div class="col-num txt-center">เลขที่</div>
+                        <div class="col-name">ชื่อ-นามสกุล</div>
+                        <div class="col-status-options txt-center">สถานะเข้าเรียน</div>
+                    </div>
+                    <div class="attendance-list-container" id="attendance-students-list">
+                        <!-- รายชื่อนักเรียนสร้างจาก JS -->
+                    </div>
+                </div>
+
+                <!-- ปุ่มลอยบันทึก (Floating Action Button - FAB) -->
+                <button class="fab-btn" id="btn-save-attendance" title="บันทึกการเช็คชื่อ">
+                    <i class="fa-solid fa-floppy-disk"></i>
+                </button>
+            </section>
+
+            <!-- SECTION 3: หน้าสถิติ (Statistics Dashboard) -->
+            <section id="view-stats" class="content-view">
+                <div class="view-header">
+                    <div>
+                        <h1>สรุปบันทึกการมาเรียนรายบุคคล</h1>
+                        <p>ตรวจสอบข้อมูลสะสมและประวัติการเช็คชื่อรายวัน</p>
+                    </div>
+                </div>
+
+                <!-- แผงกรองและแท็บ -->
+                <div class="filters-panel">
+                    <div class="tab-buttons" style="display: grid; grid-template-columns: 1fr 1fr; text-align: center; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px; padding: 4px; gap: 4px;">
+                        <button class="tab-btn active" id="tab-btn-accumulated" style="border-radius: 6px; padding: 10px;">สรุปเวลาเรียน</button>
+                        <button class="tab-btn" id="tab-btn-daily" style="border-radius: 6px; padding: 10px;">ตารางเวลาเรียน</button>
+                    </div>
+
+                    <div class="filters-row">
+                        <div class="filter-group">
+                            <label for="stats-month-select">เลือกเดือน</label>
+                            <select id="stats-month-select" class="form-control">
+                                <option value="ALL">รวมทั้งหมด</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="stats-room-select">เลือกห้องเรียน</label>
+                            <select id="stats-room-select" class="form-control">
+                                <option value="ALL">ทุกห้องเรียน</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="filters-checkbox-row">
+                        <span class="checkbox-group-label">แสดงคนที่มีสถานะอย่างน้อย 1 ครั้ง:</span>
+                        <div class="checkbox-wrapper">
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="chk-filter-present" checked>
+                                <span class="checkmark chk-present"></span> มา
+                            </label>
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="chk-filter-leave" checked>
+                                <span class="checkmark chk-leave"></span> ลา
+                            </label>
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="chk-filter-absent" checked>
+                                <span class="checkmark chk-absent"></span> ขาด
+                            </label>
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="chk-filter-late" checked>
+                                <span class="checkmark chk-late"></span> สาย
+                            </label>
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="chk-filter-cut" checked>
+                                <span class="checkmark chk-cut"></span> โดด
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-container">
+                    <!-- แท็บ A: สถิติสะสม -->
+                    <div class="tab-content active" id="tab-content-accumulated">
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>เลขที่</th>
+                                        <th class="col-id">รหัส นร</th>
+                                        <th>ชื่อ-สกุล</th>
+                                        <th>ห้อง</th>
+                                        <th class="txt-center">มา (ม)</th>
+                                        <th class="txt-center">ลา (ล)</th>
+                                        <th class="txt-center">ขาด (ข)</th>
+                                        <th class="txt-center">สาย (ส)</th>
+                                        <th class="txt-center">โดด (ด)</th>
+                                        <th class="txt-center">คิดเป็น %</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="stats-accumulated-tbody">
+                                    <!-- ข้อมูลจาก JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- แท็บ B: เช็คชื่อรายวัน (Daily Attendance Grid) -->
+                    <div class="tab-content" id="tab-content-daily">
+                        <p class="tab-info-text"><i class="fa-solid fa-info-circle"></i> ตารางแสดงข้อมูลเฉพาะห้องที่ระบุเท่านั้น กรุณาเลือกห้องเรียนเพื่อดูรายละเอียดแบบรายวัน</p>
+                        <div class="table-responsive grid-responsive">
+                            <table class="grid-table" id="stats-daily-grid-table">
+                                <!-- แสดงผลปฏิทินตารางจาก JS -->
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 4: หน้าบันทึกความประพฤติ (Discipline / Misconduct Log) -->
+            <section id="view-misconduct" class="content-view">
+                <div class="view-header">
+                    <div>
+                        <h1>บันทึกความประพฤติของนักเรียน</h1>
+                        <p>บันทึกการทำผิดระเบียบ สถานะการแก้ไข และการตรวจสอบความถูกต้อง</p>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <select id="misconduct-filter-select" class="form-control" style="width: 150px; padding: 8px;">
+                            <option value="ALL">ทั้งหมด</option>
+                            <option value="RESOLVED">แก้ไขแล้ว</option>
+                            <option value="UNRESOLVED">ยังไม่แก้ไข</option>
+                        </select>
+                        <button class="btn btn-danger" id="btn-open-add-misconduct">
+                            <i class="fa-solid fa-plus"></i> เพิ่มบันทึก
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th class="txt-center">สถานะ</th>
+                                <th class="txt-center">ลำดับ</th>
+                                <th class="txt-center">ชื่อ</th>
+                                <th class="txt-center">ชั้น</th>
+                                <th class="txt-center">วันที่</th>
+                                <th class="txt-center">ความผิด</th>
+                                <th class="txt-center">ผู้แจ้ง</th>
+                                <th class="txt-center">หมายเหตุ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="misconduct-table-tbody">
+                            <!-- ข้อมูลสร้างจาก JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- ==================== MODALS / POPUPS ==================== -->
+
+    <!-- 1. คีย์บอร์ดกดรหัส PIN 4 หลัก (หน้าจอเหมือนล็อคอินโทรศัพท์) -->
+    <div id="modal-pin" class="modal-overlay" style="z-index: 2000;">
+        <div class="pin-pad-container">
+            <h2 id="pin-modal-title">กรอกรหัสผ่าน PIN 4 หลัก</h2>
+            <p id="pin-modal-subtitle">เพื่อยืนยันตัวตนครูผู้บันทึกข้อมูล</p>
+            
+            <div class="pin-display">
+                <div class="pin-dot"></div>
+                <div class="pin-dot"></div>
+                <div class="pin-dot"></div>
+                <div class="pin-dot"></div>
+            </div>
+            
+            <p id="pin-error-message" class="error-text"></p>
+            
+            <div class="pin-keypad">
+                <button class="key-btn" data-key="1">1</button>
+                <button class="key-btn" data-key="2">2</button>
+                <button class="key-btn" data-key="3">3</button>
+                <button class="key-btn" data-key="4">4</button>
+                <button class="key-btn" data-key="5">5</button>
+                <button class="key-btn" data-key="6">6</button>
+                <button class="key-btn" data-key="7">7</button>
+                <button class="key-btn" data-key="8">8</button>
+                <button class="key-btn" data-key="9">9</button>
+                <button class="key-btn clear" data-key="clear"><i class="fa-solid fa-delete-left"></i></button>
+                <button class="key-btn" data-key="0">0</button>
+                <button class="key-btn cancel" data-key="cancel"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. ลงทะเบียนครูผู้ใช้งาน -->
+    <div id="modal-register" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2>ลงทะเบียนครูและผู้ใช้งานระบบ</h2>
+                <button class="modal-close-btn close-modal-trigger"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="reg-teacher-select">เลือกรายชื่อครู</label>
+                    <select id="reg-teacher-select" class="form-control">
+                        <option value="">-- กรุณาเลือก --</option>
+                        <!-- รายชื่อครูดึงจาก JS และมี เพิ่มครูใหม่ อยู่ล่างสุด -->
+                    </select>
+                </div>
+                
+                <div class="form-group hidden" id="reg-new-teacher-wrapper">
+                    <label for="reg-new-teacher-name">ชื่อ-นามสกุล ครูท่านใหม่</label>
+                    <input type="text" id="reg-new-teacher-name" class="form-control" placeholder="ระบุ ชื่อ และ นามสกุล">
+                </div>
+
+                <!-- เปลี่ยนจากรหัสครูเป็นกรอก PIN ตรงนี้เลย -->
+                <div class="form-group">
+                    <label for="reg-teacher-pin">ตั้งรหัส PIN 4 หลัก</label>
+                    <input type="text" id="reg-teacher-pin" class="form-control" placeholder="ตัวเลข 4 หลัก เช่น 1234" maxlength="4" pattern="[0-9]{4}">
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn btn-secondary close-modal-trigger">ยกเลิก</button>
+                    <button class="btn btn-primary" id="btn-submit-registration">บันทึกการลงทะเบียน</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. หน้าผู้ดูแลระบบ (Admin Panel) -->
+    <div id="modal-admin" class="modal-overlay">
+        <div class="modal-box admin-modal-box">
+            <div class="modal-header">
+                <h2>ระบบควบคุมสำหรับผู้ดูแลระบบ (Admin)</h2>
+                <button class="modal-close-btn close-modal-trigger"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="admin-tabs" style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+                    <button class="btn btn-sm btn-outline admin-tab-btn active" data-tab="holidays">วันหยุด</button>
+                    <button class="btn btn-sm btn-outline admin-tab-btn" data-tab="teachers">จัดการครู</button>
+                    <button class="btn btn-sm btn-outline admin-tab-btn" data-tab="settings">ตั้งค่าระบบ</button>
+                </div>
+                
+                <!-- แท็บ 1: จัดการวันหยุด -->
+                <div id="admin-content-holidays" class="admin-tab-content active">
+                    <!-- รายการวันหยุดที่มีในชีท -->
+                    <h4 style="margin-top: 10px; margin-bottom: 10px;">รายการวันหยุดปัจจุบัน</h4>
+                    <div class="holiday-list-container">
+                        <table class="min-table">
+                            <thead>
+                                <tr>
+                                    <th>วันที่</th>
+                                    <th>ชื่อวันหยุด</th>
+                                    <th class="txt-center">จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="holiday-list-tbody">
+                                <!-- ดึงรายการมาใส่โดย JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- ฟอร์มเพิ่มวันหยุด -->
+                    <h4 style="margin-top: 20px; margin-bottom: 10px;">เพิ่มวันหยุดใหม่</h4>
+                    <div class="holiday-form">
+                        <div class="form-group">
+                            <label for="holiday-date-input">วันที่หยุด</label>
+                            <input type="date" id="holiday-date-input" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="holiday-name-input">ชื่อวันหยุด / หมายเหตุ</label>
+                            <input type="text" id="holiday-name-input" class="form-control" placeholder="เช่น วันขึ้นปีใหม่, วันเข้าพรรษา">
+                        </div>
+                        <button class="btn btn-primary" id="btn-add-holiday" style="margin-top: 15px;">
+                            <i class="fa-solid fa-plus"></i> เพิ่มวันหยุด
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- แท็บ 2: จัดการครูผู้ใช้งาน -->
+                <div id="admin-content-teachers" class="admin-tab-content">
+                    <h4 style="margin-top: 10px; margin-bottom: 10px;">รายชื่อครูและสิทธิ์การใช้งาน</h4>
+                    <div class="table-responsive">
+                        <table class="min-table">
+                            <thead>
+                                <tr>
+                                    <th>ชื่อครู</th>
+                                    <th>รหัส PIN</th>
+                                    <th>บทบาทการใช้งาน</th>
+                                    <th class="txt-center">ลบครู</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-teacher-list-tbody">
+                                <!-- ดึงรายการครูมาเรนเดอร์โดย JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
+                        <span id="admin-teacher-unsaved-msg" style="color: #f57c00; font-size: 0.9rem; display: none;"><i class="fa-solid fa-circle-info"></i> มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก</span>
+                        <button class="btn btn-primary" id="btn-save-all-teachers" style="margin-left: auto;">
+                            <i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลครูทั้งหมด
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- แท็บ 3: ตั้งค่าระบบ -->
+                <div id="admin-content-settings" class="admin-tab-content">
+                    <h4 style="margin-top: 10px; margin-bottom: 10px;">ตั้งค่าลิงก์เชื่อมต่อ Google Sheet</h4>
+                    <div class="form-group">
+                        <label for="config-sheet-url">Google Sheet URL หรือ ID</label>
+                        <input type="text" id="config-sheet-url" class="form-control" placeholder="https://docs.google.com/spreadsheets/d/...">
+                        <p class="input-tip">โปรดตรวจสอบว่า Sheet ของคุณได้เปิดแชร์แบบ <strong>"ทุกคนที่มีลิงก์มีสิทธิ์อ่าน"</strong> เพื่อให้ดึงรายชื่อได้สำเร็จ</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="config-script-url">Google Apps Script Web App URL</label>
+                        <input type="text" id="config-script-url" class="form-control" placeholder="https://script.google.com/macros/s/.../exec">
+                        <p class="input-tip">URL ที่คุณได้จากการ Deploy แบบ Web App ในเมนู Apps Script เพื่อบันทึกข้อมูลเข้า Sheet</p>
+                    </div>
+                    
+                    <button class="btn btn-primary" id="btn-save-config" style="margin-top: 15px;">
+                        <i class="fa-solid fa-save"></i> บันทึกการตั้งค่า
+                    </button>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. หน้าจอพรีวิวแบบแยกชาย-หญิง หลังบันทึกเช็คชื่อเสร็จ -->
+    <div id="modal-preview-summary" class="modal-overlay">
+        <div class="modal-box preview-modal-box">
+            <div class="modal-header" style="border-bottom: none; padding-bottom: 0;">
+                <button class="modal-close-btn close-modal-trigger"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" style="padding: 0; overflow: auto; position: relative;">
+                
+                <!-- The area to be captured or viewed -->
+                <div id="preview-capture-area" style="padding: 12px; background: white; margin: 0 auto;">
+                    <div class="preview-meta">
+                        <img src="logo.png" alt="Logo" style="width: 56px; height: 56px; object-fit: contain; margin-bottom: 0px;">
+                        <h3 style="font-size: 18px; margin: 0 0 6px 0;">โรงเรียนซับบอนวิทยาคม</h3>
+                        <p style="font-size: 14px; margin: 0; color: var(--text-main); font-weight: 600;">
+                            บันทึกเวลาเรียน<span id="preview-room-title" style="padding-left: 4px; padding-right: 4px; font-weight: 700; display: inline; font-size: inherit; color: var(--primary-color);">ชั้น ม.1 ห้อง 1</span>
+                            <span id="preview-date-text" style="font-size: 14px; font-weight: 500; color: var(--text-muted); display: inline;">ประจำวันที่ -</span>
+                        </p>
+                    </div>
+
+                    <!-- บล็อกสรุปสถิติด่วน -->
+                    <div class="preview-stats-summary" id="preview-stats-counters">
+                        <!-- ยอดรวมสถานะด่วน -->
+                    </div>
+
+                    <!-- การแบ่งคอลัมน์ ชาย (ซ้าย) / หญิง (ขวา) -->
+                    <div class="gender-columns">
+                        <!-- คอลัมน์ชาย -->
+                        <div class="gender-column">
+                            <div class="column-title male-title"><i class="fa-solid fa-mars"></i> นักเรียนชาย</div>
+                            <div class="preview-students-list" id="preview-male-list">
+                                <!-- รายชื่อนักเรียนชายดึงจาก JS -->
+                            </div>
+                        </div>
+                        
+                        <!-- คอลัมน์หญิง -->
+                        <div class="gender-column">
+                            <div class="column-title female-title"><i class="fa-solid fa-venus"></i> นักเรียนหญิง</div>
+                            <div class="preview-students-list" id="preview-female-list">
+                                <!-- รายชื่อนักเรียนหญิงดึงจาก JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. บันทึกความประพฤติเพิ่มใหม่ -->
+    <div id="modal-add-misconduct" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2>บันทึกข้อมูลการกระทำความผิด</h2>
+                <button class="modal-close-btn close-modal-trigger"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="misconduct-date-input">วันที่เกิดเหตุ</label>
+                    <input type="date" id="misconduct-date-input" class="form-control">
+                </div>
+                
+                <div class="form-group">
+                    <label for="misconduct-student-select">เลือกนักเรียนที่ทำความผิด</label>
+                    <div class="searchable-select-container">
+                        <input type="text" id="misconduct-student-search" class="form-control" placeholder="พิมพ์ชื่อค้นหานักเรียน (เช่น ชาญปรีชา)..." autocomplete="off">
+                        <div class="search-results-dropdown" id="misconduct-student-dropdown">
+                            <!-- รายการค้นหา -->
+                        </div>
+                    </div>
+                    <div id="selected-student-display" class="selected-student-badge hidden">
+                        <span>นักเรียนที่เลือก: </span><strong>-</strong>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="misconduct-desc-input">รายละเอียดการทำผิดระเบียบ</label>
+                    <textarea id="misconduct-desc-input" class="form-control" rows="4" placeholder="ระบุการทำผิด เช่น โดดแถวเช้า, ทะเลาะวิวาท, แต่งกายผิดระเบียบ"></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn btn-secondary close-modal-trigger">ยกเลิก</button>
+                    <button class="btn btn-danger" id="btn-submit-misconduct">
+                        <i class="fa-solid fa-shield-halved"></i> บันทึกความประพฤติ
+                    </button>
+                </div>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. หน้าต่างแสดงรายละเอียดความประพฤติ (Misconduct Details) -->
+    <div id="modal-misconduct-details" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2>รายละเอียดการทำผิด</h2>
+                <button class="modal-close-btn close-modal-trigger"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-group" style="margin-bottom: 15px;">
+                    <p style="margin-bottom: 5px; color: var(--text-muted); font-size: 13px;">ข้อมูลนักเรียน</p>
+                    <p><strong id="detail-misconduct-student"></strong></p>
+                </div>
+                <div class="detail-group" style="margin-bottom: 15px;">
+                    <p style="margin-bottom: 5px; color: var(--text-muted); font-size: 13px;">วันที่เกิดเหตุ</p>
+                    <p id="detail-misconduct-date"></p>
+                </div>
+                <div class="detail-group" style="margin-bottom: 15px;">
+                    <p style="margin-bottom: 5px; color: var(--text-muted); font-size: 13px;">รายละเอียดการทำผิด</p>
+                    <div style="background-color: var(--bg-body); padding: 10px; border-radius: 8px;">
+                        <p id="detail-misconduct-desc" style="white-space: pre-wrap; margin: 0;"></p>
+                    </div>
+                </div>
+                <div class="detail-group" style="margin-bottom: 15px;">
+                    <p style="margin-bottom: 5px; color: var(--text-muted); font-size: 13px;">ผู้แจ้ง</p>
+                    <p id="detail-misconduct-reporter"></p>
+                </div>
+                <div class="detail-group" id="detail-misconduct-resolution-group" style="margin-bottom: 15px; display: none;">
+                    <p style="margin-bottom: 5px; color: var(--color-success); font-size: 13px; font-weight: 600;"><i class="fa-solid fa-circle-check"></i> รายละเอียดการแก้ไข</p>
+                    <div style="background-color: #f0fdf4; border-left: 4px solid var(--color-success); padding: 10px; border-radius: 0 8px 8px 0;">
+                        <p id="detail-misconduct-resolution" style="white-space: pre-wrap; margin: 0; color: #166534;"></p>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button class="btn btn-secondary close-modal-trigger">ปิด</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+
+    <!-- Custom Frontend JavaScript -->
+    <script src="app.js"></script>
+</body>
+</html>
