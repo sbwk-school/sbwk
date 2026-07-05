@@ -45,6 +45,13 @@ function loadConfig() {
     if (saved) {
         try {
             config = JSON.parse(saved);
+            
+            // นำค่าที่บันทึกไว้ไปแสดงในช่องกรอกของหน้าแอดมิน เพื่อไม่ให้ช่องว่างเปล่า
+            const sheetInput = document.getElementById("config-sheet-url");
+            const scriptInput = document.getElementById("config-script-url");
+            if (sheetInput) sheetInput.value = config.sheetUrl || "";
+            if (scriptInput) scriptInput.value = config.scriptUrl || "";
+            
         } catch (e) {
             console.error("โหลดตั้งค่าผิดพลาด", e);
         }
