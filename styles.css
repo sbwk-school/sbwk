@@ -1315,12 +1315,7 @@ textarea.form-control {
     padding-top: 12px;
 }
 
-@media (max-width: 576px) {
-    .gender-columns {
-        grid-template-columns: 1fr;
-        gap: 12px;
-    }
-}
+
 
 .gender-column {
     background-color: #f8fafc;
