@@ -1696,10 +1696,7 @@ textarea.form-control {
         text-align: center;
     }
     
-    .gender-columns {
-        grid-template-columns: 1fr;
-        gap: 15px;
-    }
+
     
     .tab-btn {
         padding: 10px 14px;
