@@ -1324,6 +1324,24 @@ textarea.form-control {
     border: 1px solid var(--border-color);
 }
 
+@media (max-width: 576px) {
+    /* ทำให้พรีวิวแคบลงพอดีกับจอมือถือโดยไม่ให้ข้อความตกบรรทัด */
+    .gender-columns {
+        gap: 6px;
+    }
+    .gender-column {
+        padding: 6px;
+    }
+    .preview-student-item {
+        padding: 4px;
+        font-size: 11px;
+    }
+    .preview-student-item span.p-status {
+        font-size: 9px;
+        padding: 2px 4px;
+    }
+}
+
 .column-title {
     font-weight: 700;
     font-size: 14px;
