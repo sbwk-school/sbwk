@@ -606,8 +606,8 @@ function showPreviewSummary() {
     
     document.getElementById("preview-room-title").innerText = `ชั้น ${grade} ห้อง ${room}`;
     
-    const today = new Date();
-    document.getElementById("preview-date-text").innerText = `ประจำวันที่ ${today.toLocaleDateString('th-TH', { dateStyle: 'long' })}`;
+    const checkDateObj = new Date(currentCheckingDate);
+    document.getElementById("preview-date-text").innerText = `ประจำวันที่ ${checkDateObj.toLocaleDateString('th-TH', { dateStyle: 'long' })}`;
     
     const summary = { Present: 0, Leave: 0, Absent: 0, Late: 0, Cut: 0 };
     attendanceRecords.forEach(r => {

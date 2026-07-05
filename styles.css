@@ -1621,7 +1621,11 @@ textarea.form-control {
     .main-content {
         margin-left: 0;
         padding: 20px;
-        padding-bottom: 90px;
+        padding-bottom: 170px; /* เพิ่มพื้นที่ด้านล่างเผื่อปุ่ม FAB จะได้ไม่บังรายชื่อสุดท้าย */
+    }
+    
+    .fab-btn {
+        bottom: 90px; /* ย้ายปุ่ม FAB ให้ลอยอยู่เหนือเมนูด้านล่างบนมือถือ */
     }
     
     .view-header {
