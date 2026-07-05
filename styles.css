@@ -1286,7 +1286,12 @@ textarea.form-control {
 
 /* ==================== PREVIEW MODAL (2 COLUMNS) ==================== */
 .preview-modal-box {
-    max-width: 640px;
+    max-width: 680px;
+}
+
+#preview-capture-area {
+    /* ล็อคความกว้างให้คงที่เสมอ เพื่อให้รูปที่บันทึกออกมาไม่ตกบรรทัด */
+    min-width: 640px; 
 }
 
 .preview-meta {
@@ -1324,23 +1329,7 @@ textarea.form-control {
     border: 1px solid var(--border-color);
 }
 
-@media (max-width: 576px) {
-    /* ทำให้พรีวิวแคบลงพอดีกับจอมือถือโดยไม่ให้ข้อความตกบรรทัด */
-    .gender-columns {
-        gap: 6px;
-    }
-    .gender-column {
-        padding: 6px;
-    }
-    .preview-student-item {
-        padding: 4px;
-        font-size: 11px;
-    }
-    .preview-student-item span.p-status {
-        font-size: 9px;
-        padding: 2px 4px;
-    }
-}
+
 
 .column-title {
     font-weight: 700;
