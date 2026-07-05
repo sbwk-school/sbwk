@@ -1193,13 +1193,15 @@ textarea.form-control {
 
 /* ==================== PIN KEYPAD DESIGN ==================== */
 .pin-pad-container {
-    background-color: var(--bg-card);
-    border-radius: var(--radius-lg);
+    background-color: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-radius: 24px;
     padding: 30px;
     width: 320px;
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.6);
     text-align: center;
-    border: 1px solid var(--border-color);
+    border: 1px solid rgba(255, 255, 255, 0.6);
 }
 
 .pin-pad-container h2 {

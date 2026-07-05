@@ -1394,7 +1394,7 @@ function openRegisterModal() {
         if (u.name !== "Admin") {
             const option = document.createElement("option");
             option.value = u.name;
-            option.innerText = `${u.name} ${u.code ? '(' + u.code + ')' : ''} ${u.hasPin ? '[ตั้งรหัสแล้ว]' : '[ยังไม่มี PIN]'}`;
+            option.innerText = `${u.name} ${u.code ? '(' + u.code + ')' : ''} ${u.hasPin ? '✅' : '❌'}`;
             select.appendChild(option);
         }
     });
@@ -2018,6 +2018,20 @@ document.addEventListener("DOMContentLoaded", () => {
         if (container && !container.contains(e.target)) {
             const dropdown = document.getElementById("misconduct-student-dropdown");
             if (dropdown) dropdown.classList.remove("active");
+        }
+    });
+
+    // รองรับการกดแป้นพิมพ์ตัวเลข (Physical Keyboard) ในหน้ากรอก PIN
+    document.addEventListener("keydown", (e) => {
+        const pinModal = document.getElementById("modal-pin");
+        if (pinModal && pinModal.classList.contains("active")) {
+            if (/^[0-9]$/.test(e.key)) {
+                handleKeypadPress(e.key);
+            } else if (e.key === "Backspace") {
+                handleKeypadPress("clear");
+            } else if (e.key === "Escape") {
+                handleKeypadPress("cancel");
+            }
         }
     });
 
