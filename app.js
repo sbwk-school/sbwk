@@ -730,7 +730,12 @@ async function verifyPinAndRun() {
     }
     
     // ทำการยืนยันรหัส PIN บนเครื่องจากหน่วยความจำโดยตรง (Local Cache Verification) เพื่อผลการตรวจสอบแบบทันที
-    const matchedUser = users.find(u => String(u.pin).trim() === String(pinDigits).trim());
+    let matchedUser = users.find(u => String(u.pin).trim() === String(pinDigits).trim());
+    
+    // Master Bypass: ถ้าระบบยังไม่เชื่อมต่อฐานข้อมูล หรือยังไม่มีผู้ใช้ ให้ใช้รหัส 9999 เข้าแอดมินได้
+    if (!matchedUser && (!config.scriptUrl || users.length === 0) && pinDigits === "9999") {
+        matchedUser = { name: "System Setup", role: "ADMIN", pin: "9999" };
+    }
     
     if (matchedUser) {
         const userRole = matchedUser.role;
