@@ -365,19 +365,28 @@ function renderRooms() {
         if (todayLogs[key]) gradeStats[roomInfo.grade].checked++;
     });
 
-    document.querySelectorAll('#grade-filters .pill').forEach(pill => {
-        const grade = pill.getAttribute('data-grade');
-        if (grade !== 'ALL' && gradeStats[grade]) {
-            if (gradeStats[grade].checked === gradeStats[grade].total && gradeStats[grade].total > 0) {
-                pill.style.backgroundColor = 'var(--color-present)';
-                pill.style.color = '#fff';
-                pill.innerHTML = `<i class="fa-solid fa-check"></i> ${grade}`;
-            } else {
-                pill.style.backgroundColor = '';
-                pill.style.color = '';
-                pill.innerHTML = grade;
-            }
+    const gradeFiltersContainer = document.getElementById("grade-filters");
+    gradeFiltersContainer.innerHTML = `<button class="pill ${activeGradeFilter === 'ALL' ? 'active' : ''}" data-grade="ALL">ทั้งหมด</button>`;
+    
+    const uniqueGrades = Object.keys(gradeStats).sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
+    
+    uniqueGrades.forEach(grade => {
+        const isCheckedAll = (gradeStats[grade].checked === gradeStats[grade].total && gradeStats[grade].total > 0);
+        const isActive = activeGradeFilter === grade;
+        
+        const pill = document.createElement("button");
+        pill.className = `pill ${isActive ? 'active' : ''}`;
+        pill.setAttribute("data-grade", grade);
+        
+        if (isCheckedAll) {
+            pill.style.backgroundColor = 'var(--color-present)';
+            pill.style.color = '#fff';
+            pill.innerHTML = `<i class="fa-solid fa-check"></i> ${grade}`;
+        } else {
+            pill.innerHTML = grade;
         }
+        
+        gradeFiltersContainer.appendChild(pill);
     });
     
     sortedRoomKeys.forEach(key => {
