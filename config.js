@@ -1,13 +1,19 @@
 // ==========================================
 // ไฟล์ตั้งค่าระบบเช็คชื่อ (Configuration)
 // ==========================================
-// คุณครูสามารถนำลิงก์มาวางในเครื่องหมายคำพูด (Quotes) ด้านล่างได้เลยครับ
-// หากมีการเปลี่ยนลิงก์ในอนาคต ให้มาแก้ที่ไฟล์นี้ไฟล์เดียวครับ
+// คุณครูสามารถกำหนดลิงก์ข้อมูลและค่าคงที่พื้นฐานของโรงเรียนได้ที่นี่ครับ
+// ระบบหน้าเว็บจะดึงข้อมูลจากไฟล์นี้ไปแสดงผลโดยอัตโนมัติ
 
 const GLOBAL_CONFIG = {
     // 1. ลิงก์ Apps Script (ลงท้ายด้วย /exec)
-    scriptUrl: "https://script.google.com/macros/s/AKfycbxsl6ZvqZHNbCgriARy6e3R-jaCYkwv5ARmqrit4Ssf17A7uK5AfF7HkIYOwo5szIUB7Q/exec",
+    scriptUrl: "https://script.google.com/macros/s/AKfycbxQW8KyjjsI9Vx8lH2Y5lxlTLtj6eriNZoSPLk4XaYRGdPr138MgoWZPqPWrO7vXLrX/exec",
     
     // 2. ลิงก์ Google Sheet (เอาไว้เป็นข้อมูลอ้างอิง)
-    sheetUrl: "https://docs.google.com/spreadsheets/d/1TY5QNusQpKayPX8MZXFvUcx--bae7B5Wty38FfzbW90/edit?usp=sharing"
+    sheetUrl: "https://docs.google.com/spreadsheets/d/1caozfZoNBlgZPmvUMnggb7DuRgoB4IsPSslt7XgYPTk/edit?usp=sharing",
+
+    // 3. ข้อมูลพื้นฐานของโรงเรียน (ปรับเปลี่ยนตามปีการศึกษา/ภาคเรียนจริง)
+    schoolName: "โรงเรียนซับบอนวิทยาคม",
+    workGroup: "กลุ่มงานบริหารทั่วไป",
+    semester: "ภาคเรียนที่ 1",
+    academicYear: "ปีการศึกษา 2569"
 };

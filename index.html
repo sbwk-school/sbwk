@@ -35,8 +35,8 @@
                     <img src="logo.png" alt="Logo">
                 </div>
                 <div class="logo-text">
-                    <h2 style="font-size: 15px; white-space: nowrap;">โรงเรียนซับบอนวิทยาคม</h2>
-                    <span>กลุ่มงานบริหารทั่วไป</span>
+                    <h2 style="font-size: 15px; white-space: nowrap;" id="sidebar-school-name">โรงเรียนซับบอนวิทยาคม</h2>
+                    <span id="sidebar-work-group">กลุ่มงานบริหารทั่วไป</span>
                 </div>
             </div>
             
@@ -131,11 +131,17 @@
                     </div>
                 </div>
 
-                <!-- การเลือกกรองระดับชั้นแสดงห้องเรียน -->
-                <div class="section-title-bar">
+                <!-- การเลือกกรองระดับชั้นและสถานะแสดงห้องเรียน -->
+                <div class="section-title-bar" style="flex-wrap: wrap; gap: 15px;">
                     <h2>สถานะการเช็คชื่อแยกแต่ละห้อง</h2>
-                    <div class="filter-pills" id="grade-filters">
-                        <!-- ปุ่มกรองระดับชั้นจะถูกสร้างอัตโนมัติจาก app.js -->
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+                        <div class="filter-pills" id="status-filters">
+                            <!-- ปุ่มกรองสถานะจะถูกสร้างและจัดการจาก app.js -->
+                        </div>
+                        <div style="height: 24px; width: 1px; background-color: var(--border-color); display: inline-block;"></div>
+                        <div class="filter-pills" id="grade-filters">
+                            <!-- ปุ่มกรองระดับชั้นจะถูกสร้างอัตโนมัติจาก app.js -->
+                        </div>
                     </div>
                 </div>
 
@@ -415,7 +421,7 @@
                 <div class="admin-tabs" style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
                     <button class="btn btn-sm btn-outline admin-tab-btn active" data-tab="holidays">วันหยุด</button>
                     <button class="btn btn-sm btn-outline admin-tab-btn" data-tab="teachers">จัดการครู</button>
-                    <button class="btn btn-sm btn-outline admin-tab-btn" data-tab="settings">ตั้งค่าระบบ</button>
+                    <button class="btn btn-sm btn-outline admin-tab-btn" data-tab="maintenance">จัดการระบบ</button>
                 </div>
                 
                 <!-- แท็บ 1: จัดการวันหยุด -->
@@ -480,23 +486,13 @@
                     </div>
                 </div>
                 
-                <!-- แท็บ 3: ตั้งค่าระบบ -->
-                <div id="admin-content-settings" class="admin-tab-content">
-                    <h4 style="margin-top: 10px; margin-bottom: 10px;">ตั้งค่าลิงก์เชื่อมต่อ Google Sheet</h4>
-                    <div class="form-group">
-                        <label for="config-sheet-url">Google Sheet URL หรือ ID</label>
-                        <input type="text" id="config-sheet-url" class="form-control" placeholder="https://docs.google.com/spreadsheets/d/...">
-                        <p class="input-tip">โปรดตรวจสอบว่า Sheet ของคุณได้เปิดแชร์แบบ <strong>"ทุกคนที่มีลิงก์มีสิทธิ์อ่าน"</strong> เพื่อให้ดึงรายชื่อได้สำเร็จ</p>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="config-script-url">Google Apps Script Web App URL</label>
-                        <input type="text" id="config-script-url" class="form-control" placeholder="https://script.google.com/macros/s/.../exec">
-                        <p class="input-tip">URL ที่คุณได้จากการ Deploy แบบ Web App ในเมนู Apps Script เพื่อบันทึกข้อมูลเข้า Sheet</p>
-                    </div>
+                <!-- แท็บ 3: จัดการระบบ -->
+                <div id="admin-content-maintenance" class="admin-tab-content">
+                    <h4 style="margin-top: 10px; margin-bottom: 10px; color: var(--color-danger);">ล้างข้อมูลเพื่อเริ่มเทอมใหม่</h4>
+                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">การล้างข้อมูลนี้จะลบ **บันทึกเวลาเรียน** ทั้งหมดในชีทออก โดยจะเหลือไว้เพียงแถวหัวข้อตาราง เพื่อให้พร้อมใช้งานสำหรับเทอมใหม่ (ข้อมูลรายชื่อนักเรียน ครู และวันหยุดจะไม่ถูกลบ)</p>
                     
-                    <button class="btn btn-primary" id="btn-save-config" style="margin-top: 15px;">
-                        <i class="fa-solid fa-save"></i> บันทึกการตั้งค่า
+                    <button class="btn btn-danger" id="btn-clear-attendance" style="background-color: var(--color-danger); border: none; margin-top: 10px;">
+                        <i class="fa-solid fa-trash-can"></i> ล้างประวัติเวลาเรียนทั้งหมด
                     </button>
                 </div>
                 
@@ -516,10 +512,13 @@
                 <div id="preview-capture-area" style="padding: 12px; background: white; margin: 0 auto;">
                     <div class="preview-meta">
                         <img src="logo.png" alt="Logo" style="width: 56px; height: 56px; object-fit: contain; margin-bottom: 0px;">
-                        <h3 style="font-size: 18px; margin: 0 0 6px 0;">โรงเรียนซับบอนวิทยาคม</h3>
-                        <p style="font-size: 14px; margin: 0; color: var(--text-main); font-weight: 600; white-space: nowrap;">
+                        <h3 style="font-size: 18px; margin: 0 0 6px 0;" id="preview-school-name">โรงเรียนซับบอนวิทยาคม</h3>
+                        <p style="font-size: 14px; margin: 0 0 4px 0; color: var(--text-main); font-weight: 600; white-space: nowrap;">
                             บันทึกเวลาเรียน<span id="preview-room-title" style="padding-left: 4px; padding-right: 4px; font-weight: 700; display: inline; font-size: inherit; color: var(--primary-color);">ชั้น ม.1 ห้อง 1</span>
                             <span id="preview-date-text" style="font-size: 14px; font-weight: 500; color: var(--text-muted); display: inline;">ประจำวันที่ -</span>
+                        </p>
+                        <p style="font-size: 12px; margin: 0; color: var(--text-muted); font-weight: 500;">
+                            <span id="preview-semester">ภาคเรียนที่ -</span> | <span id="preview-academic-year">ปีการศึกษา -</span>
                         </p>
                     </div>
 
@@ -634,8 +633,60 @@
         </div>
     </div>
 
+    <!-- 5. หน้าต่างยืนยันการล้างข้อมูลแบบสวยงาม (Custom Confirm Modal) -->
+    <div id="modal-confirm-clear" class="modal-overlay" style="z-index: 2500;">
+        <div class="modal-box confirmation-modal-box" style="max-width: 400px; text-align: center; padding: 25px; border-radius: var(--radius-lg); background: var(--bg-card); box-shadow: var(--shadow-lg);">
+            <div style="font-size: 3.5rem; color: var(--color-danger); margin-bottom: 15px; animation: pulse 2s infinite;">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h2 style="color: var(--text-main); font-size: 1.4rem; margin-bottom: 10px; font-weight: 700;">ยืนยันการล้างข้อมูลเวลาเรียน?</h2>
+            <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 25px;">
+                คำเตือน: ระบบจะทำการลบประวัติการบันทึกเวลาเรียนทั้งหมดในชีทออกอย่างถาวร การกระทำนี้ไม่สามารถย้อนกลับได้
+            </p>
+            <div class="form-actions" style="justify-content: center; gap: 15px; display: flex; width: 100%;">
+                <button class="btn btn-secondary" id="btn-cancel-clear-modal" style="padding: 10px 20px; flex: 1;">ยกเลิก</button>
+                <button class="btn btn-danger" id="btn-confirm-clear-modal" style="background-color: var(--color-danger); border: none; padding: 10px 20px; flex: 1; color: white; border-radius: var(--radius-md); font-weight: 600;">ยืนยันล้างข้อมูล</button>
+            </div>
+        </div>
+    </div>
 
+    <!-- 6. หน้าต่างกรอกการแก้ไขความประพฤติและยกเลิกสถานะแบบสวยงาม (Custom Misconduct Resolve Modal) -->
+    <div id="modal-misconduct-resolve" class="modal-overlay" style="z-index: 2400;">
+        <div class="modal-box" style="max-width: 400px; padding: 25px; border-radius: var(--radius-lg); background: var(--bg-card); box-shadow: var(--shadow-lg);">
+            <h2 id="misconduct-resolve-title" style="color: var(--text-main); font-size: 1.3rem; margin-bottom: 15px; font-weight: 700;">บันทึกการแก้ไขความประพฤติ</h2>
+            
+            <div id="misconduct-resolve-input-group" class="form-group" style="margin-bottom: 20px;">
+                <label for="misconduct-resolution-input" style="font-size: 0.9rem; color: var(--text-muted); display: block; margin-bottom: 8px;">ระบุรายละเอียดการแก้ไข (เช่น บำเพ็ญประโยชน์, พบผู้ปกครอง)</label>
+                <textarea id="misconduct-resolution-input" class="form-control" rows="3" placeholder="ตัวอย่าง: บำเพ็ญประโยชน์ทำความสะอาดห้องเรียน" style="width: 100%; border-radius: var(--radius-md); padding: 8px; border: 1px solid var(--border-color);"></textarea>
+            </div>
+            
+            <p id="misconduct-resolve-confirm-text" style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 20px; display: none;">
+                คุณแน่ใจหรือไม่ว่าต้องการยกเลิกสถานะการแก้ไขความประพฤติของนักเรียนท่านนี้?
+            </p>
+            
+            <div class="form-actions" style="justify-content: flex-end; gap: 10px; display: flex; width: 100%;">
+                <button class="btn btn-secondary" id="btn-cancel-misconduct-resolve" style="padding: 10px 15px;">ยกเลิก</button>
+                <button class="btn btn-primary" id="btn-submit-misconduct-resolve" style="padding: 10px 15px; font-weight: 600;">ตกลง</button>
+            </div>
+        </div>
+    </div>
 
+    <!-- 7. หน้าต่างยืนยันการลบครูผู้ใช้แบบสวยงาม (Custom Delete User Confirm Modal) -->
+    <div id="modal-confirm-delete-user" class="modal-overlay" style="z-index: 2500;">
+        <div class="modal-box confirmation-modal-box" style="max-width: 400px; text-align: center; padding: 25px; border-radius: var(--radius-lg); background: var(--bg-card); box-shadow: var(--shadow-lg);">
+            <div style="font-size: 3.5rem; color: var(--color-danger); margin-bottom: 15px; animation: pulse 2s infinite;">
+                <i class="fa-solid fa-user-minus"></i>
+            </div>
+            <h2 style="color: var(--text-main); font-size: 1.4rem; margin-bottom: 10px; font-weight: 700;">ลบบัญชีผู้ใช้ครู?</h2>
+            <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 25px;">
+                คุณแน่ใจหรือไม่ว่าต้องการลบบัญชีผู้ใช้ของครู <strong id="delete-user-target-name" style="color: var(--color-danger);"></strong> ออกจากระบบ? การกระทำนี้ไม่สามารถย้อนกลับได้
+            </p>
+            <div class="form-actions" style="justify-content: center; gap: 15px; display: flex; width: 100%;">
+                <button class="btn btn-secondary" id="btn-cancel-delete-user-modal" style="padding: 10px 20px; flex: 1;">ยกเลิก</button>
+                <button class="btn btn-danger" id="btn-confirm-delete-user-modal" style="background-color: var(--color-danger); border: none; padding: 10px 20px; flex: 1; color: white; border-radius: var(--radius-md); font-weight: 600;">ยืนยันการลบ</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Custom Frontend JavaScript -->
     <script src="config.js"></script>
