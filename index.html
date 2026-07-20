@@ -11,8 +11,48 @@
     <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://kit.fontawesome.com/60907d6a5f.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <!-- Flatpickr Date Picker CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <!-- Custom Style Sheet -->
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=update42">
+    
+    <!-- CSS สำหรับควบคุมการปริ้นท์ให้สวยงามและสัดส่วนเป๊ะบนกระดาษ A4 -->
+    <style>
+        @media print {
+            @page {
+                size: A4 portrait;
+                /* การตั้ง margin เป็น 0 จะบังคับให้เบราว์เซอร์ไม่พิมพ์ Header/Footer (วันที่, ลิงก์) อัตโนมัติ */
+                margin: 0; 
+            }
+            body {
+                background: white !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            
+            /* ซ่อนสิ่งที่อาจจะหลงเหลือใน body */
+            #toast-container, .app-container, .fullscreen-overlay, .modal-overlay {
+                display: none !important;
+            }
+        }
+
+        /* เอา CSS ของ .print-only-wrapper ออกมาจาก @media print เพื่อให้มีผลในหน้าต่าง Preview บนจอด้วย */
+        .print-only-wrapper {
+            width: 100%;
+            max-width: 100%;
+            font-family: 'Sarabun', sans-serif !important;
+            font-size: 11pt !important;
+            font-weight: 300 !important;
+            line-height: 1.8 !important; /* MS Word 1.5 spacing is roughly 1.8 in CSS */
+            color: black !important;
+            background: white !important;
+            /* ขอบบน 1cm, ขวา-ล่าง-ซ้าย 2.54cm ตามที่ผู้ใช้ต้องการ */
+            padding: 1cm 2.54cm 2.54cm 2.54cm;
+            box-sizing: border-box;
+        }
+    </style>
 </head>
 <body>
 
@@ -27,17 +67,97 @@
     <!-- หน้าต่างการแจ้งเตือนแบบ Toast -->
     <div id="toast-container"></div>
 
+    <!-- App Header -->
+    <header class="app-header">
+        <div class="header-left">
+            <div class="header-logo">
+                <img src="logo.png" alt="Logo">
+            </div>
+            <div class="header-titles">
+                <span class="header-title" id="header-school-name">โรงเรียน...</span>
+                <span class="header-divider">/</span>
+                <span class="header-subtitle" id="header-page-title">หน้าแรก</span>
+            </div>
+        </div>
+        
+        <!-- User Session Banner inside header (Moved back to top) -->
+        <div id="user-session-banner" class="header-session">
+            <span id="session-logged-out" style="display: flex; align-items: center;">
+                <i class="fa-solid fa-user-circle" style="color: var(--text-muted); margin-right: 4px; font-size: 16px;"></i> 
+                <button onclick="requestLogin()" style="background: none; border: none; color: var(--color-primary); cursor: pointer; font-size: inherit; font-weight: bold; text-decoration: underline; padding: 0;">เข้าสู่ระบบ</button>
+            </span>
+            <span id="session-logged-in" style="display: none; align-items: center;">
+                <i class="fa-solid fa-user-circle" style="color: var(--color-primary); margin-right: 4px; font-size: 16px;"></i> 
+                <span style="color: var(--text-main);">ผู้ใช้งาน: <b id="user-session-name" style="margin-right: 8px;"></b></span>
+                <button onclick="logout()" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: inherit; text-decoration: underline; padding: 0;">ออกจากระบบ</button>
+            </span>
+        </div>
+    </header>
+
+    <!-- Sidebar Backdrop for Mobile/Desktop menu -->
+    <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
+
+    <!-- macOS Style Floating Dock (Liquid Glass) -->
+    <div class="mac-dock">
+        <button class="dock-item" id="shortcut-back" title="ย้อนกลับ" style="display: none; color: var(--color-danger);">
+            <i class="fa-solid fa-arrow-left"></i>
+            <span class="dock-tooltip">ย้อนกลับ</span>
+            <span class="active-dot"></span>
+        </button>
+        <div class="dock-separator" id="mobile-back-separator" style="display: none;"></div>
+        
+        <!-- Start Menu Toggle (Mac Logo style / School Logo) -->
+        <button id="start-menu-btn" class="dock-item start-dock-btn" title="เมนูหลัก">
+            <img src="logo.png" alt="Logo">
+            <span class="start-btn-text">เมนู</span>
+            <span class="active-dot"></span>
+        </button>
+        
+        <div class="dock-separator"></div>
+        
+        <!-- Shortcuts -->
+        <button class="dock-item active" id="shortcut-home" title="หน้าแรก">
+            <i class="fa-solid fa-house"></i>
+            <span class="dock-tooltip">หน้าแรก</span>
+            <span class="active-dot"></span>
+        </button>
+        <button class="dock-item" id="shortcut-stats" title="สถิติเข้าเรียน">
+            <i class="fa-solid fa-chart-simple"></i>
+            <span class="dock-tooltip">สถิติ</span>
+            <span class="active-dot"></span>
+        </button>
+        <button class="dock-item" id="shortcut-misconduct" title="แจ้งพฤติกรรมนักเรียน">
+            <i class="fa-solid fa-file-pen"></i>
+            <span class="dock-tooltip">แจ้งพฤติกรรม</span>
+            <span class="active-dot"></span>
+        </button>
+        <button class="dock-item" id="shortcut-at-risk" title="ติดตามนักเรียน">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span class="dock-tooltip">ติดตามเด็ก</span>
+            <span class="active-dot"></span>
+        </button>
+        <button class="dock-item" id="shortcut-admin" title="ผู้ดูแลระบบ (Admin)">
+            <i class="fa-solid fa-lock"></i>
+            <span class="dock-tooltip">แอดมิน</span>
+        </button>
+    </div>
+    
     <div class="app-container">
-        <!-- 1. แถบเมนูด้านซ้าย (Sidebar) -->
+        <!-- 1. แถบเมนูด้านซ้าย (Sidebar) / ตอนนี้เปลี่ยนเป็น Start Menu -->
         <aside class="sidebar">
             <div class="sidebar-header">
-                <div class="logo-icon" style="background: transparent; box-shadow: none;">
-                    <img src="logo.png" alt="Logo">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="logo-icon">
+                        <img src="logo.png" alt="Logo">
+                    </div>
+                    <div class="logo-text">
+                        <h2 style="font-size: 14px; white-space: nowrap;" id="sidebar-school-name">โรงเรียนซับบอนวิทยาคม</h2>
+                        <span id="sidebar-work-group">กลุ่มงานบริหารทั่วไป</span>
+                    </div>
                 </div>
-                <div class="logo-text">
-                    <h2 style="font-size: 15px; white-space: nowrap;" id="sidebar-school-name">โรงเรียนซับบอนวิทยาคม</h2>
-                    <span id="sidebar-work-group">กลุ่มงานบริหารทั่วไป</span>
-                </div>
+                <button id="mobile-sidebar-close" style="display: none; background: none; border: none; color: #475569; font-size: 20px; cursor: pointer; padding: 0; margin-left: 10px;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
             </div>
             
             <nav class="sidebar-menu">
@@ -50,17 +170,28 @@
                     <span>สถิติเข้าเรียน</span>
                 </a>
                 <a href="#" class="menu-item" id="menu-misconduct">
-                    <i class="fa-solid fa-shield-halved"></i>
-                    <span>บันทึกความประพฤติ</span>
+                    <i class="fa-solid fa-file-pen"></i>
+                    <span>แจ้งพฤติกรรมนักเรียน</span>
                 </a>
+                <!-- กลุ่มงานกิจการนักเรียน (แบบมี Sub-menu) -->
+                <div class="menu-accordion">
+                    <div class="menu-item menu-accordion-header" id="menu-group-student-affairs" onclick="toggleSubMenu(this)">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <span>งานกิจการนักเรียน</span>
+                        <i class="fa-solid fa-chevron-down menu-chevron" style="margin-left: auto; transition: transform 0.3s;"></i>
+                    </div>
+                    <div class="menu-sub-items" style="display: none; background: rgba(0,0,0,0.15); padding-left: 10px;">
+                        <a href="#" class="menu-item" id="menu-at-risk" style="padding-left: 45px; font-size: 0.9em; color: var(--color-absent);">
+                            <i class="fa-solid fa-triangle-exclamation" style="font-size: 0.9em;"></i> ติดตามนักเรียน 
+                            <span id="at-risk-badge" class="badge" style="background: var(--color-absent); display: none; padding: 2px 6px; font-size: 10px;">0</span>
+                        </a>
+                    </div>
+                </div>
                 <div class="menu-separator"></div>
             </nav>
 
             <div class="sidebar-footer">
-                <a href="#" class="menu-item" id="menu-register">
-                    <i class="fa-solid fa-user-plus"></i>
-                    <span>ลงทะเบียนครู</span>
-                </a>
+
                 <a href="#" class="menu-item" id="menu-admin">
                     <i class="fa-solid fa-lock"></i>
                     <span>ผู้ดูแลระบบ (Admin)</span>
@@ -71,65 +202,115 @@
         <!-- 2. พื้นที่แสดงผลด้านขวา (Main Content) -->
         <main class="main-content">
             
+            <!-- User Session Banner has been moved to App Header -->
+            
             <!-- SECTION 1: หน้าแรก (Home Dashboard) -->
             <section id="view-home" class="content-view active">
-                <div class="view-header">
-                    <div>
-                        <h1>สรุปบันทึกการมาเรียน</h1>
-                        <div class="date-selector-container">
-                            <p class="current-date-display" id="home-date-display">-</p>
-                            <div class="date-picker-wrapper" title="คลิกเลือกวันที่">
-                                <i class="fa-solid fa-calendar-days date-picker-icon"></i>
-                                <input type="date" id="home-date-picker" class="home-date-input">
+                <div class="view-header" style="margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; width: 100%;">
+                        <h1 style="margin: 0; font-size: clamp(18px, 4vw, 26px); white-space: nowrap;">สรุปบันทึกการมาเรียน</h1>
+                        <!-- Interactive Custom Date Pill -->
+                        <div class="interactive-date-pill" id="home-date-pill" data-tooltip="คลิกเพื่อเปลี่ยนวันที่" style="margin-top: 0; flex-shrink: 0;">
+                            <div class="date-icon"><i class="fa-solid fa-calendar-day"></i></div>
+                            <div class="date-text">
+                                <strong id="home-date-display" style="font-size: clamp(12px, 3.5vw, 14px); white-space: nowrap;">-</strong>
+                            </div>
+                            <!-- Flatpickr will attach to this hidden input -->
+                            <input type="text" id="home-date-picker" class="hidden-date-input">
+                        </div>
+                    </div>
+                </div>
+
+
+
+                <div class="home-dashboard-layout">
+                <!-- สรุปสถิติ 5 สถานะ (มา, ลา, ขาด, สาย, โดด) -->
+                <div class="summary-cards">
+                    <div class="summary-card present" id="summary-card-present">
+                        <div class="mini-water-jar">
+                            <div class="mini-water-wave present" id="wave-present"></div>
+                            <span class="mini-water-text" id="pct-present">0%</span>
+                        </div>
+                        <div class="summary-details">
+                            <h3>มาเรียน</h3>
+                            <div class="summary-numbers">
+                                <span class="summary-value" id="total-present">-</span>
+                                <span class="summary-label">คน</span>
                             </div>
                         </div>
                     </div>
-                    <div id="holiday-status-badge" class="badge">กำลังตรวจสอบวันหยุด...</div>
-                </div>
-
-                <!-- การ์ด 5 บล็อกแสดงผลเปอร์เซ็นต์/จำนวนรวม (ปรับสลับ เปอร์เซ็นต์ตัวใหญ่ จำนวนตัวเล็ก) -->
-                <div class="stats-grid">
-                    <div class="stat-card present">
-                        <div class="stat-icon"><i class="fa-solid fa-circle-check"></i></div>
-                        <div class="stat-info">
-                            <h3>มาเรียน</h3>
-                            <div class="stat-value" id="pct-present">-%</div>
-                            <div class="stat-percentage" id="total-present">- คน</div>
+                    
+                    <div class="summary-card absent" id="summary-card-absent">
+                        <div class="mini-water-jar">
+                            <div class="mini-water-wave absent" id="wave-absent"></div>
+                            <span class="mini-water-text" id="pct-absent">0%</span>
                         </div>
-                    </div>
-                    <div class="stat-card leave">
-                        <div class="stat-icon"><i class="fa-solid fa-envelope"></i></div>
-                        <div class="stat-info">
-                            <h3>ลา</h3>
-                            <div class="stat-value" id="pct-leave">-%</div>
-                            <div class="stat-percentage" id="total-leave">- คน</div>
-                        </div>
-                    </div>
-                    <div class="stat-card absent">
-                        <div class="stat-icon"><i class="fa-solid fa-circle-xmark"></i></div>
-                        <div class="stat-info">
+                        <div class="summary-details">
                             <h3>ขาด</h3>
-                            <div class="stat-value" id="pct-absent">-%</div>
-                            <div class="stat-percentage" id="total-absent">- คน</div>
+                            <div class="summary-numbers">
+                                <span class="summary-value" id="total-absent">-</span>
+                                <span class="summary-label">คน</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="stat-card late">
-                        <div class="stat-icon"><i class="fa-solid fa-clock"></i></div>
-                        <div class="stat-info">
+                    
+                    <div class="summary-card late" id="summary-card-late">
+                        <div class="mini-water-jar">
+                            <div class="mini-water-wave late" id="wave-late"></div>
+                            <span class="mini-water-text" id="pct-late">0%</span>
+                        </div>
+                        <div class="summary-details">
                             <h3>สาย</h3>
-                            <div class="stat-value" id="pct-late">-%</div>
-                            <div class="stat-percentage" id="total-late">- คน</div>
+                            <div class="summary-numbers">
+                                <span class="summary-value" id="total-late">-</span>
+                                <span class="summary-label">คน</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="stat-card cut">
-                        <div class="stat-icon"><i class="fa-solid fa-person-running"></i></div>
-                        <div class="stat-info">
-                            <h3>โดดเรียน</h3>
-                            <div class="stat-value" id="pct-cut">-%</div>
-                            <div class="stat-percentage" id="total-cut">- คน</div>
+                    
+                    <div class="summary-card leave" id="summary-card-leave">
+                        <div class="mini-water-jar">
+                            <div class="mini-water-wave leave" id="wave-leave"></div>
+                            <span class="mini-water-text" id="pct-leave">0%</span>
+                        </div>
+                        <div class="summary-details">
+                            <h3>ลา</h3>
+                            <div class="summary-numbers">
+                                <span class="summary-value" id="total-leave">-</span>
+                                <span class="summary-label">คน</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="summary-card cut" id="summary-card-cut">
+                        <div class="mini-water-jar">
+                            <div class="mini-water-wave cut" id="wave-cut"></div>
+                            <span class="mini-water-text" id="pct-cut">0%</span>
+                        </div>
+                        <div class="summary-details">
+                            <h3>หนีเรียน</h3>
+                            <div class="summary-numbers">
+                                <span class="summary-value" id="total-cut">-</span>
+                                <span class="summary-label">คน</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="summary-card progress-card" id="summary-card-progress">
+                        <div class="mini-water-jar">
+                            <div class="mini-water-wave progress-wave" id="wave-progress"></div>
+                            <span class="mini-water-text" id="pct-progress">0%</span>
+                        </div>
+                        <div class="summary-details">
+                            <h3>เช็คครบแล้ว</h3>
+                            <div class="summary-numbers">
+                                <span class="summary-value" id="total-progress">-</span>
+                                <span class="summary-label">ห้อง</span>
+                            </div>
                         </div>
                     </div>
                 </div>
+                </div> <!-- ปิด home-dashboard-layout -->
 
                 <!-- การเลือกกรองระดับชั้นและสถานะแสดงห้องเรียน -->
                 <div class="section-title-bar" style="flex-wrap: wrap; gap: 15px;">
@@ -145,7 +326,7 @@
                     </div>
                 </div>
 
-                <!-- กริดรายการห้องเรียน -->
+                <!-- Recent Logs Section -->
                 <div class="rooms-grid" id="rooms-list-container">
                     <!-- สร้างไดนามิกจาก JS -->
                 </div>
@@ -155,23 +336,28 @@
             <section id="view-attendance-check" class="content-view">
                 
                 <div class="view-header">
-                    <div>
-                        <h1 id="attendance-title">เช็คชื่อชั้น ม.1 ห้อง 1</h1>
-                        <div class="date-selector-container">
-                            <p class="current-date-display" id="attendance-date-display">-</p>
-                            <div class="date-picker-wrapper" title="คลิกเลือกวันที่">
-                                <i class="fa-solid fa-calendar-days date-picker-icon"></i>
-                                <input type="date" id="checking-date-picker" class="home-date-input">
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; width: 100%;">
+                        <button onclick="switchView('home')" class="btn-back-to-home" style="background: transparent; border: none; font-size: 20px; color: var(--color-absent); cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" title="กลับหน้าหลัก"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 id="attendance-title" style="margin: 0; font-size: clamp(18px, 4vw, 26px); white-space: nowrap;">เช็คชื่อชั้น ม.1 ห้อง 1</h1>
+                        <!-- Interactive Custom Date Pill -->
+                        <div class="interactive-date-pill" id="attendance-date-pill" data-tooltip="คลิกเพื่อเปลี่ยนวันที่" style="margin-top: 0; flex-shrink: 0;">
+                            <div class="date-icon"><i class="fa-solid fa-calendar-day"></i></div>
+                            <div class="date-text">
+                                <strong id="attendance-date-display" style="font-size: clamp(12px, 3.5vw, 14px); white-space: nowrap;">-</strong>
                             </div>
+                            <input type="text" id="checking-date-picker" class="hidden-date-input">
                         </div>
                     </div>
-                    <div id="attendance-holiday-badge" class="badge">กำลังตรวจสอบวันหยุด...</div>
                 </div>
+                
+                <div id="room-dashboard-header" style="margin-bottom: 15px;"></div>
+                
+                <div id="room-tab-attendance" class="room-tab-content active">
                 
                 <!-- แถบเครื่องมือจัดการการเช็คชื่อ -->
                 <div class="attendance-toolbar" style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 15px; background: #fff; padding: 12px 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); margin-bottom: 20px; border: 1px solid #eee;">
                     <div class="toolbar-left" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-                        <button class="btn btn-secondary back-btn" id="btn-back-home" style="height: 38px; border-radius: 8px;">
+                        <button class="btn btn-secondary back-btn" id="btn-back-home" style="display: none;">
                             <i class="fa-solid fa-arrow-left"></i> กลับ
                         </button>
                     </div>
@@ -201,14 +387,69 @@
                 <button class="fab-btn" id="btn-save-attendance" title="บันทึกการเช็คชื่อ">
                     <i class="fa-solid fa-floppy-disk"></i>
                 </button>
+                </div> <!-- End TAB 1 -->
+
+                <!-- TAB 2: ROOM STATS -->
+                <div id="room-tab-stats" class="room-tab-content" style="display:none;">
+                    <div class="card p-0" style="margin-top: 15px;">
+                        <div style="padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                            <h2 style="margin: 0; font-size: 18px; color: var(--text-main);"><i class="fa-solid fa-chart-pie"></i> สรุปเวลาเรียนประจำห้อง</h2>
+                            <!-- Interactive Custom Date Pill for Stats -->
+                            <div class="interactive-date-pill" id="room-stats-date-pill" data-tooltip="คลิกเพื่อเปลี่ยนเดือน/ปี">
+                                <div class="date-icon"><i class="fa-solid fa-calendar-alt"></i></div>
+                                <div class="date-text">
+                                    <strong id="room-stats-date-display" style="font-size: 13px;">-</strong>
+                                </div>
+                                <input type="month" id="room-stats-month-picker" class="hidden-date-input">
+                            </div>
+                        </div>
+                        
+                        <!-- Summary Boxes Container -->
+                        <div class="room-stats-pills" id="room-tab-stats-summary" style="padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; background: rgba(255,255,255,0.5);">
+                            <!-- JS will inject here -->
+                        </div>
+                        
+                        <div style="overflow-x: auto;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th width="8%" class="txt-center">เลขที่</th>
+                                        <th width="32%">ชื่อ-สกุล</th>
+                                        <th class="txt-center" title="มา">ม.</th>
+                                        <th class="txt-center" title="ลา">ล.</th>
+                                        <th class="txt-center" title="ขาด">ข.</th>
+                                        <th class="txt-center" title="สาย">ส.</th>
+                                        <th class="txt-center" title="โดด">ด.</th>
+                                        <th class="txt-center" width="10%">รวม</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="room-stats-tbody">
+                                    <!-- JS will inject here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div> <!-- End TAB 2 -->
+
+                <!-- TAB 3: SCHEDULE -->
+                <div id="room-tab-schedule" class="room-tab-content" style="display:none;">
+                    <div class="table-responsive grid-responsive" style="margin-top: 15px;">
+                        <table class="grid-table" id="room-daily-grid-table">
+                            <!-- Data populated by JS -->
+                        </table>
+                    </div>
+                </div> <!-- End TAB 3 -->
             </section>
 
             <!-- SECTION 3: หน้าสถิติ (Statistics Dashboard) -->
             <section id="view-stats" class="content-view">
                 <div class="view-header">
-                    <div>
-                        <h1>สรุปบันทึกการมาเรียนรายบุคคล</h1>
-                        <p>ตรวจสอบข้อมูลสะสมและประวัติการเช็คชื่อรายวัน</p>
+                    <div style="display: flex; align-items: flex-start; gap: 15px;">
+                        <button onclick="switchView('home')" class="btn-back-to-home" style="margin-top: 5px; background: transparent; border: none; font-size: 22px; color: var(--color-absent); cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" title="กลับหน้าหลัก"><i class="fa-solid fa-arrow-left"></i></button>
+                        <div>
+                            <h1>สรุปบันทึกการมาเรียนรายบุคคล</h1>
+                            <p>ตรวจสอบข้อมูลสะสมและประวัติการเช็คชื่อรายวัน</p>
+                        </div>
                     </div>
                 </div>
 
@@ -299,12 +540,15 @@
                 </div>
             </section>
 
-            <!-- SECTION 4: หน้าบันทึกความประพฤติ (Discipline / Misconduct Log) -->
+            <!-- SECTION 4: หน้าแจ้งพฤติกรรมนักเรียน (Discipline / Misconduct Log) -->
             <section id="view-misconduct" class="content-view">
                 <div class="view-header">
-                    <div>
-                        <h1>บันทึกความประพฤติของนักเรียน</h1>
-                        <p>บันทึกการทำผิดระเบียบ สถานะการแก้ไข และการตรวจสอบความถูกต้อง</p>
+                    <div style="display: flex; align-items: flex-start; gap: 15px;">
+                        <button onclick="switchView('home')" class="btn-back-to-home" style="margin-top: 5px; background: transparent; border: none; font-size: 22px; color: var(--color-absent); cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" title="กลับหน้าหลัก"><i class="fa-solid fa-arrow-left"></i></button>
+                        <div>
+                            <h1>แจ้งพฤติกรรมนักเรียน</h1>
+                            <p>บันทึกการทำผิดระเบียบ สถานะการแก้ไข และการตรวจสอบความถูกต้อง</p>
+                        </div>
                     </div>
                     <div style="display: flex; gap: 10px; align-items: center;">
                         <select id="misconduct-filter-select" class="form-control" style="width: 150px; padding: 8px;">
@@ -336,6 +580,55 @@
                             <!-- ข้อมูลสร้างจาก JS -->
                         </tbody>
                     </table>
+                </div>
+            </section>
+
+            <!-- SECTION 5: ติดตามนักเรียน และ ออกเอกสารทัณฑ์บน (At-Risk Students) -->
+            <section id="view-at-risk" class="content-view">
+                <div class="view-header" style="flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: flex-start; gap: 15px;">
+                        <button onclick="switchView('home')" class="btn-back-to-home" style="margin-top: 5px; background: transparent; border: none; font-size: 22px; color: var(--color-absent); cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" title="กลับหน้าหลัก"><i class="fa-solid fa-arrow-left"></i></button>
+                        <div>
+                            <h1>รายการติดตามนักเรียน (ค้างดำเนินการ)</h1>
+                            <p class="subtitle">ระบบดึงข้อมูลนักเรียนที่มีสถิติมาสายหรือขาดเรียนเกินเกณฑ์ที่กำหนด</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <select id="at-risk-room-filter" class="form-control" onchange="if(typeof renderAtRiskStudents === 'function') renderAtRiskStudents();" style="min-width: 120px;">
+                            <option value="ALL">ทุกห้อง</option>
+                        </select>
+                        <select id="at-risk-filter" class="form-control" onchange="if(typeof renderAtRiskStudents === 'function') renderAtRiskStudents();" style="min-width: 180px;">
+                            <option value="all">แสดงทั้งหมด</option>
+                            <option value="absent">เฉพาะขาดเรียน</option>
+                            <option value="late">เฉพาะมาสาย</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="card p-0" style="margin-top: 20px;">
+                    <div style="overflow-x: auto;">
+                        <table class="data-table at-risk-table">
+                            <thead id="at-risk-table-head">
+                                <tr>
+                                    <th width="15%">สถิติ (ขาด/สาย)</th>
+                                    <th>ข้อมูลนักเรียน (ชั้น/รหัส/ชื่อ)</th>
+                                    <th style="width: 1%; white-space: nowrap; padding: 0 10px;">เอกสาร</th>
+                                    <th style="width: 1%; white-space: nowrap; padding: 0 10px;">ครูที่ปรึกษา</th>
+                                    <th style="width: 1%; white-space: nowrap; padding: 0 10px;">หัวหน้ากิจการฯ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="at-risk-table-body">
+                                <tr>
+                                    <td colspan="5" style="text-align: center; padding: 30px;">
+                                        <div class="empty-state" style="color: var(--text-muted);">
+                                            <i class="fa-solid fa-spinner fa-spin" style="font-size: 30px; margin-bottom: 10px;"></i>
+                                            <p>กำลังประมวลผลข้อมูลนักเรียนที่ต้องติดตาม...</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </section>
         </main>
@@ -371,6 +664,10 @@
                 <button class="key-btn clear" data-key="clear"><i class="fa-solid fa-delete-left"></i></button>
                 <button class="key-btn" data-key="0">0</button>
                 <button class="key-btn cancel" data-key="cancel"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div style="margin-top: 25px; border-top: 1px solid #eee; padding-top: 20px; text-align: center;">
+                <p style="font-size: 0.85em; color: var(--color-text-light); margin-bottom: 10px;">คุณครูที่ยังไม่มีรหัส PIN</p>
+                <button class="btn btn-secondary" onclick="openRegisterModal()" style="width: 100%; justify-content: center; background: #f8fafc; color: var(--color-primary); border: 1px solid #e2e8f0;"><i class="fa-solid fa-user-plus"></i> ลงทะเบียนครู</button>
             </div>
         </div>
     </div>
@@ -585,10 +882,33 @@
                 <div class="form-actions">
                     <button class="btn btn-secondary close-modal-trigger">ยกเลิก</button>
                     <button class="btn btn-danger" id="btn-submit-misconduct">
-                        <i class="fa-solid fa-shield-halved"></i> บันทึกความประพฤติ
+                        <i class="fa-solid fa-shield-halved"></i> แจ้งพฤติกรรมนักเรียน
                     </button>
                 </div>
             </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5.5. หน้าต่างสำหรับเซ็นลายเซ็นอิเล็กทรอนิกส์ (E-Signature Pad) -->
+    <div id="modal-signature" class="modal-overlay" style="z-index: 2100;">
+        <div class="modal-box" style="max-width: 500px; padding: 20px;">
+            <div class="modal-header">
+                <h2 id="signature-modal-title">เซ็นลายเซ็น</h2>
+                <button class="modal-close-btn close-modal-trigger" onclick="closeSignatureModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" style="text-align: center;">
+                <p style="margin-bottom: 10px; color: var(--text-muted); font-size: 14px;">กรุณาใช้นิ้วหรือเมาส์วาดลายเซ็นในกรอบด้านล่าง</p>
+                <div style="border: 2px dashed var(--border-color); border-radius: 8px; background: #fff; margin-bottom: 15px; position: relative;">
+                    <canvas id="signature-pad" width="400" height="200" style="width: 100%; max-width: 400px; touch-action: none; cursor: crosshair;"></canvas>
+                </div>
+                <div class="form-actions" style="justify-content: space-between; display: flex;">
+                    <button class="btn btn-secondary" onclick="clearSignature()"><i class="fa-solid fa-eraser"></i> ล้างลายเซ็น</button>
+                    <div>
+                        <button class="btn btn-secondary close-modal-trigger" onclick="closeSignatureModal()">ยกเลิก</button>
+                        <button class="btn btn-primary" onclick="saveSignature()"><i class="fa-solid fa-check"></i> ยืนยัน</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -688,8 +1008,117 @@
         </div>
     </div>
 
+    <!-- 8. Modal Document Preview -->
+    <div id="modal-document-preview" class="modal-overlay">
+        <div class="modal-box" style="max-width: 800px; padding: 0; background: #f3f4f6; overflow: hidden; display: flex; flex-direction: column; max-height: 90vh;">
+            <div class="modal-header" style="background: #fff; padding: 15px 20px; border-bottom: 1px solid #e5e7eb;">
+                <h3 id="preview-modal-title" style="margin: 0; font-size: 1.25rem;">ตัวอย่างเอกสาร</h3>
+                <button class="modal-close-btn" onclick="closeDocumentPreview()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="modal-body" style="padding: 20px; text-align: center; overflow-y: auto; flex: 1;">
+                <!-- A4 Paper Container -->
+                <div id="document-print-area" style="background: white; padding: 40px; margin: 0 auto; max-width: 210mm; min-height: 297mm; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: left; position: relative; color: #000;">
+                    <!-- Content will be injected here -->
+                </div>
+            </div>
+            
+            <div class="modal-footer" style="background: #fff; padding: 15px 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+                <button class="btn btn-secondary" onclick="closeDocumentPreview()"><i class="fa-solid fa-xmark"></i> ปิด</button>
+                <div>
+                    <button class="btn btn-primary" id="btn-open-signature" onclick="openSignatureFromPreview()" style="margin-right: 10px;">
+                        <i class="fa-solid fa-pen-nib"></i> กดเพื่อเซ็นชื่อ
+                    </button>
+                    <button class="btn btn-primary" id="btn-save-signature" onclick="saveDocumentData()" style="margin-right: 10px; display: none;">
+                        <i class="fa-solid fa-floppy-disk"></i> บันทึกลายเซ็นลงระบบ
+                    </button>
+                    <button class="btn btn-success" id="btn-print-pdf" onclick="printDocument()">
+                        <i class="fa-solid fa-print"></i> พิมพ์ / บันทึกเป็น PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal สำหรับจัดการเอกสารนักเรียนกลุ่มเสี่ยง (เลือกครู & พรีวิว) -->
+    <div id="modal-at-risk-action" class="modal-overlay" style="z-index: 2200;">
+        <div class="modal-box" style="max-width: 450px; padding: 25px;">
+            <div class="modal-header">
+                <h2 id="at-risk-action-title">จัดการเอกสาร</h2>
+                <button class="modal-close-btn close-modal-trigger" onclick="closeAtRiskActionModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 20px; color: var(--text-muted); font-size: 14px;" id="at-risk-action-subtitle">
+                    ระบุรายชื่อครูที่รับผิดชอบเพื่อพิมพ์ลงในเอกสาร
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 15px;" id="group-action-hr">
+                    <label>ครูที่ปรึกษา</label>
+                    <div style="display: flex; gap: 10px;">
+                        <select id="action-hr-select" class="form-control" style="flex: 1;">
+                            <!-- options generated by JS -->
+                        </select>
+                        <button class="btn btn-outline" onclick="openTeacherSignature('hr')" style="padding: 0 15px;">
+                            <i class="fa-solid fa-pen-nib"></i> เซ็น
+                        </button>
+                    </div>
+                    <div id="hr-signature-preview-container" style="display: none; margin-top: 10px; border: 1px dashed #ccc; padding: 10px; border-radius: 8px; text-align: center; position: relative;">
+                        <img id="hr-signature-preview" src="" style="max-height: 60px;" alt="ลายเซ็นครูที่ปรึกษา">
+                        <button class="btn btn-sm btn-danger" onclick="clearTeacherSignature('hr')" style="position: absolute; top: -10px; right: -10px; border-radius: 50%; width: 25px; height: 25px; padding: 0;">
+                            <i class="fa-solid fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 25px;" id="group-action-sa">
+                    <label>หัวหน้ากิจการนักเรียน</label>
+                    <div style="display: flex; gap: 10px;">
+                        <select id="action-sa-select" class="form-control" style="flex: 1;">
+                            <!-- options generated by JS -->
+                        </select>
+                        <button class="btn btn-outline" onclick="openTeacherSignature('sa')" style="padding: 0 15px;">
+                            <i class="fa-solid fa-pen-nib"></i> เซ็น
+                        </button>
+                    </div>
+                    <div id="sa-signature-preview-container" style="display: none; margin-top: 10px; border: 1px dashed #ccc; padding: 10px; border-radius: 8px; text-align: center; position: relative;">
+                        <img id="sa-signature-preview" src="" style="max-height: 60px;" alt="ลายเซ็นครูกิจการ">
+                        <button class="btn btn-sm btn-danger" onclick="clearTeacherSignature('sa')" style="position: absolute; top: -10px; right: -10px; border-radius: 50%; width: 25px; height: 25px; padding: 0;">
+                            <i class="fa-solid fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="form-actions" style="justify-content: space-between; display: flex; gap: 10px;">
+
+                    <button class="btn btn-primary" onclick="saveAtRiskTeachers()" style="flex: 1; background-color: var(--color-primary); color: white;">
+                        <i class="fa-solid fa-floppy-disk"></i> บันทึกชื่อ
+                    </button>
+                    <button class="btn btn-success" onclick="previewAtRiskDocument()" style="flex: 1.5;">
+                        <i class="fa-regular fa-file-lines"></i> พรีวิว / เซ็น
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Folder Style Modal (Replaces old tooltip) -->
+    <div id="summary-folder-modal" class="folder-modal-backdrop">
+        <div class="folder-modal-content">
+            <div class="folder-modal-header">
+                <div id="summary-folder-title" style="flex: 1; margin-right: 15px;"></div>
+                <button class="folder-modal-close" onclick="hideSummaryTooltip()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="summary-folder-list"></div>
+        </div>
+    </div>
+
+    <!-- Flatpickr JS & Thai Locale -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/th.js"></script>
+    
     <!-- Custom Frontend JavaScript -->
-    <script src="config.js"></script>
-    <script src="app.js"></script>
+    <script src="config.js?v=update42" charset="utf-8"></script>
+    <script src="documents.js?v=update42" charset="utf-8"></script>
+    <script src="app.js?v=update42" charset="utf-8"></script>
 </body>
 </html>

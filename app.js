@@ -1,6 +1,6 @@
 /**
  * Frontend JavaScript - ระบบเช็คชื่อนักเรียนออนไลน์
- * จัดการตรรกะหน้าจอและการเชื่อมต่อกับ Google Apps Script Web App
+ * จัดการตรรกะหน้าจอกละการเชื่อมต่อกับ Google Apps Script Web App
  */
 
 // ค่ากำหนดตั้งค่าเริ่มต้น
@@ -18,28 +18,32 @@ let config = {
 
 // สถานะการทำงานของระบบ (Global State)
 let students = [];       // รายชื่อนักเรียนทั้งหมด
-let rooms = [];          // ห้องเรียนทั้งหมดแยกเป็นกลุ่ม
+let rooms = [];          // ห้องเรียนทั้งหมดกยกเป็นกลุ่ม
 let holidays = [];       // รายการวันหยุด
 let users = [];          // รายชื่อครู
-let todayLogs = {};      // บันทึกเช็คชื่อของวันนี้แยกตามห้อง (ภาพรวม)
-let todayLogsDetails = {}; // บันทึกเช็คชื่อของวันนี้แยกรายคนเพื่อใช้คงสถานะ: { studentId: status }
+let todayLogs = {};      // บันทึกเช็คชื่อของวันนี้กยกตามห้อง (ภาพรวม)
+let todayLogsDetails = {}; // บันทึกเช็คชื่อของวันนี้กยกรายคนเพื่อใช้คงสถานะ: { studentId: status }
+let loggedInUser = null; // ผู้ใช้งานที่เข้าสู่ระบบ
+let loginPinDigits = ""; // รหัส PIN ที่กำลังกรอกในหน้าล็อกอิน
 let currentView = "home";
 let activeGradeFilter = "ALL";
 let activeStatusFilter = "ALL"; // ALL, CHECKED, UNCHECKED
 let activeStatsTab = "accumulated";
-let currentCheckingDate = getLocalDateString(); // วันที่กำลังดำเนินการเช็คชื่อ (ปรับเปลี่ยนผ่านปฏิทินหน้าแรกได้)
-let allStatsData = null; // โหลดสถิติทั้งหมดมาเก็บไว้ในแรมครั้งเดียวตอนเริ่มต้น
+let currentCheckingDate = "2026-07-17"; // วันที่กำลังดำเนินการเช็คชื่อ (17 ก.ค. 2569)
+let allStatsData = null; // โหลดสถิติทั้งหมดมาเก็บไว้ในกรมครั้งเดียวตอนเริ่มต้น
+let documentsData = []; // ประวัติเอกสารกละลายเซ็น
+let atRiskTeachersCache = {}; // ข้อมูลครูที่รับผิดชอบเอกสารกละลายเซ็น
 
-// ตัวแปรควบคุมการเช็คชื่อของห้องที่เลือก
+// ตัวกปรควบคุมการเช็คชื่อของห้องที่เลือก
 let selectedRoom = null; // { grade, room }
 let attendanceRecords = []; // [{ studentId, name, gender, status }]
 
-// ตัวแปรควบคุมแป้นกดรหัส PIN
+// ตัวกปรควบคุมกป้นกดรหัส PIN
 let pinDigits = "";
 let pinCallback = null; // ฟังก์ชันที่จะรันเมื่อกรอก PIN ถูกต้อง
 let pinRequiredRole = null; // บทบาทที่ต้องการ ("ADMIN" หรือ "STUDENT_AFFAIRS" หรือ "ANY")
-let authenticatedAdminPin = null; // เก็บ PIN ของแอดมินชั่วคราวขณะเข้าเมนูจัดการ
-// ตัวแปรบันทึกความประพฤติ
+let authenticatedAdminPin = null; // เก็บ PIN ของกอดมินชั่วคราวขณะเข้าเมนูจัดการ
+// ตัวกปรบันทึกความประพฤติ
 let misconductLogs = [];
 let selectedMisconductStudent = null; // นักเรียนที่กำลังจะเพิ่มบันทึกความประพฤติ
 
@@ -65,18 +69,20 @@ function applyMetadataToUI() {
     const elPreviewSchool = document.getElementById("preview-school-name");
     const elPreviewSem = document.getElementById("preview-semester");
     const elPreviewYear = document.getElementById("preview-academic-year");
+    const elHeaderSchool = document.getElementById("header-school-name");
     
     if (elSchoolName) elSchoolName.innerText = config.schoolName;
     if (elWorkGroup) elWorkGroup.innerText = config.workGroup;
     if (elPreviewSchool) elPreviewSchool.innerText = config.schoolName;
     if (elPreviewSem) elPreviewSem.innerText = config.semester;
     if (elPreviewYear) elPreviewYear.innerText = config.academicYear;
+    if (elHeaderSchool) elHeaderSchool.innerText = config.schoolName;
     
     // ตั้งค่า Document Title ของหน้าเว็บ
     document.title = `${config.schoolName} - ระบบเช็คชื่อนักเรียนออนไลน์`;
 }
 
-// แยก Sheet ID จาก URL
+// กยก Sheet ID จาก URL
 function extractSheetId(url) {
     if (!url) return null;
     const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
@@ -93,7 +99,7 @@ function getLocalDateString() {
 }
 
 /**
- * แปลงรูปแบบวันที่ YYYY-MM-DD เป็นรูปแบบภาษาไทยที่เป็นมิตร เช่น "6 ก.ค. 2569"
+ * กปลงรูปกบบวันที่ YYYY-MM-DD เป็นรูปกบบภาษาไทยที่เป็นมิตร เช่น "6 ก.ค. 2569"
  */
 function formatThaiFriendlyDate(dateStr) {
     if (!dateStr) return "";
@@ -112,7 +118,7 @@ function formatThaiFriendlyDate(dateStr) {
     return `${day} ${monthName} ${year}`;
 }
 
-// แสดงข้อความแจ้งเตือน Toast
+// กสดงข้อความกจ้งเตือน Toast
 function showToast(message, type = "success") {
     const container = document.getElementById("toast-container");
     const toast = document.createElement("div");
@@ -130,7 +136,7 @@ function showToast(message, type = "success") {
     }, 4000);
 }
 
-// แสดง/ซ่อน Loader (มีเอฟเฟกต์เบลอกึ่งโปร่งใส ป้องกันจอกระพริบ)
+// กสดง/ซ่อน Loader (มีเอฟเฟกต์เบลอกึ่งโปร่งใส ป้องกันจอกระพริบ)
 function setLoader(show) {
     const loader = document.getElementById("app-loading");
     if (show) {
@@ -141,18 +147,18 @@ function setLoader(show) {
 }
 
 /**
- * ฟังก์ชันประมวลผลข้อมูลแยกเพศ คำนำหน้า และชื่อ-นามสกุล ของนักเรียน
+ * ฟังก์ชันประมวลผลข้อมูลกยกเพศ คำนำหน้า กละชื่อ-นามสกุล ของนักเรียน
  */
 function processStudentData(student) {
     let fullName = student.fullName || "";
     let prefix = "";
     let firstName = "";
     let lastName = "";
-    let gender = "1"; // ชาย = 1, หญิง = 2
+    let gender = "1"; // ชาย = 1, หกิง = 2
     
     fullName = fullName.replace(/\s+/g, ' ').trim();
     
-    const prefixes = ["ด.ช.", "ด.ญ.", "เด็กชาย", "เด็กหญิง", "นาย", "นางสาว", "นาง", "น.ส."];
+    const prefixes = ["ด.ช.", "ด.ก.", "เด็กชาย", "เด็กหกิง", "นาย", "นางสาว", "นาง", "น.ส."];
     for (let p of prefixes) {
         if (fullName.startsWith(p)) {
             prefix = p;
@@ -161,7 +167,7 @@ function processStudentData(student) {
             firstName = nameParts[0] || "";
             lastName = nameParts.slice(1).join(' ') || "";
             
-            if (p === "ด.ญ." || p === "เด็กหญิง" || p === "นางสาว" || p === "นาง" || p === "น.ส.") {
+            if (p === "ด.ก." || p === "เด็กหกิง" || p === "นางสาว" || p === "นาง" || p === "น.ส.") {
                 gender = "2";
             } else {
                 gender = "1";
@@ -185,7 +191,7 @@ function processStudentData(student) {
 }
 
 /**
- * แปลงอักษรย่อสถานะเช็คชื่อจาก Google Sheets เป็นคำเต็มสำหรับการประมวลผลบนหน้าจอ
+ * กปลงอักษรย่อสถานะเช็คชื่อจาก Google Sheets เป็นคำเต็มสำหรับการประมวลผลบนหน้าจอ
  */
 function translateAbbreviationToStatus(abbr) {
     const map = {
@@ -199,7 +205,7 @@ function translateAbbreviationToStatus(abbr) {
 }
 
 /**
- * แปลงคำเต็มของสถานะเช็คชื่อเป็นอักษรย่อ เพื่อลดขนาดพื้นที่และแบนด์วิดท์ในการจัดเก็บข้อมูลลง Sheets
+ * กปลงคำเต็มของสถานะเช็คชื่อเป็นอักษรย่อ เพื่อลดขนาดพื้นที่กละกบนด์วิดท์ในการจัดเก็บข้อมูลลง Sheets
  */
 function translateStatusToAbbreviation(status) {
     const map = {
@@ -213,7 +219,7 @@ function translateStatusToAbbreviation(status) {
 }
 
 /**
- * แปลงข้อความ CSV เป็นอาเรย์ (กรณี Fallback)
+ * กปลงข้อความ CSV เป็นอาเรย์ (กรณี Fallback)
  * รองรับคอลัมน์ A: เลขประจำตัว|ชั้นเรียน/ห้อง|ชื่อเต็ม
  */
 function parseCSV(text) {
@@ -259,15 +265,18 @@ function parseCSV(text) {
 async function loadInitialData() {
     setLoader(true);
     
-    // หากมีการกำหนดลิงก์ Apps Script ให้โหลดข้อมูลรวมถึงรายชื่อนักเรียนและข้อมูลการเช็คชื่อของวันนี้ในคราวเดียว เพื่อเลี่ยงปัญหา CORS
+    // หากมีการกำหนดลิงก์ Apps Script ให้โหลดข้อมูลรวมถึงรายชื่อนักเรียนกละข้อมูลการเช็คชื่อของวันนี้ในคราวเดียว เพื่อเลี่ยงปักหา CORS
     if (config.scriptUrl) {
         try {
             const res = await fetch(`${config.scriptUrl}?action=init&date=${currentCheckingDate}`);
             const data = await res.json();
             
             if (data.success) {
-                students = (data.students || []).map((s, index) => {
-                    s.no = index + 1;
+                let roomCounters = {};
+                students = (data.students || []).map((s) => {
+                    let roomKey = `${s.grade}/${s.room}`;
+                    if (!roomCounters[roomKey]) roomCounters[roomKey] = 1;
+                    s.no = roomCounters[roomKey]++;
                     return processStudentData(s);
                 });
                 holidays = data.holidays || [];
@@ -277,9 +286,11 @@ async function loadInitialData() {
                 for (let id in todayLogsDetails) {
                     todayLogsDetails[id] = translateAbbreviationToStatus(todayLogsDetails[id]);
                 }
+                documentsData = data.documents || [];
+                atRiskTeachersCache = data.atRiskTeachers || {};
                 
                 if (students.length === 0) {
-                    showToast("ดึงข้อมูลเรียบร้อย แต่ไม่พบรายชื่อในหน้าชีทแรก", "error");
+                    showToast("ดึงข้อมูลเรียบร้อย กต่ไม่พบรายชื่อในหน้าชีทกรก", "error");
                 } else {
                     showToast(`โหลดรายชื่อสำหรับวันที่ ${currentCheckingDate} สำเร็จ ${students.length} คน`);
                 }
@@ -288,26 +299,28 @@ async function loadInitialData() {
             }
         } catch (e) {
             console.error(e);
-            showToast("สคริปต์ขัดข้อง กำลังโหลดรายชื่อด้วยวิธีสำรองแบบ CSV...", "error");
+            showToast("สคริปต์ขัดข้อง กำลังโหลดรายชื่อด้วยวิธีสำรองกบบ CSV...", "error");
             await loadStudentsFromCsvFallback();
         }
     } else {
-        showToast("ไม่ได้ตั้งค่า Apps Script กำลังโหลดรายชื่อแบบดึงชีทตรง...", "error");
+        showToast("ไม่ได้ตั้งค่า Apps Script กำลังโหลดรายชื่อกบบดึงชีทตรง...", "error");
         await loadStudentsFromCsvFallback();
     }
     
-    // โหลดประวัติสถิติทั้งหมดมาเก็บในหน่วยความจำตั้งแต่ต้นแบบเบื้องหลัง (Async)
+    // โหลดประวัติสถิติทั้งหมดมาเก็บในหน่วยความจำตั้งกต่ต้นกบบเบื้องหลัง (Async)
     if (config.scriptUrl && !allStatsData) {
         fetchStatsDataOnce();
     }
     
-    // เริ่มต้นแสดงผลหน้าแรก
+    // เริ่มต้นกสดงผลหน้ากรก
     updateHeaderDate();
     checkTodayHoliday();
     renderRooms();
     calculateOverallStats();
     
     setLoader(false);
+    
+    populateTeacherDropdowns();
 }
 
 async function fetchStatsDataOnce() {
@@ -322,10 +335,34 @@ async function fetchStatsDataOnce() {
                     log.status = translateAbbreviationToStatus(log.status);
                 });
             }
+            if (typeof updateAtRiskNoticeInTab === 'function') updateAtRiskNoticeInTab();
         }
     } catch (e) {
         console.error("โหลดสถิติเริ่มต้นล้มเหลว", e);
     }
+}
+
+function populateTeacherDropdowns() {
+    const hrSelect = document.getElementById("at-risk-homeroom-teacher");
+    const saSelect = document.getElementById("at-risk-student-affairs");
+    if (!hrSelect || !saSelect) return;
+    
+    const currentHr = hrSelect.value;
+    const currentSa = saSelect.value;
+    
+    let options = '<option value="">-- เลือกครูที่ปรึกษา --</option>';
+    let saOptions = '<option value="">-- เลือกหัวหน้างานกิจการนักเรียน --</option>';
+    
+    users.forEach(u => {
+        options += `<option value="${u.name}">${u.name}</option>`;
+        saOptions += `<option value="${u.name}">${u.name}</option>`;
+    });
+    
+    hrSelect.innerHTML = options;
+    saSelect.innerHTML = saOptions;
+    
+    if (currentHr) hrSelect.value = currentHr;
+    if (currentSa) saSelect.value = currentSa;
 }
 
 async function loadStudentsFromCsvFallback() {
@@ -334,21 +371,21 @@ async function loadStudentsFromCsvFallback() {
     
     try {
         const res = await fetch(csvUrl);
-        if (!res.ok) throw new Error("การเข้าถึงชีทล้มเหลว โปรดเช็คการแชร์ชีท");
+        if (!res.ok) throw new Error("การเข้าถึงชีทล้มเหลว โปรดเช็คการกชร์ชีท");
         const text = await res.text();
         students = parseCSV(text);
         
         if (students.length === 0) {
             showToast("ไม่พบรายชื่อนักเรียนใน Google Sheet", "error");
         } else {
-            showToast(`โหลดรายชื่อผ่าน CSV สำเร็จ ${students.length} คน (แบบออฟไลน์/อ่านอย่างเดียว)`);
+            showToast(`โหลดรายชื่อผ่าน CSV สำเร็จ ${students.length} คน (กบบออฟไลน์/อ่านอย่างเดียว)`);
         }
     } catch (e) {
         showToast("โหลดรายชื่อผ่าน CSV ไม่สำเร็จ: " + e.message, "error");
     }
 }
 
-// อัปเดตแสดงวันที่หน้าแรกตามวันที่เลือกจริง
+// อัปเดตกสดงวันที่หน้ากรกตามวันที่เลือกจริง
 function updateHeaderDate() {
     const days = ["วันอาทิตย์", "วันจันทร์", "วันอังคาร", "วันพุธ", "วันพฤหัสบดี", "วันศุกร์", "วันเสาร์"];
     const months = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
@@ -359,9 +396,9 @@ function updateHeaderDate() {
     const dayName = days[now.getDay()];
     const dateNum = now.getDate();
     const monthName = months[now.getMonth()];
-    const yearNum = now.getFullYear() + 543; // แปลงเป็น พ.ศ.
+    const yearNum = now.getFullYear() + 543; // กปลงเป็น พ.ศ.
     
-    const displayStr = `ประจำ${dayName}ที่ ${dateNum} ${monthName} พ.ศ. ${yearNum}`;
+    const displayStr = `${dayName}ที่ ${dateNum} ${monthName} พ.ศ. ${yearNum}`;
     document.getElementById("home-date-display").innerText = displayStr;
     
     const attDateDisplay = document.getElementById("attendance-date-display");
@@ -369,7 +406,7 @@ function updateHeaderDate() {
         attDateDisplay.innerText = displayStr;
     }
     
-    // อัปเดตค่าปฏิทิน input type="date" ด้วย
+    // อัปเดตค่าปกิทิน input type="date" ด้วย
     const homeDatePicker = document.getElementById("home-date-picker");
     if (homeDatePicker) {
         homeDatePicker.value = currentCheckingDate;
@@ -379,37 +416,43 @@ function updateHeaderDate() {
 // ตรวจสอบวันหยุดตามวันที่เลือกจริง
 function checkTodayHoliday() {
     const todayStr = currentCheckingDate;
-    const badgeHome = document.getElementById("holiday-status-badge");
-    const badgeCheck = document.getElementById("attendance-holiday-badge");
     
     const parts = currentCheckingDate.split("-");
     const now = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
     const dayOfWeek = now.getDay();
     
     let text = "";
-    let cls = "";
+    let isHoliday = false;
     
     if (dayOfWeek === 0 || dayOfWeek === 6) {
         text = "วันหยุด (เสาร์-อาทิตย์)";
-        cls = "badge holiday";
+        isHoliday = true;
     } else {
         const customHoliday = holidays.find(h => h.date === todayStr);
         if (customHoliday) {
             text = `วันหยุด (${customHoliday.name})`;
-            cls = "badge holiday";
+            isHoliday = true;
         } else {
             text = "เปิดเรียนปกติ";
-            cls = "badge workday";
+            isHoliday = false;
         }
     }
     
-    if (badgeHome) {
-        badgeHome.innerText = text;
-        badgeHome.className = cls;
+    const tooltipText = text;
+    const homePill = document.getElementById("home-date-pill");
+    const attPill = document.getElementById("attendance-date-pill");
+    
+    if (homePill) {
+        homePill.setAttribute("data-tooltip", tooltipText);
+        homePill.removeAttribute("title");
+        homePill.classList.remove("is-holiday", "is-workday");
+        homePill.classList.add(isHoliday ? "is-holiday" : "is-workday");
     }
-    if (badgeCheck) {
-        badgeCheck.innerText = text;
-        badgeCheck.className = cls;
+    if (attPill) {
+        attPill.setAttribute("data-tooltip", tooltipText);
+        attPill.removeAttribute("title");
+        attPill.classList.remove("is-holiday", "is-workday");
+        attPill.classList.add(isHoliday ? "is-holiday" : "is-workday");
     }
 }
 
@@ -422,7 +465,16 @@ function isHoliday(dateStr) {
     return holidays.some(h => h.date === dateStr);
 }
 
-// คำนวณเปอร์เซ็นต์รวมของเด็กทั้งโรงเรียนในวันนั้น (5 กริด) - ปรับแแสดงเปอร์เซ็นต์เป็นตัวใหญ่ จำนวนคนเป็นตัวเล็ก
+// ตัวกปรสำหรับเก็บ Instance ของกราฟ
+let miniRadialCharts = {};
+
+// Removed initStackedBarChart
+
+
+
+
+
+// คำนวณเปอร์เซ็นต์รวมของเด็กทั้งโรงเรียนในวันนั้น (5 กริด) หรือตามชั้นที่เลือก
 function calculateOverallStats() {
     let totalPresent = 0;
     let totalLeave = 0;
@@ -431,7 +483,11 @@ function calculateOverallStats() {
     let totalCut = 0;
     let grandTotal = 0;
     
-    Object.values(todayLogs).forEach(summary => {
+    Object.keys(todayLogs).forEach(roomKey => {
+        const grade = roomKey.split('/')[0];
+        if (activeGradeFilter !== "ALL" && grade !== activeGradeFilter) return;
+        
+        const summary = todayLogs[roomKey];
         totalPresent += summary.Present || 0;
         totalLeave += summary.Leave || 0;
         totalAbsent += summary.Absent || 0;
@@ -440,39 +496,199 @@ function calculateOverallStats() {
         grandTotal += summary.Total || 0;
     });
     
-    const getPct = (val) => grandTotal > 0 ? ((val / grandTotal) * 100).toFixed(1) + "%" : "0.0%";
+    const getPct = (val) => grandTotal > 0 ? "(" + ((val / grandTotal) * 100).toFixed(1) + "%)" : "(0.0%)";
     
-    document.getElementById("total-present").innerText = totalPresent + " คน";
-    document.getElementById("pct-present").innerText = getPct(totalPresent);
+    document.getElementById("total-present").innerText = totalPresent;
+    document.getElementById("total-leave").innerText = totalLeave;
+    document.getElementById("total-absent").innerText = totalAbsent;
+    document.getElementById("total-late").innerText = totalLate;
+    document.getElementById("total-cut").innerText = totalCut;
     
-    document.getElementById("total-leave").innerText = totalLeave + " คน";
-    document.getElementById("pct-leave").innerText = getPct(totalLeave);
+    // อัปเดตกราฟโหลน้ำ (Water Jar)
+    const filteredStudents = activeGradeFilter === "ALL" 
+        ? students 
+        : students.filter(s => s.grade === activeGradeFilter);
+        
+    const allRoomsSet = new Set(filteredStudents.map(s => `${s.grade}/${s.room}`));
+    const totalRoomsCount = allRoomsSet.size || 1;
     
-    document.getElementById("total-absent").innerText = totalAbsent + " คน";
-    document.getElementById("pct-absent").innerText = getPct(totalAbsent);
+    let checkedRoomsCount = 0;
+    const uncheckedRooms = [];
+    allRoomsSet.forEach(room => {
+        if (todayLogs[room]) {
+            checkedRoomsCount++;
+        } else {
+            uncheckedRooms.push(room);
+        }
+    });
     
-    document.getElementById("total-late").innerText = totalLate + " คน";
-    document.getElementById("pct-late").innerText = getPct(totalLate);
+    let fillPct = Math.round((checkedRoomsCount / totalRoomsCount) * 100);
+    if (fillPct > 100) fillPct = 100;
     
-    document.getElementById("total-cut").innerText = totalCut + " คน";
-    document.getElementById("pct-cut").innerText = getPct(totalCut);
+    uncheckedRooms.sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
+    
+    const tooltip = document.getElementById("summary-hover-tooltip");
+
+    const bindSummaryTooltip = (elementId, titleHtml, items) => {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+        el.removeAttribute("title");
+        
+        // Remove old hover listeners just in case
+        el.onmouseenter = null;
+        el.onmouseleave = null;
+
+        el.onclick = (e) => {
+            e.stopPropagation();
+            
+            // Check if this card's tooltip is already open
+            const isCurrentlyOpen = el.dataset.locked === "true";
+            
+            // Close all first
+            document.querySelectorAll(".summary-card").forEach(c => {
+                c.dataset.locked = "false";
+                c.classList.remove("active-card"); // Optional visual feedback
+            });
+            hideSummaryTooltip();
+            
+            // If it wasn't open, open it now
+            if (!isCurrentlyOpen) {
+                el.dataset.locked = "true";
+                el.classList.add("active-card");
+                showSummaryTooltip(titleHtml, items, el);
+            }
+        };
+    };
+
+    // Global click listener to close tooltip when clicking outside
+    if (!window.hasTooltipCloseListener) {
+        document.addEventListener('click', (e) => {
+            // Close if clicking outside the card OR clicking directly on the backdrop (not inside content)
+            const isClickOnBackdrop = e.target.id === 'summary-folder-modal';
+            const isClickOutsideCard = !e.target.closest('.summary-card') && !e.target.closest('.folder-modal-content');
+            
+            if (isClickOnBackdrop || isClickOutsideCard) {
+                document.querySelectorAll(".summary-card").forEach(c => {
+                    c.dataset.locked = "false";
+                    c.classList.remove("active-card");
+                });
+                hideSummaryTooltip();
+            }
+        });
+        window.hasTooltipCloseListener = true;
+    }
+
+
+
+    let presentList = [];
+    let leaveList = [];
+    let absentList = [];
+    let lateList = [];
+    let cutList = [];
+    
+    filteredStudents.forEach(s => {
+        const status = todayLogsDetails[s.studentId];
+        if (!status) return;
+        let label = `${s.fullName} (${s.grade}/${s.room})`;
+        if (status === "มา") presentList.push(label);
+        else if (status === "ลา") leaveList.push(label);
+        else if (status === "ขาด") absentList.push({text: label, color: "#ef4444"});
+        else if (status === "สาย") lateList.push({text: label, color: "#f59e0b"});
+        else if (status === "โดด") cutList.push({text: label, color: "#8b5cf6"});
+    });
+
+    bindSummaryTooltip("summary-card-present", "📌 มาเรียนปกติ", presentList);
+    bindSummaryTooltip("summary-card-absent", "📌 ขาด", absentList);
+    bindSummaryTooltip("summary-card-late", "📌 สาย", lateList);
+    bindSummaryTooltip("summary-card-leave", "📌 ลา", leaveList);
+    bindSummaryTooltip("summary-card-cut", "📌 หนีเรียน", cutList);
+    
+    const checkedRoomsSorted = Array.from(allRoomsSet).filter(r => todayLogs[r]).sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
+    
+    let checkedItems = checkedRoomsSorted.map(r => ({
+        text: `<i class="fa-solid fa-check-circle"></i> ${r}`,
+        color: "#10b981",
+        action: () => {
+            activeStatusFilter = "ALL";
+            activeGradeFilter = "ALL";
+            renderRooms();
+            openAttendanceCheck(r.split('/')[0], r.split('/')[1]);
+        }
+    }));
+    
+    let uncheckedItems = uncheckedRooms.map(r => ({
+        text: `<i class="fa-solid fa-circle-xmark"></i> ${r}`,
+        color: "#ef4444",
+        action: () => {
+            activeStatusFilter = "ALL";
+            activeGradeFilter = "ALL";
+            renderRooms();
+            openAttendanceCheck(r.split('/')[0], r.split('/')[1]);
+        }
+    }));
+    
+    const progressData = {
+        type: "two-columns",
+        col1: { title: "✅ เช็คกล้ว", items: checkedItems },
+        col2: { title: "❌ ยังไม่เช็ค", items: uncheckedItems }
+    };
+    
+    bindSummaryTooltip("summary-card-progress", "📌 สถานะการเช็คชื่อห้อง", progressData);
+    
+    const waterPctText = document.getElementById("water-pct-text");
+    if (waterPctText) {
+        waterPctText.innerText = fillPct + "%";
+    }
+    
+    const waterWaveFill = document.getElementById("water-wave-fill");
+    if (waterWaveFill) {
+        // top: 100% คือน้ำกห้ง, top: 0% คือน้ำเต็ม
+        // ชดเชยคลื่นให้ดันขึ้นเล็กน้อยเวลาน้ำเต็ม เพื่อให้มิดโหลพอดี
+        const waveTop = 100 - (fillPct * 1.1); 
+        waterWaveFill.style.top = Math.max(-10, waveTop) + "%";
+    }
+    // อัปเดต Mini Water Jars
+    const tAll = totalPresent + totalAbsent + totalLate + totalLeave + totalCut;
+    const getPctNum = (v) => tAll === 0 ? 0 : Math.round((v / tAll) * 100);
+    
+    const updateMiniJar = (id, pct) => {
+        const textEl = document.getElementById("pct-" + id);
+        const waveEl = document.getElementById("wave-" + id);
+        if (textEl && waveEl) {
+            textEl.innerText = pct + "%";
+            const waveTop = 100 - (pct * 1.1);
+            waveEl.style.top = Math.max(-10, waveTop) + "%";
+        }
+    };
+    
+    updateMiniJar("present", getPctNum(totalPresent));
+    updateMiniJar("absent", getPctNum(totalAbsent));
+    updateMiniJar("late", getPctNum(totalLate));
+    updateMiniJar("leave", getPctNum(totalLeave));
+    updateMiniJar("cut", getPctNum(totalCut));
+    
+    // อัปเดตการ์ดที่ 6: เช็คครบกล้ว
+    if (document.getElementById("total-progress")) {
+        document.getElementById("total-progress").innerText = `${checkedRoomsCount}/${totalRoomsCount}`;
+        updateMiniJar("progress", fillPct);
+    }
 }
 
 /**
- * 2. แสดงกริดห้องเรียน (Home View)
+ * 2. กสดงกริดห้องเรียน (Home View)
  */
 function renderRooms() {
     const container = document.getElementById("rooms-list-container");
     container.innerHTML = "";
     
-    // ตั้งค่า Event Listener สำหรับปุ่มกรอง (ทำแค่ครั้งเดียวด้วย Event Delegation ถ้าทำได้ หรือผูกตอนสร้าง)
+    // ตั้งค่า Event Listener สำหรับปุ่มกรอง (ทำกค่ครั้งเดียวด้วย Event Delegation ถ้าทำได้ หรือผูกตอนสร้าง)
     // สำหรับ status filter:
     const statusFiltersContainer = document.getElementById("status-filters");
     if (statusFiltersContainer) {
         statusFiltersContainer.innerHTML = `
-            <button class="pill ${activeStatusFilter === 'ALL' ? 'active' : ''}" data-status="ALL">ทั้งหมด</button>
-            <button class="pill ${activeStatusFilter === 'CHECKED' ? 'active' : ''}" data-status="CHECKED" style="${activeStatusFilter === 'CHECKED' ? 'background-color: var(--color-present); color: white;' : ''}">เช็คแล้ว</button>
-            <button class="pill ${activeStatusFilter === 'UNCHECKED' ? 'active' : ''}" data-status="UNCHECKED">ยังไม่เช็ค</button>
+            <button class="pill status-all ${activeStatusFilter === 'ALL' ? 'active' : ''}" data-status="ALL">ทั้งหมด</button>
+            <button class="pill status-checked ${activeStatusFilter === 'CHECKED' ? 'active' : ''}" data-status="CHECKED">เช็คกล้ว</button>
+            <button class="pill status-unchecked ${activeStatusFilter === 'UNCHECKED' ? 'active' : ''}" data-status="UNCHECKED">ยังไม่เช็ค</button>
         `;
         
         statusFiltersContainer.querySelectorAll(".pill").forEach(btn => {
@@ -505,7 +721,7 @@ function renderRooms() {
     });
 
     const gradeFiltersContainer = document.getElementById("grade-filters");
-    gradeFiltersContainer.innerHTML = `<button class="pill ${activeGradeFilter === 'ALL' ? 'active' : ''}" data-grade="ALL">ทั้งหมด</button>`;
+    gradeFiltersContainer.innerHTML = `<button class="pill status-all ${activeGradeFilter === 'ALL' ? 'active' : ''}" data-grade="ALL">ทุกระดับ</button>`;
     
     const uniqueGrades = Object.keys(gradeStats).sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
     
@@ -518,10 +734,10 @@ function renderRooms() {
         pill.setAttribute("data-grade", grade);
         
         if (isCheckedAll) {
-            pill.style.backgroundColor = 'var(--color-present)';
-            pill.style.color = '#fff';
+            pill.classList.add("status-checked");
             pill.innerHTML = `<i class="fa-solid fa-check"></i> ${grade}`;
         } else {
+            pill.classList.add("status-unchecked");
             pill.innerHTML = grade;
         }
         
@@ -544,97 +760,253 @@ function renderRooms() {
         const card = document.createElement("div");
         card.className = "room-card";
         if (isChecked) {
-            card.style.backgroundColor = "#e0f2f1"; // สีเขียวอ่อนเต็มการ์ด
-            card.style.border = "1px solid var(--color-present)";
+            card.classList.add("checked");
         }
         card.onclick = () => openAttendanceCheck(roomInfo.grade, roomInfo.room);
         
+        let presentPct = 0;
         let presentPctText = "ยังไม่ได้บันทึก";
         if (isChecked && summary.Total > 0) {
-            presentPctText = "มาเรียน " + ((summary.Present / summary.Total) * 100).toFixed(0) + "%";
+            presentPct = ((summary.Present / summary.Total) * 100).toFixed(0);
+            presentPctText = "มาเรียน " + presentPct + "%";
         }
         
+        const donutHtml = isChecked ? `
+            <div class="donut-wrapper">
+                <span class="donut-label">มา</span>
+                <span class="donut-text-mobile">${presentPct}%</span>
+                <div class="mini-donut" style="--pct: ${presentPct}%;" title="มาเรียน ${presentPct}%">
+                    <span class="donut-text-desktop">${presentPct}%</span>
+                </div>
+            </div>
+        ` : '';
+
         card.innerHTML = `
-            <div class="room-card-header">
-                <div class="room-name">
-                    <h3>ชั้น ${roomInfo.grade} ห้อง ${roomInfo.room}</h3>
-                    <span>นักเรียนทั้งหมด ${roomInfo.totalCount} คน</span>
+            <div class="room-card-layout">
+                <div class="room-card-info">
+                    <h3 class="room-card-title">ชั้น ${roomInfo.grade}/${roomInfo.room} <span class="room-card-count">(${roomInfo.totalCount} คน)</span></h3>
+                    <div class="check-status-badge desktop-only ${isChecked ? 'checked' : 'unchecked'}">
+                        ${isChecked ? 'เช็คกล้ว' : 'ยังไม่เช็ค'}
+                    </div>
                 </div>
-                <div class="check-status-badge ${isChecked ? 'checked' : 'unchecked'}">
-                    ${isChecked ? 'เช็คแล้ว' : 'ยังไม่เช็ค'}
+                ${donutHtml}
+                <div class="room-stats-pills">
+                <div class="stat-pill stat-m">
+                    <span>มา</span> <strong>${isChecked ? summary.Present : '-'}</strong>
                 </div>
-            </div>
-            <div style="font-size: 13px; font-weight: 600; margin-bottom: 12px; color: var(--text-muted);">
-                ${presentPctText}
-            </div>
-            <div class="room-mini-stats">
-                <div class="mini-stat-item">
-                    <span class="mini-stat-label">มา</span>
-                    <span class="mini-stat-val m">${isChecked ? summary.Present : '-'}</span>
+                <div class="stat-pill stat-l">
+                    <span>ลา</span> <strong>${isChecked ? summary.Leave : '-'}</strong>
                 </div>
-                <div class="mini-stat-item">
-                    <span class="mini-stat-label">ลา</span>
-                    <span class="mini-stat-val l">${isChecked ? summary.Leave : '-'}</span>
+                <div class="stat-pill stat-x">
+                    <span>ขาด</span> <strong>${isChecked ? summary.Absent : '-'}</strong>
                 </div>
-                <div class="mini-stat-item">
-                    <span class="mini-stat-label">ขาด</span>
-                    <span class="mini-stat-val x">${isChecked ? summary.Absent : '-'}</span>
+                <div class="stat-pill stat-s">
+                    <span>สาย</span> <strong>${isChecked ? summary.Late : '-'}</strong>
                 </div>
-                <div class="mini-stat-item">
-                    <span class="mini-stat-label">สาย</span>
-                    <span class="mini-stat-val s">${isChecked ? summary.Late : '-'}</span>
-                </div>
-                <div class="mini-stat-item">
-                    <span class="mini-stat-label">โดด</span>
-                    <span class="mini-stat-val d">${isChecked ? summary.Cut : '-'}</span>
+                <div class="stat-pill stat-d">
+                    <span>โดด</span> <strong>${isChecked ? summary.Cut : '-'}</strong>
                 </div>
             </div>
         `;
-        
         container.appendChild(card);
     });
+    
+    // Update top summary stats whenever rooms are re-rendered (e.g. after filter change)
+    calculateOverallStats();
 }
 
 /**
- * 3. หน้าลงเช็คชื่อรายห้อง (Check-in View) - มีการดึงประวัติมาแสดงคงสถานะเดิม
+ * 3. หน้าลงเช็คชื่อรายห้อง (Check-in View) - มีการดึงประวัติมากสดงคงสถานะเดิม
  */
 function openAttendanceCheck(grade, room) {
     selectedRoom = { grade, room };
     document.getElementById("attendance-title").innerText = `เช็คชื่อชั้น ${grade} ห้อง ${room}`;
     
-    // ตั้งค่า Date Picker ภายในหน้าเช็คชื่อ (ปฏิทินที่เหมือนหน้าแรก)
+    // ตั้งค่า Date Picker ภายในหน้าเช็คชื่อ (ปกิทินที่เหมือนหน้ากรก)
     const checkingDatePicker = document.getElementById("checking-date-picker");
     if (checkingDatePicker) {
-        checkingDatePicker.value = currentCheckingDate;
-        checkingDatePicker.onchange = (e) => {
-            currentCheckingDate = e.target.value;
-            const homeDatePicker = document.getElementById("home-date-picker");
-            if (homeDatePicker) homeDatePicker.value = currentCheckingDate;
-            
-            updateHeaderDate();
-            checkTodayHoliday();
-            
-            setLoader(true);
-            fetch(`${config.scriptUrl}?action=init&date=${currentCheckingDate}`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        todayLogs = data.todayLogs || {};
-                        todayLogsDetails = data.todayLogsDetails || {};
-                        for (let id in todayLogsDetails) {
-                            todayLogsDetails[id] = translateAbbreviationToStatus(todayLogsDetails[id]);
-                        }
-                        calculateOverallStats(); // Sync home dashboard
-                        renderRooms(); // Sync home dashboard
-                        openAttendanceCheck(grade, room);
+        if (window.flatpickr) {
+            flatpickr(checkingDatePicker, {
+                locale: "th",
+                dateFormat: "Y-m-d",
+                defaultDate: currentCheckingDate,
+                position: "auto center",
+                onChange: function(selectedDates, dateStr, instance) {
+                    currentCheckingDate = dateStr;
+                    const homeDatePicker = document.getElementById("home-date-picker");
+                    if (homeDatePicker && homeDatePicker._flatpickr) {
+                        homeDatePicker._flatpickr.setDate(currentCheckingDate);
+                    } else if (homeDatePicker) {
+                        homeDatePicker.value = currentCheckingDate;
                     }
-                })
-                .finally(() => setLoader(false));
-        };
+                    
+                    updateHeaderDate();
+                    checkTodayHoliday();
+                    
+                    setLoader(true);
+                    fetch(`${config.scriptUrl}?action=init&date=${currentCheckingDate}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                todayLogs = data.todayLogs || {};
+                                todayLogsDetails = data.todayLogsDetails || {};
+                                for (let id in todayLogsDetails) {
+                                    todayLogsDetails[id] = translateAbbreviationToStatus(todayLogsDetails[id]);
+                                }
+                                calculateOverallStats(); // Sync home dashboard
+                                renderRooms(); // Sync home dashboard
+                                openAttendanceCheck(grade, room);
+                            }
+                        })
+                        .finally(() => setLoader(false));
+                }
+            });
+            
+            const attendanceDatePill = document.getElementById("attendance-date-pill");
+            if (attendanceDatePill) {
+                attendanceDatePill.onclick = () => {
+                    checkingDatePicker._flatpickr.open();
+                };
+            }
+        } else {
+            checkingDatePicker.value = currentCheckingDate;
+            checkingDatePicker.onchange = (e) => {
+                currentCheckingDate = e.target.value;
+                const homeDatePicker = document.getElementById("home-date-picker");
+                if (homeDatePicker) homeDatePicker.value = currentCheckingDate;
+                
+                updateHeaderDate();
+                checkTodayHoliday();
+                
+                setLoader(true);
+                fetch(`${config.scriptUrl}?action=init&date=${currentCheckingDate}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            todayLogs = data.todayLogs || {};
+                            todayLogsDetails = data.todayLogsDetails || {};
+                            for (let id in todayLogsDetails) {
+                                todayLogsDetails[id] = translateAbbreviationToStatus(todayLogsDetails[id]);
+                            }
+                            calculateOverallStats();
+                            renderRooms();
+                            openAttendanceCheck(grade, room);
+                        }
+                    })
+                    .finally(() => setLoader(false));
+            };
+        }
     }
 
     const roomKey = `${grade}/${room}`;
     const isChecked = !!todayLogs[roomKey];
+    
+    // Inject tab buttons into room-dashboard-header
+    const headerContainer = document.getElementById("room-dashboard-header");
+    if (headerContainer) {
+        const summary = isChecked ? todayLogs[roomKey] : {};
+        let presentPct = 0;
+        if (isChecked && summary.Total > 0) {
+            presentPct = Math.round((summary.Present / summary.Total) * 100);
+        }
+        const donutHtml = isChecked ? `
+            <div class="donut-wrapper">
+                <span class="donut-label">มา</span>
+                <span class="donut-text-mobile">${presentPct}%</span>
+                <div class="mini-donut" style="--pct: ${presentPct}%;" title="มาเรียน ${presentPct}%">
+                    <span class="donut-text-desktop">${presentPct}%</span>
+                </div>
+            </div>
+        ` : '';
+        
+        let studentCount = typeof students !== 'undefined' ? students.filter(s => s.grade === grade && s.room === room).length : 0;
+        
+        let atRiskNotice = '';
+        if (typeof allStatsData !== 'undefined' && allStatsData && allStatsData.logs && typeof students !== 'undefined') {
+            let sStats = {};
+            allStatsData.logs.forEach(log => {
+                if (log.room === `${grade}/${room}`) {
+                    let sid = log.studentId;
+                    if (!sStats[sid]) sStats[sid] = { a: 0, l: 0 };
+                    if (log.status === 'ขาด') sStats[sid].a++;
+                    if (log.status === 'สาย') sStats[sid].l++;
+                }
+            });
+            let hasAtRisk = false;
+            let roomStudents = students.filter(s => s.grade === grade && s.room === room);
+            for (let i = 0; i < roomStudents.length; i++) {
+                let sid = roomStudents[i].studentId;
+                if (sStats[sid] && (sStats[sid].a >= 3 || sStats[sid].l >= 3)) {
+                    hasAtRisk = true;
+                    break;
+                }
+            }
+            if (hasAtRisk) {
+                atRiskNotice = ` <span style="color: var(--color-absent); font-weight: bold; font-size: 0.9em;">(ติดตาม <i class="fa-solid fa-triangle-exclamation"></i>)</span>`;
+            }
+        }
+        
+        headerContainer.innerHTML = `
+            <div class="room-card ${isChecked ? 'checked' : ''}" style="margin-bottom: 0; cursor: default;">
+                <div class="room-card-layout">
+                    <div class="room-card-info">
+                        <h3 class="room-card-title">ชั้น ${grade}/${room} <span class="room-card-count" style="font-size: 0.85em; font-weight: normal; color: #64748b;">(${studentCount} คน)</span></h3>
+                        <div class="check-status-badge desktop-only ${isChecked ? 'checked' : 'unchecked'}">
+                            ${isChecked ? 'เช็คกล้ว' : 'ยังไม่เช็ค'}
+                        </div>
+                    </div>
+                    ${donutHtml}
+                    <div class="room-stats-pills">
+                        <div class="stat-pill stat-m"><span>มา</span> <strong>${isChecked ? summary.Present : '-'}</strong></div>
+                        <div class="stat-pill stat-l"><span>ลา</span> <strong>${isChecked ? summary.Leave : '-'}</strong></div>
+                        <div class="stat-pill stat-x"><span>ขาด</span> <strong>${isChecked ? summary.Absent : '-'}</strong></div>
+                        <div class="stat-pill stat-s"><span>สาย</span> <strong>${isChecked ? summary.Late : '-'}</strong></div>
+                        <div class="stat-pill stat-d"><span>โดด</span> <strong>${isChecked ? summary.Cut : '-'}</strong></div>
+                    </div>
+                </div>
+                <div class="room-inner-tabs-container" style="display: grid; grid-template-columns: 1fr 1fr 1fr; text-align: center; margin-top: 20px; gap: 8px;">
+                    <button class="tab-btn room-inner-tab-btn active" data-target="room-tab-attendance">เช็คชื่อ</button>
+                    <button class="tab-btn room-inner-tab-btn" data-target="room-tab-stats">สรุป${atRiskNotice}</button>
+                    <button class="tab-btn room-inner-tab-btn" data-target="room-tab-schedule">ตาราง</button>
+                </div>
+            </div>
+        `;
+        
+        headerContainer.querySelectorAll('.room-inner-tab-btn').forEach(btn => {
+            btn.onclick = () => {
+                headerContainer.querySelectorAll('.room-inner-tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                // Hide all tabs securely
+                const t1 = document.getElementById('room-tab-attendance');
+                const t2 = document.getElementById('room-tab-stats');
+                const t3 = document.getElementById('room-tab-schedule');
+                if (t1) t1.style.display = 'none';
+                if (t2) t2.style.display = 'none';
+                if (t3) t3.style.display = 'none';
+                
+                const targetId = btn.getAttribute('data-target');
+                const targetEl = document.getElementById(targetId);
+                if (targetEl) targetEl.style.display = 'block';
+                
+                if (targetId === 'room-tab-stats') {
+                    if (typeof renderRoomSpecificStats === 'function') {
+                        renderRoomSpecificStats();
+                    }
+                } else if (targetId === 'room-tab-schedule') {
+                    if (typeof renderRoomSpecificSchedule === 'function') {
+                        renderRoomSpecificSchedule();
+                    }
+                }
+            };
+        });
+        
+        // Reset to first tab by default
+        const firstTab = headerContainer.querySelector('.room-inner-tab-btn');
+        if (firstTab) {
+            firstTab.click();
+        }
+    }
     
     const btnPreview = document.getElementById("btn-preview-from-checking");
     if (btnPreview) {
@@ -663,8 +1035,8 @@ function openAttendanceCheck(grade, room) {
     
     const roomStudents = students.filter(s => s.grade === grade && s.room === room);
     
-    // ตั้งค่าตัวแปรเริ่มต้น: ตรวจสอบว่าใน todayLogsDetails มีการบันทึกของเด็กคนนี้ในวันนี้แล้วหรือไม่
-    // หากมีแล้วจะคงสถานะเช็คชื่อเดิมไว้ หากไม่มีจะให้ค่าเริ่มต้นเป็น "มา" เพื่อความสะดวกรวดเร็ว
+    // ตั้งค่าตัวกปรเริ่มต้น: ตรวจสอบว่าใน todayLogsDetails มีการบันทึกของเด็กคนนี้ในวันนี้กล้วหรือไม่
+    // หากมีกล้วจะคงสถานะเช็คชื่อเดิมไว้ หากไม่มีจะให้ค่าเริ่มต้นเป็น "มา" เพื่อความสะดวกรวดเร็ว
     attendanceRecords = roomStudents.map(s => {
         const savedStatus = todayLogsDetails[s.studentId];
         return {
@@ -687,7 +1059,7 @@ function renderAttendanceStudentsList(recordsToRender) {
     recordsToRender.forEach(rec => {
         const row = document.createElement("div");
         
-        // กำหนดสีพื้นหลังแถวตามสถานะที่บันทึกไว้
+        // กำหนดสีพื้นหลังกถวตามสถานะที่บันทึกไว้
         let rowClass = "student-row";
         if (rec.status === "มา") rowClass += " selected-present";
         else if (rec.status === "ลา") rowClass += " selected-leave";
@@ -745,7 +1117,7 @@ function updateStudentStatus(studentId, status, buttons, rowElement) {
 }
 
 /**
- * 4. หน้าสรุปพรีวิวการเช็คชื่อแบบ 2 คอลัมน์ (ชาย/หญิง) - ปรับแก้การเรนเดอร์สีสถานะให้ตรงสี
+ * 4. หน้าสรุปพรีวิวการเช็คชื่อกบบ 2 คอลัมน์ (ชาย/หกิง) - ปรับกก้การเรนเดอร์สีสถานะให้ตรงสี
  */
 function showPreviewSummary() {
     const grade = selectedRoom.grade;
@@ -761,7 +1133,7 @@ function showPreviewSummary() {
     document.getElementById("preview-room-title").innerText = `ชั้น ${grade} ห้อง ${room}`;
     
     const checkDateObj = new Date(currentCheckingDate);
-    document.getElementById("preview-date-text").innerText = `ประจำวันที่ ${checkDateObj.toLocaleDateString('th-TH', { dateStyle: 'long' })}`;
+    document.getElementById("preview-date-text").innerText = `วันที่ ${checkDateObj.toLocaleDateString('th-TH', { dateStyle: 'long' })}`;
     
     const summary = { Present: 0, Leave: 0, Absent: 0, Late: 0, Cut: 0 };
     attendanceRecords.forEach(r => {
@@ -828,7 +1200,7 @@ function showPreviewSummary() {
                     document.body.removeChild(a);
                 } catch (err) {
                     console.error("Canvas Export Error:", err);
-                    showToast("ไม่สามารถดาวน์โหลดรูปอัตโนมัติได้ (อาจติดปัญหาเปิดจากไฟล์คอมพิวเตอร์โดยตรง กรุณานำขึ้นโฮสติ้งจริง)", "error");
+                    showToast("ไม่สามารถดาวน์โหลดรูปอัตโนมัติได้ (อาจติดปักหาเปิดจากไฟล์คอมพิวเตอร์โดยตรง กรุณานำขึ้นโฮสติ้งจริง)", "error");
                 }
                 
                 // Clear any wheel zoom listeners since we auto-fit to screen now
@@ -840,11 +1212,24 @@ function showPreviewSummary() {
 }
 
 /**
- * 5. แป้นป้อนรหัสผ่าน PIN 4 หลัก (Keypad)
+ * 5. กป้นป้อนรหัสผ่าน PIN 4 หลัก (Keypad)
  */
+function verifyLoginPin(pin) {
+    const user = users.find(u => String(u.pin) === String(pin));
+    if (user) {
+        loggedInUser = user;
+        document.getElementById("login-section").classList.add("hidden");
+        document.getElementById("main-app").classList.remove("hidden");
+        showMainApp();
+        showToast(`เข้าสู่ระบบสำเร็จ: คุณครู ${user.name}`);
+        return true;
+    }
+    return false;
+}
+
 function openPinModal(title, roleRequired, onSuccess) {
     document.getElementById("pin-modal-title").innerText = title;
-    document.getElementById("pin-modal-subtitle").innerText = roleRequired === "ADMIN" ? "กรุณากรอกรหัสผู้ดูแลระบบ" : "กรุณากรอกรหัสผ่านเพื่อยืนยันสิทธิ์";
+    document.getElementById("pin-modal-subtitle").innerText = roleRequired === "ADMIN" ? "กรุณากรอกรหัสผู้ดูกลระบบ" : "กรุณากรอกรหัสผ่านเพื่อยืนยันสิทธิ์";
     document.getElementById("pin-error-message").innerText = "";
     
     pinDigits = "";
@@ -902,10 +1287,10 @@ async function verifyPinAndRun() {
         return;
     }
     
-    // ทำการยืนยันรหัส PIN บนเครื่องจากหน่วยความจำโดยตรง (Local Cache Verification) เพื่อผลการตรวจสอบแบบทันที
+    // ทำการยืนยันรหัส PIN บนเครื่องจากหน่วยความจำโดยตรง (Local Cache Verification) เพื่อผลการตรวจสอบกบบทันที
     let matchedUser = users.find(u => String(u.pin).trim() === String(pinDigits).trim());
     
-    // Master Bypass: ถ้าระบบยังไม่เชื่อมต่อฐานข้อมูล หรือยังไม่มีผู้ใช้ ให้ใช้รหัส 9999 เข้าแอดมินได้
+    // Master Bypass: ถ้าระบบยังไม่เชื่อมต่อกานข้อมูล หรือยังไม่มีผู้ใช้ ให้ใช้รหัส 9999 เข้ากอดมินได้
     if (!matchedUser && (!config.scriptUrl || users.length === 0) && pinDigits === "9999") {
         matchedUser = { name: "System Setup", role: "ADMIN", pin: "9999" };
     }
@@ -926,6 +1311,8 @@ async function verifyPinAndRun() {
         }
         
         if (isAuthorized) {
+            loggedInUser = matchedUser; // Set global session
+            updateUserSessionUI();
             document.getElementById("modal-pin").classList.remove("active");
             if (pinCallback) pinCallback(pinDigits, userName, userRole);
         } else {
@@ -940,13 +1327,55 @@ async function verifyPinAndRun() {
     }
 }
 
+// ==================== ระบบ Session / On-Demand Login ====================
+
+window.requestLogin = function(roleRequired = "ANY", callback = null) {
+    if (loggedInUser) {
+        let isAuthorized = false;
+        const userRole = loggedInUser.role;
+        if (roleRequired === "ANY") isAuthorized = true;
+        else if (roleRequired === "ADMIN" && userRole === "ADMIN") isAuthorized = true;
+        else if (roleRequired === "STUDENT_AFFAIRS" && (userRole === "ADMIN" || userRole === "STUDENT_AFFAIRS")) isAuthorized = true;
+        else if (roleRequired === "STUDENT_AFFAIRS_ONLY" && (userRole === "STUDENT_AFFAIRS" || userRole === "ADMIN")) isAuthorized = true;
+        
+        if (isAuthorized) {
+            if (callback) callback(loggedInUser.pin, loggedInUser.name, loggedInUser.role);
+        } else {
+            alert("คุณไม่มีสิทธิ์ในการดำเนินรายการนี้");
+        }
+    } else {
+        openPinModal("กรุณาเข้าสู่ระบบ", roleRequired, callback);
+    }
+};
+
+window.updateUserSessionUI = function() {
+    const loggedOutSpan = document.getElementById('session-logged-out');
+    const loggedInSpan = document.getElementById('session-logged-in');
+    if (loggedInUser) {
+        if(loggedOutSpan) loggedOutSpan.style.display = 'none';
+        if(loggedInSpan) {
+            loggedInSpan.style.display = 'inline-flex';
+            document.getElementById('user-session-name').innerText = loggedInUser.name;
+        }
+    } else {
+        if(loggedOutSpan) loggedOutSpan.style.display = 'inline-flex';
+        if(loggedInSpan) loggedInSpan.style.display = 'none';
+    }
+};
+
+window.logout = function() {
+    loggedInUser = null;
+    updateUserSessionUI();
+    showToast("ออกจากระบบเรียบร้อยกล้ว");
+};
+
 /**
  * 6. บันทึกเช็คชื่อไปยัง Google Apps Script - บันทึกสถานะรายคนลงสเตตวันนี้
  */
 async function saveAttendanceToSheet(pinCode, teacherName) {
     showToast(`บันทึกการเช็คชื่อห้อง ${selectedRoom.grade}/${selectedRoom.room} ล่วงหน้าเรียบร้อย (ระบบกำลังบันทึกลงชีทเบื้องหลัง)`);
     
-    // อัปเดตข้อมูลภาพรวมรายห้องลง State วันนี้เพื่อสะท้อนหน้าแรก
+    // อัปเดตข้อมูลภาพรวมรายห้องลง State วันนี้เพื่อสะท้อนหน้ากรก
     const summary = { Present: 0, Leave: 0, Absent: 0, Late: 0, Cut: 0, Total: attendanceRecords.length };
     attendanceRecords.forEach(r => {
         if (r.status === "มา") summary.Present++;
@@ -955,10 +1384,10 @@ async function saveAttendanceToSheet(pinCode, teacherName) {
         else if (r.status === "สาย") summary.Late++;
         else if (r.status === "โดด") summary.Cut++;
         
-        // สำคัญ: บันทึกสถานะรายบุคคลลง todayLogsDetails ทันทีเพื่อให้ค้างสถานะเวลาเปิดใหม่
+        // สำคัก: บันทึกสถานะรายบุคคลลง todayLogsDetails ทันทีเพื่อให้ค้างสถานะเวลาเปิดใหม่
         todayLogsDetails[r.studentId] = r.status;
         
-        // บวกสถานะเข้าสถิติย้อนหลังในแรมโดยตรง
+        // บวกสถานะเข้าสถิติย้อนหลังในกรมโดยตรง
         if (allStatsData) {
             const fullRoom = `${selectedRoom.grade}/${selectedRoom.room}`;
             let existing = allStatsData.logs.find(log => log.studentId === r.studentId && log.date === currentCheckingDate);
@@ -976,7 +1405,7 @@ async function saveAttendanceToSheet(pinCode, teacherName) {
         }
     });
     
-    // เพิ่มวันที่ในคอลเลกชันวันที่สถิติในแรมหากยังไม่มี
+    // เพิ่มวันที่ในคอลเลกชันวันที่สถิติในกรมหากยังไม่มี
     if (allStatsData && !allStatsData.dates.includes(currentCheckingDate)) {
         allStatsData.dates.push(currentCheckingDate);
         allStatsData.dates.sort();
@@ -1015,7 +1444,7 @@ async function saveAttendanceToSheet(pinCode, teacherName) {
             showToast("บันทึกเบื้องหลังไม่สำเร็จ: " + data.message, "error");
         }
     }).catch(e => {
-        console.error("เชื่อมต่อฐานข้อมูลเบื้องหลังล้มเหลว", e);
+        console.error("เชื่อมต่อกานข้อมูลเบื้องหลังล้มเหลว", e);
     });
 }
 
@@ -1029,7 +1458,7 @@ async function fetchAndRenderStats() {
         return;
     }
     
-    // โหลดประวัติทั้งหมดมาไว้ในแรมหากยังไม่มี
+    // โหลดประวัติทั้งหมดมาไว้ในกรมหากยังไม่มี
     if (!allStatsData) {
         setLoader(true);
         try {
@@ -1058,7 +1487,7 @@ async function fetchAndRenderStats() {
     const selectedMonth = document.getElementById("stats-month-select").value;
     const selectedRoom = document.getElementById("stats-room-select").value;
     
-    // อัปเดต Dropdown เดือนจากข้อมูลที่มีในแรม
+    // อัปเดต Dropdown เดือนจากข้อมูลที่มีในกรม
     updateMonthDropdown(allStatsData.availableMonths, selectedMonth);
     
     // กรองประวัติเช็คชื่อทั้งหมดจากหน่วยความจำโดยไม่ต้องเชื่อมต่ออินเทอร์เน็ตใหม่
@@ -1202,8 +1631,8 @@ function renderAccumulatedStats(logs, targetRoom) {
     }
 }
 
-function renderDailyGridStats(logs, datesList, targetRoom) {
-    const table = document.getElementById("stats-daily-grid-table");
+function renderDailyGridStats(logs, datesList, targetRoom, tableId = "stats-daily-grid-table") {
+    const table = document.getElementById(tableId);
     table.innerHTML = "";
     
     const sortedDates = datesList.sort();
@@ -1350,7 +1779,7 @@ function renderMisconductTable() {
             <td class="row-clickable" style="max-width: 120px;"><div style="font-size: 13px; color: ${item.resolution ? '#166534' : 'var(--text-muted)'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.resolution || '-'}</div></td>
         `;
         
-        // เมื่อคลิกที่ส่วนใดๆ ของแถว (ยกเว้น checkbox) ให้เปิดหน้าต่างรายละเอียด
+        // เมื่อคลิกที่ส่วนใดๆ ของกถว (ยกเว้น checkbox) ให้เปิดหน้าต่างรายละเอียด
         tr.querySelectorAll('.row-clickable').forEach(td => {
             td.style.cursor = "pointer";
             td.onclick = () => {
@@ -1388,11 +1817,11 @@ function renderMisconductTable() {
             input.value = ""; // เคลียร์ข้อความเดิม
             
             if (newStatus) {
-                title.innerText = "บันทึกการแก้ไขความประพฤติ";
+                title.innerText = "บันทึกการกก้ไขความประพฤติ";
                 inputGroup.style.display = "block";
                 confirmText.style.display = "none";
             } else {
-                title.innerText = "ยกเลิกการแก้ไขความประพฤติ?";
+                title.innerText = "ยกเลิกการกก้ไขความประพฤติ?";
                 inputGroup.style.display = "none";
                 confirmText.style.display = "block";
             }
@@ -1408,18 +1837,18 @@ function renderMisconductTable() {
                 if (newStatus) {
                     resolutionText = input.value.trim();
                     if (!resolutionText) {
-                        showToast("กรุณาระบุรายละเอียดการแก้ไข", "error");
+                        showToast("กรุณาระบุรายละเอียดการกก้ไข", "error");
                         return;
                     }
                 }
                 
                 modal.classList.remove("active");
                 
-                openPinModal("ป้อนรหัสแอดมิน / ครูปกครอง", "STUDENT_AFFAIRS", async (pin, userName) => {
+                openPinModal("ป้อนรหัสกอดมิน / ครูปกครอง", "STUDENT_AFFAIRS", async (pin, userName) => {
                     // Optimistic UI Update - เปลี่ยนค่าในตารางให้เห็นทันทีก่อนบันทึกเสร็จ
                     item.resolved = newStatus;
                     
-                    // ถ้ายกเลิก ให้ล้างข้อความ ถ้าแก้ให้เติมชั่วคราว
+                    // ถ้ายกเลิก ให้ล้างข้อความ ถ้ากก้ให้เติมชั่วคราว
                     if (newStatus) {
                         const dateStr = new Date().toLocaleDateString('en-GB'); // DD/MM/YYYY
                         item.resolution = `${resolutionText} (${userName}, ${dateStr})`;
@@ -1429,7 +1858,7 @@ function renderMisconductTable() {
                     
                     renderMisconductTable();
                     
-                    // ไม่ต้องบล็อคหน้าจอทั้งหมดด้วย Loader แล้ว ปล่อยให้มันบันทึกเงียบๆ ด้านหลัง
+                    // ไม่ต้องบล็อคหน้าจอทั้งหมดด้วย Loader กล้ว ปล่อยให้มันบันทึกเงียบๆ ด้านหลัง
                     if (!config.scriptUrl) {
                         showToast("ไม่สามารถอัปเดตออนไลน์ได้เนื่องจากไม่ได้ตั้งค่า Apps Script", "error");
                         return;
@@ -1559,9 +1988,13 @@ async function submitMisconduct(pinCode) {
             document.getElementById("selected-student-display").classList.add("hidden");
             selectedMisconductStudent = null;
             
-            // ดึงข้อมูลใหม่จากหลังบ้านทันที เพื่อให้แสดงผลในตารางพร้อม ID ที่ถูกต้อง
+            // ดึงข้อมูลใหม่จากหลังบ้านทันที เพื่อให้กสดงผลในตารางพร้อม ID ที่ถูกต้อง
             await fetchMisconductDataOnce();
             renderMisconductTable();
+            // อัปเดตตารางเพื่อเปลี่ยนสีปุ่ม
+            if (typeof renderAtRiskStudents === 'function') {
+                renderAtRiskStudents();
+            }
         } else {
             showToast("บันทึกไม่สำเร็จ: " + data.message, "error");
         }
@@ -1628,13 +2061,13 @@ function handleRegisterSubmit() {
     // ตรวจสอบว่า PIN ซ้ำกับผู้ใช้งานคนอื่นหรือไม่
     const duplicateUser = users.find(u => String(u.pin || "").trim() === String(pinVal).trim() && u.name !== name);
     if (duplicateUser) {
-        showToast("รหัส PIN นี้ถูกใช้งานโดยคุณครูท่านอื่นแล้ว กรุณาตั้งรหัสอื่น", "error");
+        showToast("รหัส PIN นี้ถูกใช้งานโดยคุณครูท่านอื่นกล้ว กรุณาตั้งรหัสอื่น", "error");
         return;
     }
     
     document.getElementById("modal-register").classList.remove("active");
     
-    // ตั้งรหัสผ่าน PIN ของคุณครูคนนั้นโดยตรง โดยนำไปบันทึกเลย (ส่งค่า code เป็นว่างไปเพราะเราไม่ได้ใช้รหัสครูแล้ว)
+    // ตั้งรหัสผ่าน PIN ของคุณครูคนนั้นโดยตรง โดยนำไปบันทึกเลย (ส่งค่า code เป็นว่างไปเพราะเราไม่ได้ใช้รหัสครูกล้ว)
     saveUserRegistration(name, "", pinVal, "TEACHER");
 }
 
@@ -1693,7 +2126,7 @@ async function saveUserRegistration(name, code, pinCode, role) {
 }
 
 /**
- * เรนเดอร์ตารางรายชื่อครูในส่วนแก้ไขสถานะของหน้าแอดมิน
+ * เรนเดอร์ตารางรายชื่อครูในส่วนกก้ไขสถานะของหน้ากอดมิน
  */
 function renderAdminTeachers() {
     const tbody = document.getElementById("admin-teacher-list-tbody");
@@ -1731,7 +2164,7 @@ function renderAdminTeachers() {
             </td>
         `;
         
-        // เมื่อมีการเปลี่ยนบทบาท หรือแก้ไขรหัสผ่าน จะโชว์ข้อความเตือนให้กดบันทึก
+        // เมื่อมีการเปลี่ยนบทบาท หรือกก้ไขรหัสผ่าน จะโชว์ข้อความเตือนให้กดบันทึก
         const select = tr.querySelector(".admin-role-select");
         select.onchange = () => {
             document.getElementById("admin-teacher-unsaved-msg").style.display = "inline-block";
@@ -1744,7 +2177,7 @@ function renderAdminTeachers() {
             };
         }
         
-        // จัดการลบบัญชีครู
+        // จัดการลบบักชีครู
         const delBtn = tr.querySelector(".btn-delete-teacher");
         if (delBtn && !isSelfAdmin) {
             delBtn.onclick = () => {
@@ -1777,7 +2210,7 @@ function renderAdminTeachers() {
                         });
                         const data = await res.json();
                         if (data.success) {
-                            showToast(`ลบบัญชีผู้ใช้ของ ${u.name} สำเร็จ`);
+                            showToast(`ลบบักชีผู้ใช้ของ ${u.name} สำเร็จ`);
                             users = users.filter(usr => usr.name !== u.name); // ลบจากหน่วยความจำ
                             renderAdminTeachers(); // เรนเดอร์ใหม่
                         } else {
@@ -1826,7 +2259,7 @@ document.getElementById("btn-save-all-teachers").onclick = async () => {
         return;
     }
     
-    // ตรวจสอบ PIN ซ้ำกันในการแก้ไขรอบนี้
+    // ตรวจสอบ PIN ซ้ำกันในการกก้ไขรอบนี้
     const pinsSeen = {};
     let pinDuplicate = false;
     for (let u of updates) {
@@ -1837,7 +2270,7 @@ document.getElementById("btn-save-all-teachers").onclick = async () => {
         pinsSeen[u.pin] = u.name;
     }
     if (pinDuplicate) {
-        showToast("พบรหัส PIN ซ้ำกันสำหรับผู้ใช้งานต่างคนกัน กรุณาแก้ไขรหัสไม่ให้ซ้ำกัน", "error");
+        showToast("พบรหัส PIN ซ้ำกันสำหรับผู้ใช้งานต่างคนกัน กรุณากก้ไขรหัสไม่ให้ซ้ำกัน", "error");
         return;
     }
     
@@ -1863,7 +2296,7 @@ document.getElementById("btn-save-all-teachers").onclick = async () => {
         const data = await res.json();
         
         if (data.success) {
-            showToast("บันทึกข้อมูลครูและรหัสผ่านทั้งหมดสำเร็จ");
+            showToast("บันทึกข้อมูลครูกละรหัสผ่านทั้งหมดสำเร็จ");
             document.getElementById("admin-teacher-unsaved-msg").style.display = "none";
             // อัปเดตในหน่วยความจำ
             updates.forEach(u => {
@@ -1884,7 +2317,7 @@ document.getElementById("btn-save-all-teachers").onclick = async () => {
 };
 
 /**
- * 10. หน้าแอดมิน (Admin Control Panel)
+ * 10. หน้ากอดมิน (Admin Control Panel)
  */
 async function loadHolidaysInAdmin() {
     const tbody = document.getElementById("holiday-list-tbody");
@@ -1924,7 +2357,7 @@ async function loadHolidaysInAdmin() {
                     method: "POST",
                     body: JSON.stringify({
                         action: "deleteHoliday",
-                        pin: authenticatedAdminPin, // ส่งรหัสแอดมินจริงที่ล็อกอินเข้ามา
+                        pin: authenticatedAdminPin, // ส่งรหัสกอดมินจริงที่ล็อกอินเข้ามา
                         date: h.date
                     })
                 });
@@ -1952,7 +2385,7 @@ async function addHoliday() {
     const nameInput = document.getElementById("holiday-name-input").value.trim();
     
     if (!dateInput || !nameInput) {
-        showToast("กรุณากรอกวันที่และระบุชื่อวันหยุด", "error");
+        showToast("กรุณากรอกวันที่กละระบุชื่อวันหยุด", "error");
         return;
     }
     
@@ -1969,7 +2402,7 @@ async function addHoliday() {
             method: "POST",
             body: JSON.stringify({
                 action: "addHoliday",
-                pin: authenticatedAdminPin, // ส่งรหัสแอดมินจริงที่ล็อกอินเข้ามา
+                pin: authenticatedAdminPin, // ส่งรหัสกอดมินจริงที่ล็อกอินเข้ามา
                 date: dateInput,
                 name: nameInput
             })
@@ -1986,25 +2419,92 @@ async function addHoliday() {
             showToast("เพิ่มวันหยุดไม่สำเร็จ: " + data.message, "error");
         }
     } catch (e) {
-        showToast("การเชื่อมต่อฐานข้อมูลมีปัญหา", "error");
+        showToast("การเชื่อมต่อกานข้อมูลมีปักหา", "error");
     } finally {
         setLoader(false);
     }
 }
 
 /**
- * 11. ฟังก์ชันสลับการแสดงผลหน้าเว็บ (SPA View Switcher)
+ * 11. ฟังก์ชันเปลี่ยนหน้า (SPA View Switcher)
  */
+window.jumpToTracking = function(room) {
+    const roomFilterSelect = document.getElementById('at-risk-room-filter');
+    if (roomFilterSelect) {
+        // Ensure options exist if not populated yet
+        let optionExists = false;
+        for (let i = 0; i < roomFilterSelect.options.length; i++) {
+            if (roomFilterSelect.options[i].value === room) optionExists = true;
+        }
+        if (!optionExists) {
+            const opt = document.createElement('option');
+            opt.value = room;
+            opt.text = 'ชั้น ' + room;
+            roomFilterSelect.appendChild(opt);
+        }
+        roomFilterSelect.value = room;
+    }
+    switchView('at-risk');
+};
 function switchView(viewName) {
     currentView = viewName;
+    
+    // ปิด Start Menu อัตโนมัติเมื่อเลือกเมนู
+    const sidebar = document.querySelector(".sidebar");
+    const sidebarBackdrop = document.getElementById("sidebar-backdrop");
+    const startMenuBtn = document.getElementById("start-menu-btn");
+    if (sidebar) sidebar.classList.remove("active");
+    if (startMenuBtn) startMenuBtn.classList.remove("active");
+    if (sidebarBackdrop) sidebarBackdrop.style.display = "none";
+    
+    // อัปเดตหัวข้อกถบด้านบนสุดตามหน้าจอที่กำลังเปิดทำงาน
+    const pageTitleEl = document.getElementById("header-page-title");
+    if (pageTitleEl) {
+        if (viewName === "home") {
+            pageTitleEl.innerText = "หน้ากรก";
+        } else if (viewName === "stats") {
+            pageTitleEl.innerText = "สถิติเข้าเรียน";
+        } else if (viewName === "misconduct") {
+            pageTitleEl.innerText = "กจ้งพฤติกรรมนักเรียน";
+        } else if (viewName === "at-risk") {
+            pageTitleEl.innerText = "ติดตามนักเรียน";
+        } else if (viewName === "attendance-check") {
+            pageTitleEl.innerText = `เช็คชื่อห้อง ${selectedRoom ? selectedRoom.grade + '/' + selectedRoom.room : ''}`;
+        }
+    }
     
     document.querySelectorAll(".menu-item").forEach(item => {
         item.classList.remove("active");
     });
     
+    document.querySelectorAll(".dock-item").forEach(btn => {
+        btn.classList.remove("active");
+    });
+    const activeShortcut = document.getElementById(`shortcut-${viewName}`);
+    if (activeShortcut) activeShortcut.classList.add("active");
+    
     document.querySelectorAll(".content-view").forEach(view => {
         view.classList.remove("active");
     });
+    
+    // จัดการการกสดงผลของปุ่มย้อนกลับกละเส้นคั่น
+    const backBtn = document.getElementById("shortcut-back");
+    const backSep = document.getElementById("mobile-back-separator");
+    if (backBtn && backSep) {
+        if (viewName === "attendance-check" || viewName === "stats" || viewName === "misconduct" || viewName === "at-risk") {
+            backBtn.style.setProperty("display", "flex", "important");
+            backSep.style.setProperty("display", "block", "important");
+            backBtn.classList.add("show-on-mobile");
+            backSep.classList.add("show-on-mobile");
+            // Remove active dot from other dock items since we are in an inner page
+            document.querySelectorAll(".dock-item").forEach(btn => btn.classList.remove("active"));
+        } else {
+            backBtn.style.setProperty("display", "none", "important");
+            backSep.style.setProperty("display", "none", "important");
+            backBtn.classList.remove("show-on-mobile");
+            backSep.classList.remove("show-on-mobile");
+        }
+    }
     
     if (viewName === "home") {
         document.getElementById("menu-home").classList.add("active");
@@ -2020,10 +2520,690 @@ function switchView(viewName) {
         document.getElementById("menu-misconduct").classList.add("active");
         document.getElementById("view-misconduct").classList.add("active");
         fetchAndRenderMisconducts();
+    } else if (viewName === "at-risk") {
+        document.getElementById("menu-at-risk").classList.add("active");
+        document.getElementById("view-at-risk").classList.add("active");
+        renderAtRiskStudents();
     } else if (viewName === "attendance-check") {
         document.getElementById("view-attendance-check").classList.add("active");
     }
 }
+
+/**
+ * ฟังก์ชันเปิด/ปิดเมนูย่อย (Accordion)
+ */
+window.toggleSubMenu = function(headerElement) {
+    const parent = headerElement.parentElement;
+    const subMenu = parent.querySelector(".menu-sub-items");
+    const chevron = headerElement.querySelector(".menu-chevron");
+    
+    if (subMenu.style.display === "none") {
+        subMenu.style.display = "block";
+        chevron.style.transform = "rotate(180deg)";
+        headerElement.classList.add("expanded");
+    } else {
+        subMenu.style.display = "none";
+        chevron.style.transform = "rotate(0deg)";
+        headerElement.classList.remove("expanded");
+    }
+};
+
+/**
+ * ดึงกละกสดงข้อมูลนักเรียนกลุ่มเสี่ยง
+ */
+window.renderAtRiskStudents = async function() {
+    const tbody = document.getElementById("at-risk-table-body");
+    const badge = document.getElementById("at-risk-badge");
+    
+    tbody.innerHTML = '<tr><td colspan="5" class="txt-center" style="padding: 30px;"><div class="empty-state" style="color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin" style="font-size: 30px; margin-bottom: 10px;"></i><p>กำลังโหลดกละคำนวณข้อมูล...</p></div></td></tr>';
+    
+    if (!config.scriptUrl) {
+        tbody.innerHTML = '<tr><td colspan="5" class="txt-center" style="padding: 30px;">โปรดตั้งค่าลิงก์ Apps Script ก่อน</td></tr>';
+        return;
+    }
+    
+    // 1. โหลดข้อมูลสถิติทั้งหมดถ้ายังไม่มี
+    if (!allStatsData) {
+        try {
+            const res = await fetch(`${config.scriptUrl}?action=getStats&month=ALL&room=ALL`);
+            const data = await res.json();
+            if (data.success) {
+                allStatsData = data.stats;
+                if (allStatsData && allStatsData.logs) {
+                    allStatsData.logs.forEach(log => {
+                        log.status = translateAbbreviationToStatus(log.status);
+                    });
+                }
+                if (typeof updateAtRiskNoticeInTab === 'function') updateAtRiskNoticeInTab();
+            } else {
+                tbody.innerHTML = `<tr><td colspan="5" class="txt-center">ดึงข้อมูลไม่สำเร็จ: ${data.message}</td></tr>`;
+                return;
+            }
+        } catch (e) {
+            tbody.innerHTML = '<tr><td colspan="5" class="txt-center">เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>';
+            return;
+        }
+    }
+    
+    // 2. คำนวณสถิติ
+    const countsMap = {};
+    students.forEach(s => {
+        countsMap[s.studentId] = {
+            studentId: s.studentId,
+            fullName: s.fullName,
+            grade: s.grade,
+            room: s.room,
+            absent: 0,
+            late: 0
+        };
+    });
+    
+    if (allStatsData && allStatsData.logs) {
+        allStatsData.logs.forEach(log => {
+            if (countsMap[log.studentId]) {
+                if (log.status === "ขาด") countsMap[log.studentId].absent++;
+                if (log.status === "สาย") countsMap[log.studentId].late++;
+            }
+        });
+    }
+    
+    // 3. กรองเฉพาะคนที่เกินเกณฑ์ (สาย >= 3 หรือ ขาด >= 3)
+    const atRiskList = [];
+    Object.values(countsMap).forEach(s => {
+        if (s.absent >= 3 || s.late >= 3) {
+            atRiskList.push(s);
+        }
+    });
+    
+    // อัปเดตตัวเลขกจ้งเตือน
+    if (atRiskList.length > 0) {
+        badge.innerText = atRiskList.length;
+        badge.style.display = "inline-block";
+    } else {
+        badge.style.display = "none";
+    }
+    
+    // 4. กสดงผล
+    if (atRiskList.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 30px;"><div class="empty-state"><i class="fa-solid fa-circle-check" style="font-size: 40px; color: var(--color-present); margin-bottom: 10px;"></i><p>ไม่มีนักเรียนกลุ่มเสี่ยงที่ค้างดำเนินการยอดเยี่ยมมากครับ!</p></div></td></tr>';
+        return;
+    }
+    
+    const filterValue = document.getElementById('at-risk-filter') ? document.getElementById('at-risk-filter').value : 'all';
+    const roomFilterSelect = document.getElementById('at-risk-room-filter');
+    const roomFilterValue = roomFilterSelect ? roomFilterSelect.value : 'ALL';
+    
+    // Populate room filter if it's the first time
+    if (roomFilterSelect && roomFilterSelect.options.length <= 1) {
+        const uniqueRooms = [...new Set(atRiskList.map(s => `${s.grade}/${s.room}`))].sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
+        uniqueRooms.forEach(room => {
+            const opt = document.createElement('option');
+            opt.value = room;
+            opt.text = 'ชั้น ' + room;
+            roomFilterSelect.appendChild(opt);
+        });
+    }
+    
+    let filteredList = atRiskList;
+    if (roomFilterValue !== 'ALL') {
+        filteredList = filteredList.filter(s => `${s.grade}/${s.room}` === roomFilterValue);
+    }
+    
+    if (filterValue === 'absent') {
+        filteredList = filteredList.filter(s => s.absent >= 3);
+    } else if (filterValue === 'late') {
+        filteredList = filteredList.filter(s => s.late >= 3);
+    }
+    
+    // จัดเรียงตามชั้น/ห้อง
+    filteredList.sort((a, b) => {
+        const roomA = `${a.grade}/${a.room}`;
+        const roomB = `${b.grade}/${b.room}`;
+        if (roomA !== roomB) return roomA.localeCompare(roomB, 'th', { numeric: true });
+        return a.studentId.localeCompare(b.studentId);
+    });
+    
+    tbody.innerHTML = "";
+    
+    let teacherOptions = '<option value="">- เลือกครู -</option>';
+    if (typeof users !== 'undefined') {
+        users.forEach(u => {
+            teacherOptions += `<option value="${u.name}">${u.name}</option>`;
+        });
+    }
+    
+    filteredList.forEach(s => {
+        let statsText = "";
+        let docType = "";
+        let noticeCount = 1;
+        
+        const badgeBaseStyle = "padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 13px; display: inline-block; margin-right: 4px;";
+        const absentHighStyle = badgeBaseStyle + " background-color: #fee2e2; color: #b91c1c;"; // red
+        const absentMedStyle = badgeBaseStyle + " background-color: #ffedd5; color: #c2410c;"; // orange
+        const absentLowStyle = badgeBaseStyle + " background-color: #fef9c3; color: #a16207;"; // yellow
+        
+        const lateHighStyle = badgeBaseStyle + " background-color: #f3e8ff; color: #7e22ce;"; // purple
+        const lateMedStyle = badgeBaseStyle + " background-color: #e0f2fe; color: #0369a1;"; // blue
+        const lateLowStyle = badgeBaseStyle + " background-color: #f1f5f9; color: #475569;"; // slate
+        
+        if (s.absent >= 9) { statsText += `<span style="${absentHighStyle}">ขาด ${s.absent} วัน</span>`; docType = "ป.ค.9"; noticeCount = 3; }
+        else if (s.absent >= 6) { statsText += `<span style="${absentMedStyle}">ขาด ${s.absent} วัน</span>`; docType = "ป.ค.9"; noticeCount = 2; }
+        else if (s.absent >= 3) { statsText += `<span style="${absentLowStyle}">ขาด ${s.absent} วัน</span>`; docType = "ป.ค.9"; noticeCount = 1; }
+        
+        if (s.late >= 8) { statsText += `<span style="${lateHighStyle}">สาย ${s.late} ครั้ง</span>`; if(!docType) { docType = "ป.ค.8"; noticeCount = 3; } }
+        else if (s.late >= 5) { statsText += `<span style="${lateMedStyle}">สาย ${s.late} ครั้ง</span>`; if(!docType) { docType = "ป.ค.8"; noticeCount = 2; } }
+        else if (s.late >= 3) { statsText += `<span style="${lateLowStyle}">สาย ${s.late} ครั้ง</span>`; if(!docType) { docType = "ป.ค.8"; noticeCount = 1; } }
+
+        const fullDocType = `${docType}_ครั้งที่${noticeCount}`;
+        const storageKey = `${s.studentId}_${fullDocType}`;
+
+        // เช็คสถานะการเซ็น
+        const existingDoc = documentsData.find(d => d.studentId === s.studentId && d.documentType === fullDocType);
+        const isSigned = (existingDoc && existingDoc.signatureBase64) ? true : false;
+        
+        // ดึงค่าที่บันทึกไว้จาก cache ของ Google Sheets (ข้อมูลสดตอนโหลดเพจ)
+        let savedHr = "";
+        let savedSa = "";
+        
+        // ให้ได้คีย์กบบ: รหัส|เอกสาร|ครั้งที่1 (เช่น 4879|ป.ค.9|ครั้งที่1)
+        const backendKey = `${s.studentId}|${docType}|ครั้งที่${fullDocType.split('_ครั้งที่')[1] || '1'}`;
+        
+        if (atRiskTeachersCache && atRiskTeachersCache[backendKey]) {
+            savedHr = atRiskTeachersCache[backendKey].hr || "";
+            savedSa = atRiskTeachersCache[backendKey].sa || "";
+        }
+
+        // คำนวณสถานะปุ่ม HR
+        let hrBtnClass = "btn-secondary";
+        let hrBtnStyle = "width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;";
+        let hrBtnText = "รอดำเนินการ";
+        let hrIcon = "fa-user-plus";
+        if (savedHr) {
+            if (isSigned) {
+                hrBtnClass = "btn-success";
+                hrBtnText = "เสร็จกล้ว";
+                hrIcon = "fa-circle-check";
+            } else {
+                hrBtnClass = "";
+                hrBtnStyle += " background-color: #f59e0b; color: white; border: none;";
+                hrBtnText = "รอดำเนินการ";
+                hrIcon = "fa-user-check";
+            }
+        }
+
+        // คำนวณสถานะปุ่ม SA
+        let saBtnClass = "btn-secondary";
+        let saBtnStyle = "width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;";
+        let saBtnText = "รอดำเนินการ";
+        let saIcon = "fa-user-plus";
+        if (savedSa) {
+            if (isSigned) {
+                saBtnClass = "btn-success";
+                saBtnText = "เสร็จกล้ว";
+                saIcon = "fa-circle-check";
+            } else {
+                saBtnClass = "";
+                saBtnStyle += " background-color: #f59e0b; color: white; border: none;";
+                saBtnText = "รอดำเนินการ";
+                saIcon = "fa-user-check";
+            }
+        }
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${statsText}</td>
+            <td>${s.grade}/${s.room} - ${s.studentId} - <strong>${s.fullName}</strong></td>
+            <td>
+                <button class="btn btn-sm btn-outline" style="white-space: nowrap;" onclick="openPreviewDirectly('${s.studentId}', '${s.fullName}', '${s.grade}/${s.room}', '${docType}', '${fullDocType}')">
+                    <i class="fa-solid fa-file-lines"></i> พรีวิว
+                </button>
+            </td>
+            <td>
+                <button class="btn btn-sm ${hrBtnClass}" onclick="openAtRiskActionModal('${s.studentId}', '${s.fullName}', '${s.grade}/${s.room}', '${docType}', '${fullDocType}', 'hr')" style="${hrBtnStyle}">
+                    <i class="fa-solid ${hrIcon}"></i> ${hrBtnText}
+                </button>
+            </td>
+            <td>
+                <button class="btn btn-sm ${saBtnClass}" onclick="openAtRiskActionModal('${s.studentId}', '${s.fullName}', '${s.grade}/${s.room}', '${docType}', '${fullDocType}', 'sa')" style="${saBtnStyle}">
+                    <i class="fa-solid ${saIcon}"></i> ${saBtnText}
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+};
+
+let currentActionRole = 'hr'; // 'hr' or 'sa'
+window.openPreviewDirectly = function(studentId, fullName, gradeRoom, docType, fullDocType) {
+    currentSigningStudent = {
+        studentId: studentId,
+        fullName: fullName,
+        gradeRoom: gradeRoom,
+        docType: docType,
+        fullDocType: fullDocType,
+        backendKey: `${studentId}|${docType}|ครั้งที่${fullDocType.split('_ครั้งที่')[1] || '1'}`
+    };
+    
+    const backendKey = currentSigningStudent.backendKey;
+    let saved = { hr: "", sa: "" };
+    if (atRiskTeachersCache && atRiskTeachersCache[backendKey]) {
+        saved = { ...atRiskTeachersCache[backendKey] };
+    }
+    
+    currentSigningStudent.homeroomTeacher = saved.hr || '...........................................';
+    currentSigningStudent.headOfStudentAffairs = saved.sa || '...........................................';
+    
+    const docToPrint = { ...currentSigningStudent, documentType: currentSigningStudent.fullDocType };
+    document.getElementById("modal-at-risk-action").classList.remove("active");
+    openDocumentPreview(docToPrint);
+};
+
+
+window.openAtRiskActionModal = function(studentId, fullName, gradeRoom, docType, fullDocType, role) {
+    currentSigningStudent = { studentId, fullName, gradeRoom, docType, fullDocType };
+    currentActionRole = role;
+    
+    const roleName = role === 'hr' ? 'ครูที่ปรึกษา' : 'หัวหน้ากิจการนักเรียน';
+    document.getElementById("at-risk-action-title").innerText = `จัดการ${roleName}`;
+    document.getElementById("at-risk-action-subtitle").innerText = `ระบุรายชื่อผู้รับผิดชอบเพื่อพิมพ์ลงในเอกสาร ${docType}`;
+    
+    // กสดง/ซ่อน dropdown
+    if (role === 'hr') {
+        document.getElementById("group-action-hr").style.display = "block";
+        document.getElementById("group-action-sa").style.display = "none";
+    } else {
+        // ของ SA ให้โชว์ทั้งคู่
+        document.getElementById("group-action-hr").style.display = "block";
+        document.getElementById("group-action-sa").style.display = "block";
+    }
+    
+    let teacherOptions = '<option value="">- เลือกครู -</option>';
+    if (typeof users !== 'undefined') {
+        users.forEach(u => {
+            teacherOptions += `<option value="${u.name}">${u.name}</option>`;
+        });
+    }
+    
+    const hrSelect = document.getElementById("action-hr-select");
+    const saSelect = document.getElementById("action-sa-select");
+    hrSelect.innerHTML = teacherOptions;
+    saSelect.innerHTML = teacherOptions;
+    
+    const storageKey = `${studentId}_${fullDocType}`;
+    // ใช้ตัวคั่น | กทน _ เวลาบันทึกจริงเพื่อการจัดเก็บใน Google Sheets กต่ key กั่งเว็บอนุโลมให้เป็น _ หรือ | ก็ได้
+    // ขอปรับ storageKey ให้ตรงกับกบคเอนด์เลยคือ StudentId|DocType|NoticeCount
+    const backendKey = `${studentId}|${docType}|ครั้งที่${fullDocType.split('ครั้งที่')[1] || '1'}`;
+    currentSigningStudent.backendKey = backendKey;
+    
+    let savedHr = "";
+    let savedSa = "";
+    window.tempHrSign = "";
+    window.tempSaSign = "";
+    
+    if (atRiskTeachersCache && atRiskTeachersCache[backendKey]) {
+        savedHr = atRiskTeachersCache[backendKey].hr || "";
+        savedSa = atRiskTeachersCache[backendKey].sa || "";
+        window.tempHrSign = atRiskTeachersCache[backendKey].hrSign || "";
+        window.tempSaSign = atRiskTeachersCache[backendKey].saSign || "";
+    }
+    
+    if (savedHr) hrSelect.value = savedHr;
+    if (savedSa) saSelect.value = savedSa;
+    
+    // กสดงลายเซ็นถ้ามี
+    const hrPreview = document.getElementById("hr-signature-preview");
+    const hrContainer = document.getElementById("hr-signature-preview-container");
+    if (window.tempHrSign) {
+        hrPreview.src = window.tempHrSign;
+        hrContainer.style.display = "block";
+    } else {
+        hrContainer.style.display = "none";
+        hrPreview.src = "";
+    }
+    
+    const saPreview = document.getElementById("sa-signature-preview");
+    const saContainer = document.getElementById("sa-signature-preview-container");
+    if (window.tempSaSign) {
+        saPreview.src = window.tempSaSign;
+        saContainer.style.display = "block";
+    } else {
+        saContainer.style.display = "none";
+        saPreview.src = "";
+    }
+    
+    document.getElementById("modal-at-risk-action").classList.add("active");
+};
+
+window.closeAtRiskActionModal = function() {
+    document.getElementById("modal-at-risk-action").classList.remove("active");
+};
+
+window.saveAtRiskTeachers = async function() {
+    if (!currentSigningStudent) return;
+    
+    const hrSelect = document.getElementById("action-hr-select").value;
+    const saSelect = document.getElementById("action-sa-select").value;
+    const backendKey = currentSigningStudent.backendKey;
+    
+    let saved = { hr: "", sa: "", hrSign: "", saSign: "" };
+    if (atRiskTeachersCache && atRiskTeachersCache[backendKey]) {
+        saved = { ...atRiskTeachersCache[backendKey] };
+    }
+    
+    if (currentActionRole === 'hr') {
+        saved.hr = hrSelect;
+        saved.hrSign = window.tempHrSign || saved.hrSign;
+    } else {
+        saved.hr = hrSelect;
+        saved.sa = saSelect;
+        saved.hrSign = window.tempHrSign || saved.hrSign;
+        saved.saSign = window.tempSaSign || saved.saSign;
+    }
+    
+    // บันทึกลง Cache เพื่อให้ UI เปลี่ยนทันที
+    if (!atRiskTeachersCache) atRiskTeachersCache = {};
+    atRiskTeachersCache[backendKey] = saved;
+    
+    if (typeof renderAtRiskStudents === 'function') renderAtRiskStudents();
+    
+    // ส่งข้อมูลไปเซฟที่ Google Sheets เบื้องหลัง
+    if (config.scriptUrl) {
+        showToast("กำลังบันทึกข้อมูลไปที่ Google Sheets...", "info");
+        try {
+            const res = await fetch(config.scriptUrl, {
+                method: "POST",
+                body: JSON.stringify({
+                    action: "saveAtRiskTeachers",
+                    key: backendKey,
+                    hr: saved.hr,
+                    sa: saved.sa,
+                    hrSign: saved.hrSign,
+                    saSign: saved.saSign
+                })
+            });
+            const result = await res.json();
+            if (result.success) {
+                showToast("บันทึกชื่อกละลายเซ็นลงกานข้อมูลเรียบร้อย", "success");
+            } else {
+                showToast("เกิดข้อผิดพลาด: " + result.message, "error");
+            }
+        } catch (error) {
+            showToast("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์", "error");
+        }
+    } else {
+        showToast("บันทึกข้อมูลเรียบร้อย (ออฟไลน์)", "success");
+    }
+};
+
+window.previewAtRiskDocument = async function() {
+    if (!currentSigningStudent) return;
+    await saveAtRiskTeachers(); // รอให้บันทึกเสร็จก่อนพรีวิว
+    
+    const backendKey = currentSigningStudent.backendKey;
+    let saved = { hr: "", sa: "" };
+    if (atRiskTeachersCache && atRiskTeachersCache[backendKey]) {
+        saved = { ...atRiskTeachersCache[backendKey] };
+    }
+    
+    currentSigningStudent.homeroomTeacher = saved.hr;
+    currentSigningStudent.headOfStudentAffairs = saved.sa;
+    
+    // ตั้งค่ากลับไปใช้ documentType ธรรมดาสำหรับการพิมพ์ (ป.ค.8 ไม่ใช่ ป.ค.8_ครั้งที่1)
+    // กต่ให้เอกสารรู้ว่านี่คือเอกสารที่ดึงมาจาก fullDocType ไหน หากมีการเซ็นจะบันทึกลง fullDocType
+    const docToPrint = { ...currentSigningStudent, documentType: currentSigningStudent.fullDocType };
+    
+    closeAtRiskActionModal();
+    openDocumentPreview(docToPrint);
+};
+
+/* =========================================================
+ * 13. ระบบ E-Signature กละออกเอกสารอัตโนมัติ
+ * ========================================================= */
+let signaturePadCanvas = null;
+let signaturePadCtx = null;
+let isDrawingSignature = false;
+let currentSigningStudent = null;
+
+function initSignaturePad() {
+    signaturePadCanvas = document.getElementById("signature-pad");
+    if (!signaturePadCanvas) return;
+    
+    signaturePadCtx = signaturePadCanvas.getContext("2d");
+    signaturePadCtx.lineWidth = 3;
+    signaturePadCtx.lineCap = "round";
+    signaturePadCtx.strokeStyle = "#000080"; // หมึกน้ำเงินเข้ม
+    
+    // Mouse events
+    signaturePadCanvas.addEventListener("mousedown", (e) => {
+        isDrawingSignature = true;
+        const rect = signaturePadCanvas.getBoundingClientRect();
+        signaturePadCtx.beginPath();
+        signaturePadCtx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    });
+    
+    signaturePadCanvas.addEventListener("mousemove", (e) => {
+        if (!isDrawingSignature) return;
+        const rect = signaturePadCanvas.getBoundingClientRect();
+        signaturePadCtx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+        signaturePadCtx.stroke();
+    });
+    
+    signaturePadCanvas.addEventListener("mouseup", () => isDrawingSignature = false);
+    signaturePadCanvas.addEventListener("mouseout", () => isDrawingSignature = false);
+    
+    // Touch events for Mobile/Tablet
+    signaturePadCanvas.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        isDrawingSignature = true;
+        const rect = signaturePadCanvas.getBoundingClientRect();
+        const touch = e.touches[0];
+        signaturePadCtx.beginPath();
+        signaturePadCtx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
+    }, {passive: false});
+    
+    signaturePadCanvas.addEventListener("touchmove", (e) => {
+        e.preventDefault();
+        if (!isDrawingSignature) return;
+        const rect = signaturePadCanvas.getBoundingClientRect();
+        const touch = e.touches[0];
+        signaturePadCtx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
+        signaturePadCtx.stroke();
+    }, {passive: false});
+    
+    signaturePadCanvas.addEventListener("touchend", () => isDrawingSignature = false);
+}
+
+window.openSignatureFor = function(studentId, fullName, gradeRoom, docType) {
+    const hrSelect = document.getElementById(`hr-${studentId}`);
+    const saSelect = document.getElementById(`sa-${studentId}`);
+    
+    const homeroomTeacher = hrSelect ? hrSelect.value : "";
+    const headOfStudentAffairs = saSelect ? saSelect.value : "";
+    
+    currentSigningStudent = { studentId, fullName, gradeRoom, docType, homeroomTeacher, headOfStudentAffairs };
+    openDocumentPreview(currentSigningStudent);
+};
+
+window.openDocumentPreview = function(studentInfo) {
+    const today = new Date();
+    const thaiMonths = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+    const formattedDate = `${today.getDate()} ${thaiMonths[today.getMonth()]} ${today.getFullYear() + 543}`;
+    
+    // ดึงวันที่ขาดกละสายจาก allStatsData ถ้ามี
+    if (allStatsData && allStatsData.logs) {
+        studentInfo.absentDates = allStatsData.logs
+            .filter(log => log.studentId === studentInfo.studentId && log.status === 'ขาด')
+            .map(log => {
+                const d = new Date(log.date);
+                return `${d.getDate()} ${thaiMonths[d.getMonth()]} ${d.getFullYear() + 543}`;
+            });
+            
+        studentInfo.lateDates = allStatsData.logs
+            .filter(log => log.studentId === studentInfo.studentId && log.status === 'สาย')
+            .map(log => {
+                const d = new Date(log.date);
+                return `${d.getDate()} ${thaiMonths[d.getMonth()]} ${d.getFullYear() + 543}`;
+            });
+    }
+
+    const actualDocTypeForSave = studentInfo.documentType || studentInfo.docType;
+
+    // ตรวจสอบว่าเคยเซ็นไว้กล้วหรือไม่
+    const existingDoc = documentsData.find(d => d.studentId === studentInfo.studentId && d.documentType === actualDocTypeForSave);
+    let signatureHtml = "";
+    
+    if (existingDoc && existingDoc.signatureBase64) {
+        signatureHtml = `<img src="${existingDoc.signatureBase64}" style="max-height: 80px;" alt="ลายเซ็นผู้ปกครอง"><br>`;
+        document.getElementById("btn-open-signature").style.display = "none";
+        document.getElementById("btn-save-signature").style.display = "none";
+    } else {
+        if (studentInfo.tempSignature) {
+            signatureHtml = `<img src="${studentInfo.tempSignature}" style="max-height: 80px;" alt="ลายเซ็นผู้ปกครอง"><br>`;
+        } else {
+            signatureHtml = `<div style="height: 80px;"></div>`;
+        }
+        document.getElementById("btn-open-signature").style.display = "inline-block";
+        document.getElementById("btn-save-signature").style.display = studentInfo.tempSignature ? "inline-block" : "none";
+    }
+    
+    // เรียกใช้งานเทมเพลตจาก documents.js
+    const htmlContent = generateDocumentHtml(studentInfo, signatureHtml, formattedDate);
+    
+    document.getElementById("document-print-area").innerHTML = htmlContent;
+    document.getElementById("modal-document-preview").classList.add("active");
+};
+
+window.closeDocumentPreview = function() {
+    document.getElementById("modal-document-preview").classList.remove("active");
+};
+
+window.openSignatureFromPreview = function() {
+    document.getElementById("signature-modal-title").innerText = `เซ็นชื่อผู้ปกครอง: ${currentSigningStudent.fullName}`;
+    if (!signaturePadCanvas) initSignaturePad();
+    clearSignature();
+    document.getElementById("modal-signature").classList.add("active");
+};
+
+window.currentSigningTeacherRole = null;
+
+window.openTeacherSignature = function(role) {
+    window.currentSigningTeacherRole = role;
+    const roleName = role === 'hr' ? 'ครูที่ปรึกษา' : 'หัวหน้ากิจการนักเรียน';
+    document.getElementById("signature-modal-title").innerText = `เซ็นชื่อ: ${roleName}`;
+    if (!signaturePadCanvas) initSignaturePad();
+    clearSignature();
+    document.getElementById("modal-signature").classList.add("active");
+};
+
+window.clearTeacherSignature = function(role) {
+    if (role === 'hr') {
+        window.tempHrSign = "";
+        document.getElementById("hr-signature-preview-container").style.display = "none";
+        document.getElementById("hr-signature-preview").src = "";
+    } else {
+        window.tempSaSign = "";
+        document.getElementById("sa-signature-preview-container").style.display = "none";
+        document.getElementById("sa-signature-preview").src = "";
+    }
+};
+
+window.saveSignature = function() {
+    if (!signaturePadCanvas) return;
+    
+    // สร้าง Canvas สีขาวกละบีบอัด JPEG
+    const tempCanvas = document.createElement("canvas");
+    tempCanvas.width = signaturePadCanvas.width;
+    tempCanvas.height = signaturePadCanvas.height;
+    const ctx = tempCanvas.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+    ctx.drawImage(signaturePadCanvas, 0, 0);
+    
+    const signatureBase64 = tempCanvas.toDataURL("image/jpeg", 0.6);
+    closeSignatureModal();
+    
+    if (window.currentSigningTeacherRole) {
+        // เซ็นสำหรับครูในหน้า modal-at-risk-action
+        if (window.currentSigningTeacherRole === 'hr') {
+            window.tempHrSign = signatureBase64;
+            document.getElementById("hr-signature-preview").src = signatureBase64;
+            document.getElementById("hr-signature-preview-container").style.display = "block";
+        } else {
+            window.tempSaSign = signatureBase64;
+            document.getElementById("sa-signature-preview").src = signatureBase64;
+            document.getElementById("sa-signature-preview-container").style.display = "block";
+        }
+        window.currentSigningTeacherRole = null;
+    } else if (currentSigningStudent) {
+        // เซ็นสำหรับผู้ปกครองในหน้าพรีวิวเอกสาร
+        currentSigningStudent.tempSignature = signatureBase64;
+        openDocumentPreview(currentSigningStudent);
+    }
+};
+
+window.saveDocumentData = async function() {
+    if (!currentSigningStudent || !currentSigningStudent.tempSignature) return;
+    setLoader(true);
+    
+    const actualDocTypeForSave = currentSigningStudent.documentType || currentSigningStudent.docType;
+    
+    try {
+        const res = await fetch(config.scriptUrl, {
+            method: "POST",
+            body: JSON.stringify({
+                action: "saveDocument",
+                studentId: currentSigningStudent.studentId,
+                documentType: actualDocTypeForSave,
+                studentName: currentSigningStudent.fullName,
+                gradeRoom: currentSigningStudent.gradeRoom,
+                signatureBase64: currentSigningStudent.tempSignature
+            })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast("บันทึกข้อมูลกละลายเซ็นสำเร็จ!", "success");
+            document.getElementById("btn-save-signature").style.display = "none";
+            // นำเข้าข้อมูลจำลองเพื่อให้เปิดครั้งต่อไปเห็นทันที
+            documentsData.push({
+                studentId: currentSigningStudent.studentId,
+                documentType: actualDocTypeForSave,
+                signatureBase64: currentSigningStudent.tempSignature
+            });
+            // อัปเดตตารางเพื่อเปลี่ยนสีปุ่ม
+            if (typeof renderAtRiskStudents === 'function') {
+                renderAtRiskStudents();
+            }
+        } else {
+            showToast("ไม่สามารถบันทึกได้: " + data.message, "error");
+        }
+    } catch (e) {
+        showToast("เกิดข้อผิดพลาดในการส่งข้อมูล", "error");
+    } finally {
+        setLoader(false);
+    }
+};
+
+window.printDocument = function() {
+    if (!currentSigningStudent) return;
+    
+    const printContents = document.getElementById("document-print-area").innerHTML;
+    
+    // สร้าง div ชั่วคราวเพื่อใช้ปริ้นท์โดยเฉพาะ
+    const printWrapper = document.createElement('div');
+    printWrapper.className = 'print-only-wrapper';
+    printWrapper.id = 'temporary-print-wrapper';
+    printWrapper.innerHTML = printContents;
+    
+    // ยัด div ใส่ body
+    document.body.appendChild(printWrapper);
+    
+    // สั่งปริ้นท์ (CSS จะซ่อนทุกอย่างยกเว้น .print-only-wrapper)
+    window.print();
+    
+    // เมื่อปริ้นท์เสร็จหรือยกเลิก ลบ div ชั่วคราวทิ้ง กลับสู่สถานะปกติ
+    document.body.removeChild(printWrapper);
+};
 
 function populateStatsRoomDropdown() {
     const select = document.getElementById("stats-room-select");
@@ -2046,18 +3226,61 @@ function populateStatsRoomDropdown() {
 }
 
 /**
- * 12. กำหนดจุดเชื่อมต่อ Event Listeners และการโหลดตั้งค่า
+ * 12. กำหนดจุดเชื่อมต่อ Event Listeners กละการโหลดตั้งค่า
  */
 document.addEventListener("DOMContentLoaded", () => {
     loadConfig();
     applyMetadataToUI();
     
+    // จัดการเปิด/ปิด Start Menu (FAB) ทั้งบนคอมกละมือถือ
+    const startMenuBtn = document.getElementById("start-menu-btn");
+    const mobileSidebarClose = document.getElementById("mobile-sidebar-close");
+    const sidebarBackdrop = document.getElementById("sidebar-backdrop");
+    const sidebar = document.querySelector(".sidebar");
+    
+    const openStartMenu = () => {
+        if (sidebar) sidebar.classList.add("active");
+        if (startMenuBtn) startMenuBtn.classList.add("active");
+        if (sidebarBackdrop) sidebarBackdrop.style.display = "block";
+    };
+    
+    const closeStartMenu = () => {
+        if (sidebar) sidebar.classList.remove("active");
+        if (startMenuBtn) startMenuBtn.classList.remove("active");
+        if (sidebarBackdrop) sidebarBackdrop.style.display = "none";
+    };
+    
+    const toggleStartMenu = () => {
+        if (sidebar && sidebar.classList.contains("active")) {
+            closeStartMenu();
+        } else {
+            openStartMenu();
+        }
+    };
+    
+    if (startMenuBtn) startMenuBtn.onclick = toggleStartMenu;
+    if (mobileSidebarClose) mobileSidebarClose.onclick = closeStartMenu;
+    if (sidebarBackdrop) sidebarBackdrop.onclick = closeStartMenu;
+    
     // สวิตซ์เมนู Sidebar
     document.getElementById("menu-home").onclick = (e) => { e.preventDefault(); switchView("home"); };
     document.getElementById("menu-stats").onclick = (e) => { e.preventDefault(); switchView("stats"); };
     document.getElementById("menu-misconduct").onclick = (e) => { e.preventDefault(); switchView("misconduct"); };
+    if (document.getElementById("menu-at-risk")) {
+        document.getElementById("menu-at-risk").onclick = (e) => { e.preventDefault(); switchView("at-risk"); };
+    }
     
-    // สวิตซ์แท็บย่อยในหน้าสถิติ
+    // สวิตซ์เมนูจาก Taskbar Shortcuts ด้านล่าง
+    const bindShortcut = (id, view) => {
+        const btn = document.getElementById(id);
+        if (btn) btn.onclick = (e) => { e.preventDefault(); switchView(view); };
+    };
+    bindShortcut("shortcut-home", "home");
+    bindShortcut("shortcut-stats", "stats");
+    bindShortcut("shortcut-misconduct", "misconduct");
+    bindShortcut("shortcut-at-risk", "at-risk");
+    
+    // สวิตซ์กท็บย่อยในหน้าสถิติ
     document.getElementById("tab-btn-accumulated").onclick = () => {
         document.getElementById("tab-btn-accumulated").classList.add("active");
         document.getElementById("tab-btn-daily").classList.remove("active");
@@ -2084,15 +3307,49 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("chk-filter-late").onchange = () => fetchAndRenderStats();
     document.getElementById("chk-filter-cut").onchange = () => fetchAndRenderStats();
     
-    // จัดการเปลี่ยนวันที่ของปฏิทินหน้าแรก
-    document.getElementById("home-date-picker").onchange = (e) => {
-        currentCheckingDate = e.target.value;
-        loadInitialData(); // โหลดข้อมูลสำหรับวันที่เลือกใหม่
-    };
+    // จัดการเปลี่ยนวันที่ของปกิทินหน้ากรก
+    // จัดการเปลี่ยนวันที่ของปกิทินหน้ากรก
+    const homeDateInput = document.getElementById("home-date-picker");
+    if (homeDateInput) {
+        if (window.flatpickr) {
+            flatpickr(homeDateInput, {
+                locale: "th",
+                dateFormat: "Y-m-d",
+                defaultDate: currentCheckingDate,
+                position: "auto center",
+                onChange: function(selectedDates, dateStr, instance) {
+                    currentCheckingDate = dateStr;
+                    loadInitialData(); // โหลดข้อมูลสำหรับวันที่เลือกใหม่
+                    
+                    const checkingDatePicker = document.getElementById("checking-date-picker");
+                    if (checkingDatePicker && checkingDatePicker._flatpickr) {
+                        checkingDatePicker._flatpickr.setDate(currentCheckingDate);
+                    }
+                }
+            });
+            
+            const homeDatePill = document.getElementById("home-date-pill");
+            if (homeDatePill) {
+                homeDatePill.onclick = () => {
+                    homeDateInput._flatpickr.open();
+                };
+            }
+        } else {
+            homeDateInput.onchange = (e) => {
+                currentCheckingDate = e.target.value;
+                loadInitialData(); // โหลดข้อมูลสำหรับวันที่เลือกใหม่
+            };
+        }
+    }
     
-    document.getElementById("btn-back-home").onclick = () => {
-        switchView("home");
-    };
+    const btnBackHome = document.getElementById("btn-back-home");
+    if (btnBackHome) {
+        btnBackHome.onclick = () => { switchView("home"); };
+    }
+    const shortcutBack = document.getElementById("shortcut-back");
+    if (shortcutBack) {
+        shortcutBack.onclick = () => { switchView("home"); };
+    }
     
     document.getElementById("grade-filters").addEventListener("click", (e) => {
         if (e.target.classList.contains("pill")) {
@@ -2123,7 +3380,7 @@ document.addEventListener("DOMContentLoaded", () => {
         showToast("เปลี่ยนสถานะนักเรียนทั้งหมดเป็น 'มาเรียน'");
     };
     
-    document.querySelectorAll(".key-btn").forEach(btn => {
+    document.querySelectorAll("#modal-pin .key-btn").forEach(btn => {
         btn.onclick = () => {
             const key = btn.getAttribute("data-key");
             handleKeypadPress(key);
@@ -2135,8 +3392,8 @@ document.addEventListener("DOMContentLoaded", () => {
             showToast("วันนี้เป็นวันหยุด ไม่สามารถบันทึกเวลาเรียนได้", "error");
             return;
         }
-        openPinModal("ป้อนรหัส PIN ครูผู้บันทึก", "ANY", (pinCode, teacherName) => {
-            saveAttendanceToSheet(pinCode, teacherName);
+        requestLogin("ANY", (pin, name, role) => {
+            saveAttendanceToSheet(pin, name);
         });
     };
     
@@ -2151,18 +3408,18 @@ document.addEventListener("DOMContentLoaded", () => {
         trigger.onclick = () => {
             document.querySelectorAll(".modal-overlay").forEach(m => m.classList.remove("active"));
             document.getElementById("misconduct-student-dropdown").classList.remove("active");
-            authenticatedAdminPin = null; // ล้างรหัสผ่านแอดมินเมื่อปิดโมดอลเพื่อความปลอดภัย
+            authenticatedAdminPin = null; // ล้างรหัสผ่านกอดมินเมื่อปิดโมดอลเพื่อความปลอดภัย
         };
     });
     
-    // ตั้งค่าสลับแท็บในโมดอลแอดมิน
+    // ตั้งค่าสลับกท็บในโมดอลกอดมิน
     document.querySelectorAll(".admin-tab-btn").forEach(btn => {
         btn.onclick = () => {
             // ลบ active ออกจากทุกปุ่ม
             document.querySelectorAll(".admin-tab-btn").forEach(b => b.classList.remove("active"));
             document.querySelectorAll(".admin-tab-content").forEach(c => c.classList.remove("active"));
             
-            // เพิ่ม active ให้ปุ่มและเนื้อหาที่เลือก
+            // เพิ่ม active ให้ปุ่มกละเนื้อหาที่เลือก
             const tabId = btn.getAttribute("data-tab");
             btn.classList.add("active");
             document.getElementById(`admin-content-${tabId}`).classList.add("active");
@@ -2173,12 +3430,8 @@ document.addEventListener("DOMContentLoaded", () => {
         };
     });
     
-    // ปิดการใช้ปุ่มบันทึกการตั้งค่า เนื่องจากยึดตามไฟล์ config.js เป็นหลัก สำหรับโฮสติ้งแบบฝังลิงก์ถาวร
+    // ปิดการใช้ปุ่มบันทึกการตั้งค่า เนื่องจากยึดตามไฟล์ config.js เป็นหลัก สำหรับโฮสติ้งกบบกังลิงก์ถาวร
     
-    document.getElementById("menu-register").onclick = (e) => {
-        e.preventDefault();
-        openRegisterModal();
-    };
     
     document.getElementById("reg-teacher-select").onchange = (e) => {
         const wrapper = document.getElementById("reg-new-teacher-wrapper");
@@ -2199,14 +3452,20 @@ document.addEventListener("DOMContentLoaded", () => {
         handleRegisterSubmit();
     };
     
-    document.getElementById("menu-admin").onclick = (e) => {
-        e.preventDefault();
-        openPinModal("เข้าสู่ระบบผู้ดูแลระบบ (Admin)", "ADMIN", (pinCode) => {
-            authenticatedAdminPin = pinCode; // เก็บ PIN จริงของแอดมินเพื่อใช้ในธุรกรรมต่าง ๆ ในหน้านี้
+    const triggerAdminFlow = (e) => {
+        if (e) e.preventDefault();
+        requestLogin("ADMIN", (pinCode) => {
+            authenticatedAdminPin = pinCode;
             loadHolidaysInAdmin();
             document.getElementById("modal-admin").classList.add("active");
         });
     };
+    
+    document.getElementById("menu-admin").onclick = triggerAdminFlow;
+    if (document.getElementById("shortcut-shortcut-admin") || document.getElementById("shortcut-admin")) {
+        const scAdmin = document.getElementById("shortcut-admin");
+        if (scAdmin) scAdmin.onclick = triggerAdminFlow;
+    }
     
     document.getElementById("btn-add-holiday").onclick = () => {
         addHoliday();
@@ -2223,7 +3482,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("btn-confirm-clear-modal").onclick = () => {
         document.getElementById("modal-confirm-clear").classList.remove("active");
         
-        openPinModal("ยืนยันรหัสผ่านผู้ดูแลระบบ", "ADMIN", async (pinCode) => {
+        requestLogin("ADMIN", async (pinCode) => {
             setLoader(true);
             
             if (!config.scriptUrl) {
@@ -2242,7 +3501,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
                 const data = await res.json();
                 if (data.success) {
-                    showToast("ล้างประวัติเวลาเรียนทั้งหมดเรียบร้อยแล้ว");
+                    showToast("ล้างประวัติเวลาเรียนทั้งหมดเรียบร้อยกล้ว");
                     document.getElementById("modal-admin").classList.remove("active");
                     await loadInitialData();
                 } else {
@@ -2278,7 +3537,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     
     document.getElementById("btn-submit-misconduct").onclick = () => {
-        openPinModal("ยืนยันตัวตนผู้บันทึกข้อมูล", "ANY", (pinCode) => {
+        requestLogin("ANY", (pinCode) => {
             submitMisconduct(pinCode);
         });
     };
@@ -2291,9 +3550,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // รองรับการกดแป้นพิมพ์ตัวเลข (Physical Keyboard) ในหน้ากรอก PIN
+    // รองรับการกดกป้นพิมพ์ตัวเลข (Physical Keyboard)
     document.addEventListener("keydown", (e) => {
         const pinModal = document.getElementById("modal-pin");
+        
         if (pinModal && pinModal.classList.contains("active")) {
             if (/^[0-9]$/.test(e.key)) {
                 handleKeypadPress(e.key);
@@ -2305,5 +3565,362 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    updateUserSessionUI();
     loadInitialData();
 });
+
+window.updateAtRiskNoticeInTab = function() {
+    const headerContainer = document.getElementById("room-dashboard-header");
+    if (!headerContainer) return;
+    const statsTab = headerContainer.querySelector('[data-target="room-tab-stats"]');
+    if (!statsTab) return;
+    
+    if (typeof allStatsData !== 'undefined' && allStatsData && allStatsData.logs && typeof students !== 'undefined' && typeof selectedRoom !== 'undefined' && selectedRoom) {
+        let sStats = {};
+        allStatsData.logs.forEach(log => {
+            if (log.room === `${selectedRoom.grade}/${selectedRoom.room}`) {
+                let sid = log.studentId;
+                if (!sStats[sid]) sStats[sid] = { a: 0, l: 0 };
+                if (log.status === 'ขาด') sStats[sid].a++;
+                if (log.status === 'สาย') sStats[sid].l++;
+            }
+        });
+        let hasAtRisk = false;
+        let roomStudents = students.filter(s => s.grade === selectedRoom.grade && s.room === selectedRoom.room);
+        for (let i = 0; i < roomStudents.length; i++) {
+            let sid = roomStudents[i].studentId;
+            if (sStats[sid] && (sStats[sid].a >= 3 || sStats[sid].l >= 3)) {
+                hasAtRisk = true;
+                break;
+            }
+        }
+        
+        let atRiskNotice = hasAtRisk ? ` <span style="color: var(--color-absent); font-weight: bold; font-size: 0.9em;">(ติดตาม <i class="fa-solid fa-triangle-exclamation"></i>)</span>` : '';
+        statsTab.innerHTML = `สรุป${atRiskNotice}`;
+    }
+};
+
+// ==========================================
+// Glassmorphism Tooltip Functions
+// ==========================================
+function showSummaryTooltip(titleHtml, items, cardElement) {
+    const modal = document.getElementById("summary-folder-modal");
+    const titleContainer = document.getElementById("summary-folder-title");
+    const list = document.getElementById("summary-folder-list");
+    
+    // Clear previous title
+    titleContainer.innerHTML = "";
+    
+    // Clone the clicked card to act as the header!
+    if (cardElement) {
+        const clonedCard = cardElement.cloneNode(true);
+        // Remove IDs to avoid duplicates in DOM
+        clonedCard.removeAttribute("id");
+        clonedCard.querySelectorAll("[id]").forEach(el => el.removeAttribute("id"));
+        // Remove active state classes
+        clonedCard.classList.remove("active-card");
+        clonedCard.dataset.locked = "false";
+        
+        titleContainer.appendChild(clonedCard);
+    } else {
+        // Fallback just in case
+        titleContainer.innerHTML = `<h4 style="margin:0;font-size:18px;color:#1e293b;">${titleHtml}</h4>`;
+    }
+    
+    list.innerHTML = "";
+    
+    list.className = "folder-modal-list";
+    
+    const createPill = (r) => {
+        const pill = document.createElement("div");
+        pill.className = "unchecked-room-pill";
+        if (typeof r === 'object') {
+            pill.innerHTML = r.text;
+            if (r.color) pill.style.color = r.color;
+            if (r.action) {
+                pill.classList.add("clickable-pill");
+                pill.onclick = (e) => {
+                    e.stopPropagation();
+                    hideSummaryTooltip();
+                    document.querySelectorAll(".summary-card").forEach(c => {
+                        c.dataset.locked = "false";
+                        c.classList.remove("active-card");
+                    });
+                    r.action();
+                };
+            }
+        } else {
+            pill.innerText = r;
+        }
+        return pill;
+    };
+
+    if (items.type === "two-columns") {
+        list.classList.add("two-cols");
+        
+        const col1 = document.createElement("div");
+        col1.className = "tooltip-col";
+        col1.innerHTML = `<div class="tooltip-col-title">${items.col1.title}</div>`;
+        if (items.col1.items.length === 0) col1.innerHTML += `<div class="empty-col">ไม่มีข้อมูล</div>`;
+        else items.col1.items.forEach(r => col1.appendChild(createPill(r)));
+        
+        const col2 = document.createElement("div");
+        col2.className = "tooltip-col";
+        col2.innerHTML = `<div class="tooltip-col-title">${items.col2.title}</div>`;
+        if (items.col2.items.length === 0) col2.innerHTML += `<div class="empty-col">ไม่มีข้อมูล</div>`;
+        else items.col2.items.forEach(r => col2.appendChild(createPill(r)));
+        
+        list.appendChild(col1);
+        list.appendChild(col2);
+    } else if (items.length === 0) {
+        list.innerHTML = `<div style="color: var(--text-muted); font-size: 13px; text-align: center; padding: 10px 0;">ไม่มีข้อมูล</div>`;
+    } else {
+        items.forEach(r => list.appendChild(createPill(r)));
+    }
+    
+    modal.classList.add("show");
+    document.body.style.overflow = "hidden"; // Lock background scroll
+}
+
+function hideSummaryTooltip() {
+    const modal = document.getElementById("summary-folder-modal");
+    if (modal) {
+        modal.classList.remove("show");
+        document.body.style.overflow = ""; // Restore background scroll
+    }
+}
+
+window.renderRoomSpecificStats = function() {
+    const tbody = document.getElementById('room-stats-tbody');
+    if (!tbody) return;
+    if (!allStatsData || !allStatsData.logs) {
+        tbody.innerHTML = '<tr><td colspan="8" class="txt-center">กำลังโหลดข้อมูล...</td></tr>';
+        fetchAndRenderStats().then(() => {
+            if(document.getElementById('room-tab-stats').style.display !== 'none') renderRoomSpecificStats();
+        });
+        return;
+    }
+    
+    // Get month filter
+    const monthPicker = document.getElementById('room-stats-month-picker');
+    let selectedMonth = monthPicker ? monthPicker.value : ''; // format YYYY-MM
+    if (!selectedMonth) {
+        const today = new Date();
+        selectedMonth = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
+        if (monthPicker) monthPicker.value = selectedMonth;
+    }
+    
+    const dateDisplay = document.getElementById('room-stats-date-display');
+    if (dateDisplay) {
+        const [yyyy, mm] = selectedMonth.split('-');
+        const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+        dateDisplay.innerText = thaiMonths[parseInt(mm)-1] + ' ' + (parseInt(yyyy) + 543);
+    }
+    
+    // Bind click to open date picker
+    const datePill = document.getElementById('room-stats-date-pill');
+    if (datePill && !datePill.dataset.bound) {
+        datePill.dataset.bound = 'true';
+        datePill.onclick = () => { monthPicker.showPicker ? monthPicker.showPicker() : monthPicker.focus(); };
+        monthPicker.onchange = () => { renderRoomSpecificStats(); };
+    }
+    
+    const logs = allStatsData.logs;
+    let summaryData = { Present: 0, Leave: 0, Absent: 0, Late: 0, Cut: 0, Total: 0 };
+    let studentStats = {};
+    
+    logs.forEach(log => {
+        if (log.room === `${selectedRoom.grade}/${selectedRoom.room}`) {
+            // Check month match
+            if (log.date && log.date.startsWith(selectedMonth)) {
+                let st = log.status;
+                let sid = log.studentId;
+                if (!studentStats[sid]) {
+                    studentStats[sid] = { Present: 0, Leave: 0, Absent: 0, Late: 0, Cut: 0, Total: 0 };
+                }
+                if (st === 'มา') { studentStats[sid].Present++; summaryData.Present++; }
+                if (st === 'ลา') { studentStats[sid].Leave++; summaryData.Leave++; }
+                if (st === 'ขาด') { studentStats[sid].Absent++; summaryData.Absent++; }
+                if (st === 'สาย') { studentStats[sid].Late++; summaryData.Late++; }
+                if (st === 'โดด') { studentStats[sid].Cut++; summaryData.Cut++; }
+                studentStats[sid].Total++;
+                summaryData.Total++;
+            }
+        }
+    });
+    
+    let roomStudents = students.filter(s => s.grade === selectedRoom.grade && s.room === selectedRoom.room);
+    
+    const summaryContainer = document.getElementById('room-tab-stats-summary');
+    if (summaryContainer) {
+        const atRiskStudents = [];
+        roomStudents.forEach(st => {
+            let sid = st.studentId;
+            let a = studentStats[sid] ? studentStats[sid].Absent : 0;
+            let s = studentStats[sid] ? studentStats[sid].Late : 0;
+            if (a >= 3 || s >= 3) {
+                atRiskStudents.push({ ...st, absent: a, late: s });
+            }
+        });
+
+        if (atRiskStudents.length === 0) {
+            summaryContainer.innerHTML = `
+                <div style="width: 100%; background: rgba(255, 255, 255, 0.5); backdrop-filter: blur(8px); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 16px; padding: 20px; text-align: center; color: var(--color-present); margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
+                    <i class="fa-solid fa-circle-check" style="font-size: 28px; margin-bottom: 10px;"></i>
+                    <p style="margin: 0; font-weight: bold; font-size: 16px;">ยอดเยี่ยม! ไม่มีนักเรียนขาดหรือสายเกินเกณฑ์</p>
+                </div>
+            `;
+        } else {
+            let pillsHtml = atRiskStudents.map(st => {
+                let badge = '';
+                if (st.absent >= 3) badge = `<span style="background: #fee2e2; color: #b91c1c; padding: 2px 6px; border-radius: 6px; font-size: 11px; margin-left: 5px; font-weight: bold;">ขาด ${st.absent}</span>`;
+                else if (st.late >= 3) badge = `<span style="background: #ffedd5; color: #c2410c; padding: 2px 6px; border-radius: 6px; font-size: 11px; margin-left: 5px; font-weight: bold;">สาย ${st.late}</span>`;
+                return `<div onclick="if(typeof jumpToTracking === 'function') jumpToTracking('${selectedRoom.grade}/${selectedRoom.room}');" style="background: white; border: 1px solid #e2e8f0; border-radius: 20px; padding: 6px 14px; font-size: 13px; display: inline-flex; align-items: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.04); transition: all 0.2s;">
+                    <i class="fa-solid fa-user" style="color: #64748b; margin-right: 6px;"></i> ${st.fullName} ${badge}
+                </div>`;
+            }).join('');
+            
+            summaryContainer.innerHTML = `
+                <div style="width: 100%; background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(8px); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 16px; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.05);">
+                    <div style="display: flex; align-items: center; margin-bottom: 12px; color: #b91c1c;">
+                        <i class="fa-solid fa-triangle-exclamation" style="margin-right: 8px; font-size: 16px;"></i>
+                        <strong style="font-size: 15px;">นักเรียนที่ขาดหรือสายเกินเกณฑ์ (คลิกชื่อเพื่อติดตาม)</strong>
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                        ${pillsHtml}
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    if (roomStudents.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="txt-center">ไม่มีข้อมูลนักเรียน</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = '';
+    roomStudents.forEach(st => {
+        let sid = st.studentId;
+        let p = studentStats[sid] ? studentStats[sid].Present : 0;
+        let l = studentStats[sid] ? studentStats[sid].Leave : 0;
+        let a = studentStats[sid] ? studentStats[sid].Absent : 0;
+        let s = studentStats[sid] ? studentStats[sid].Late : 0;
+        let c = studentStats[sid] ? studentStats[sid].Cut : 0;
+        let t = studentStats[sid] ? studentStats[sid].Total : 0;
+        
+        let isAtRisk = (a >= 3 || s >= 3);
+        let nameIcon = isAtRisk ? '<i class="fa-solid fa-triangle-exclamation" style="color: #ef4444; margin-right: 6px;"></i>' : '';
+        
+        let row = document.createElement('tr');
+        if (isAtRisk) {
+            row.style.backgroundColor = '#fef2f2';
+            row.style.cursor = 'pointer';
+            row.title = 'คลิกเพื่อติดตามนักเรียน';
+            row.onclick = () => { if(typeof jumpToTracking === 'function') jumpToTracking(`${selectedRoom.grade}/${selectedRoom.room}`); };
+            
+            // For styling the first cell (no.) with a left border
+            let td1 = `<td class="txt-center" style="border-left: 4px solid #ef4444;">${st.no}</td>`;
+            row.innerHTML = `
+                ${td1}
+                <td style="color: #b91c1c; font-weight: 500;">${nameIcon}${st.fullName}</td>
+                <td class="txt-center" style="color:var(--color-present);">${p}</td>
+                <td class="txt-center" style="color:var(--color-leave);">${l}</td>
+                <td class="txt-center" style="color:var(--color-absent);">${a}</td>
+                <td class="txt-center" style="color:var(--color-late);">${s}</td>
+                <td class="txt-center" style="color:var(--color-cut);">${c}</td>
+                <td class="txt-center fw-bold">${t}</td>
+            `;
+        } else {
+            row.innerHTML = `
+                <td class="txt-center">${st.no}</td>
+                <td>${st.fullName}</td>
+                <td class="txt-center" style="color:var(--color-present);">${p}</td>
+                <td class="txt-center" style="color:var(--color-leave);">${l}</td>
+                <td class="txt-center" style="color:var(--color-absent);">${a}</td>
+                <td class="txt-center" style="color:var(--color-late);">${s}</td>
+                <td class="txt-center" style="color:var(--color-cut);">${c}</td>
+                <td class="txt-center fw-bold">${t}</td>
+            `;
+        }
+        tbody.appendChild(row);
+    });
+};
+
+
+function renderRoomSpecificSchedule() {
+    const table = document.getElementById('room-daily-grid-table');
+    if (!table) return;
+    
+    if (!allStatsData || !allStatsData.logs || !allStatsData.dates) {
+        table.innerHTML = '<tr><td style="padding: 30px; text-align: center; color: var(--text-muted);">กำลังโหลดข้อมูล...</td></tr>';
+        if (typeof fetchStatsDataOnce === 'function') {
+            fetchStatsDataOnce().then(() => {
+                if(document.getElementById('room-tab-schedule').style.display !== 'none') renderRoomSpecificSchedule();
+            });
+        }
+        return;
+    }
+    
+    const targetRoom = `${selectedRoom.grade}/${selectedRoom.room}`;
+    
+    table.innerHTML = "";
+    const sortedDates = allStatsData.dates.sort();
+    
+    let roomStudents = students.filter(s => `${s.grade}/${s.room}` === targetRoom).sort((a,b) => a.no - b.no);
+    
+    if (roomStudents.length === 0) {
+        table.innerHTML = '<tr><td style="padding: 30px; color: var(--text-muted);">ไม่มีรายชื่อนักเรียนในห้องนี้</td></tr>';
+        return;
+    }
+    
+    const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+    
+    let headerHtml = `<tr>
+        <th class="col-student-name">เลขที่ / รายชื่อนักเรียน</th>
+    `;
+    sortedDates.forEach(date => {
+        const parts = date.split("-");
+        const y = parseInt(parts[0], 10) + 543;
+        const m = parseInt(parts[1], 10) - 1;
+        const d = parseInt(parts[2], 10);
+        const displayDate = `${d}<br>${thaiMonths[m]}<br>${y.toString().substring(2)}`;
+        headerHtml += `<th style="text-align: center; vertical-align: middle; line-height: 1.2;">${displayDate}</th>`;
+    });
+    headerHtml += "</tr>";
+    
+    const logsLookup = {};
+    allStatsData.logs.forEach(log => {
+        logsLookup[`${log.studentId}_${log.date}`] = log.status;
+    });
+    
+    let bodyHtml = "";
+    roomStudents.forEach((s, index) => {
+        bodyHtml += `<tr>
+            <td class="col-student-name">${index + 1}. ${s.fullName}</td>
+        `;
+        
+        sortedDates.forEach(date => {
+            const status = logsLookup[`${s.studentId}_${date}`] || "";
+            let statusChar = "";
+            let classStyle = "";
+            
+            if (status) {
+                if (status === "มา") { statusChar = "ม"; classStyle = "status-present"; }
+                else if (status === "ลา") { statusChar = "ล"; classStyle = "status-leave"; }
+                else if (status === "ขาด") { statusChar = "ข"; classStyle = "status-absent"; }
+                else if (status === "สาย") { statusChar = "ส"; classStyle = "status-late"; }
+                else if (status === "โดด") { statusChar = "ด"; classStyle = "status-cut"; }
+            } else {
+                statusChar = "-";
+                classStyle = "status-none";
+            }
+            
+            bodyHtml += `<td class="txt-center"><span class="status-badge ${classStyle}">${statusChar}</span></td>`;
+        });
+        
+        bodyHtml += `</tr>`;
+    });
+    
+    table.innerHTML = `<thead>${headerHtml}</thead><tbody>${bodyHtml}</tbody>`;
+}
