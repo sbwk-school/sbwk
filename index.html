@@ -4,19 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบเช็คชื่อนักเรียนออนไลน์</title>
-    <!-- Google Fonts (Outfit & Sarabun) -->
+    <!-- Preconnect for performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    
+    <!-- Google Fonts (Outfit & Sarabun) -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- FontAwesome for Icons -->
+    
+    <!-- CSS Libraries -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://kit.fontawesome.com/60907d6a5f.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-    <!-- Flatpickr Date Picker CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    
     <!-- Custom Style Sheet -->
-    <link rel="stylesheet" href="styles.css?v=update42">
+    <link rel="stylesheet" href="styles.css?v=update43">
+
+    <!-- Deferred JS Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+    <script src="https://kit.fontawesome.com/60907d6a5f.js" crossorigin="anonymous" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts" defer></script>
     
     <!-- CSS สำหรับควบคุมการปริ้นท์ให้สวยงามและสัดส่วนเป๊ะบนกระดาษ A4 -->
     <style>
@@ -207,8 +213,8 @@
             <!-- SECTION 1: หน้าแรก (Home Dashboard) -->
             <section id="view-home" class="content-view active">
                 <div class="view-header" style="margin-bottom: 20px;">
-                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; width: 100%;">
-                        <h1 style="margin: 0; font-size: clamp(18px, 4vw, 26px); white-space: nowrap;">สรุปบันทึกการมาเรียน</h1>
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;">
+                        <h1 style="margin: 0; font-size: clamp(16px, 4vw, 22px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">สรุปบันทึกการมาเรียน</h1>
                         <!-- Interactive Custom Date Pill -->
                         <div class="interactive-date-pill" id="home-date-pill" data-tooltip="คลิกเพื่อเปลี่ยนวันที่" style="margin-top: 0; flex-shrink: 0;">
                             <div class="date-icon"><i class="fa-solid fa-calendar-day"></i></div>
@@ -314,12 +320,11 @@
 
                 <!-- การเลือกกรองระดับชั้นและสถานะแสดงห้องเรียน -->
                 <div class="section-title-bar" style="flex-wrap: wrap; gap: 15px;">
-                    <h2>สถานะการเช็คชื่อแยกแต่ละห้อง</h2>
-                    <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+                    <h2>สถานะการเช็คชื่อ</h2>
+                    <div class="filters-wrapper" style="display: flex; flex-direction: column; gap: 10px; align-items: flex-start;">
                         <div class="filter-pills" id="status-filters">
                             <!-- ปุ่มกรองสถานะจะถูกสร้างและจัดการจาก app.js -->
                         </div>
-                        <div style="height: 24px; width: 1px; background-color: var(--border-color); display: inline-block;"></div>
                         <div class="filter-pills" id="grade-filters">
                             <!-- ปุ่มกรองระดับชั้นจะถูกสร้างอัตโนมัติจาก app.js -->
                         </div>
@@ -336,9 +341,11 @@
             <section id="view-attendance-check" class="content-view">
                 
                 <div class="view-header">
-                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; width: 100%;">
-                        <button onclick="switchView('home')" class="btn-back-to-home" style="background: transparent; border: none; font-size: 20px; color: var(--color-absent); cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" title="กลับหน้าหลัก"><i class="fa-solid fa-arrow-left"></i></button>
-                        <h1 id="attendance-title" style="margin: 0; font-size: clamp(18px, 4vw, 26px); white-space: nowrap;">เช็คชื่อชั้น ม.1 ห้อง 1</h1>
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;">
+                        <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                            <button onclick="switchView('home')" class="btn-back-to-home" style="background: transparent; border: none; font-size: 20px; color: var(--color-absent); cursor: pointer; transition: 0.2s; flex-shrink: 0;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" title="กลับหน้าหลัก"><i class="fa-solid fa-arrow-left"></i></button>
+                            <h1 id="attendance-title" style="margin: 0; font-size: clamp(16px, 4vw, 22px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">เช็คชื่อชั้น ม.1 ห้อง 1</h1>
+                        </div>
                         <!-- Interactive Custom Date Pill -->
                         <div class="interactive-date-pill" id="attendance-date-pill" data-tooltip="คลิกเพื่อเปลี่ยนวันที่" style="margin-top: 0; flex-shrink: 0;">
                             <div class="date-icon"><i class="fa-solid fa-calendar-day"></i></div>
@@ -363,7 +370,7 @@
                     </div>
                     <div class="toolbar-actions" style="display: flex; gap: 10px; flex-wrap: wrap;">
                         <button class="btn btn-outline" id="btn-select-all-present" style="height: 38px; border-radius: 8px;">
-                            <i class="fa-solid fa-check-double"></i> "มา" ทั้งหมด
+                            <i class="fa-solid fa-check-double"></i> มา
                         </button>
                         <button class="btn btn-primary" id="btn-preview-from-checking" style="height: 38px; border-radius: 8px;">
                             <i class="fa-solid fa-file-lines"></i> สรุป
@@ -384,16 +391,16 @@
                 </div>
 
                 <!-- ปุ่มลอยบันทึก (Floating Action Button - FAB) -->
-                <button class="fab-btn" id="btn-save-attendance" title="บันทึกการเช็คชื่อ">
-                    <i class="fa-solid fa-floppy-disk"></i>
+                <button class="fab-btn extended-fab" id="btn-save-attendance" title="บันทึกการเช็คชื่อ">
+                    <i class="fa-solid fa-floppy-disk"></i> <span>บันทึก</span>
                 </button>
                 </div> <!-- End TAB 1 -->
 
                 <!-- TAB 2: ROOM STATS -->
                 <div id="room-tab-stats" class="room-tab-content" style="display:none;">
                     <div class="card p-0" style="margin-top: 15px;">
-                        <div style="padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-                            <h2 style="margin: 0; font-size: 18px; color: var(--text-main);"><i class="fa-solid fa-chart-pie"></i> สรุปเวลาเรียนประจำห้อง</h2>
+                        <div style="padding: 15px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; gap: 8px;">
+                            <h2 style="margin: 0; font-size: 15px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><i class="fa-solid fa-chart-pie"></i> สรุปเวลาเรียนประจำห้อง</h2>
                             <!-- Interactive Custom Date Pill for Stats -->
                             <div class="interactive-date-pill" id="room-stats-date-pill" data-tooltip="คลิกเพื่อเปลี่ยนเดือน/ปี">
                                 <div class="date-icon"><i class="fa-solid fa-calendar-alt"></i></div>
@@ -414,13 +421,13 @@
                                 <thead>
                                     <tr>
                                         <th width="8%" class="txt-center">เลขที่</th>
-                                        <th width="32%">ชื่อ-สกุล</th>
-                                        <th class="txt-center" title="มา">ม.</th>
-                                        <th class="txt-center" title="ลา">ล.</th>
-                                        <th class="txt-center" title="ขาด">ข.</th>
-                                        <th class="txt-center" title="สาย">ส.</th>
-                                        <th class="txt-center" title="โดด">ด.</th>
-                                        <th class="txt-center" width="10%">รวม</th>
+                                        <th>ชื่อ-สกุล <span class="mobile-only-inline">/ สถิติ</span></th>
+                                        <th class="txt-center desktop-only" title="มา">ม.</th>
+                                        <th class="txt-center desktop-only" title="ลา">ล.</th>
+                                        <th class="txt-center desktop-only" title="ขาด">ข.</th>
+                                        <th class="txt-center desktop-only" title="สาย">ส.</th>
+                                        <th class="txt-center desktop-only" title="โดด">ด.</th>
+                                        <th class="txt-center" width="12%">% มาเรียน</th>
                                     </tr>
                                 </thead>
                                 <tbody id="room-stats-tbody">
@@ -1117,8 +1124,8 @@
     <script src="https://npmcdn.com/flatpickr/dist/l10n/th.js"></script>
     
     <!-- Custom Frontend JavaScript -->
-    <script src="config.js?v=update42" charset="utf-8"></script>
-    <script src="documents.js?v=update42" charset="utf-8"></script>
-    <script src="app.js?v=update42" charset="utf-8"></script>
+    <script src="config.js?v=update43" charset="utf-8" defer></script>
+    <script src="documents.js?v=update43" charset="utf-8" defer></script>
+    <script src="app.js?v=update43" charset="utf-8" defer></script>
 </body>
 </html>

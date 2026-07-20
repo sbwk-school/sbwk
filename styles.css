@@ -150,6 +150,18 @@ input, select, textarea, button {
     color: var(--text-main);
 }
 
+/* ==================== RESPONSIVE UTILITIES ==================== */
+.mobile-only { display: none !important; }
+.mobile-only-flex { display: none !important; }
+.mobile-only-inline { display: none !important; }
+
+@media (max-width: 768px) {
+    .desktop-only { display: none !important; }
+    .mobile-only { display: block !important; }
+    .mobile-only-flex { display: flex !important; }
+    .mobile-only-inline { display: inline !important; }
+}
+
 .logo-text span {
     font-size: 11px;
     color: var(--text-muted);
@@ -1573,6 +1585,7 @@ textarea.form-control {
     left: 0;
     background-color: #f1f5f9;
     box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+    z-index: 10;
 }
 
 .grid-table td.col-student-name {
@@ -1583,6 +1596,7 @@ textarea.form-control {
     background-color: var(--bg-card);
     font-weight: 500;
     box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+    z-index: 5;
 }
 
 .grid-table tr:hover td.col-student-name {
@@ -2301,7 +2315,89 @@ textarea.form-control {
     z-index: 1050;
 }
 
+/* ==================== ALIGN FILTERS ON DESKTOP ==================== */
+@media (min-width: 769px) {
+    #status-filters .pill:nth-child(1), #grade-filters .pill:nth-child(1) {
+        min-width: 95px !important;
+        flex: 0 0 95px !important;
+        justify-content: center;
+    }
+    #status-filters .pill:nth-child(2), #grade-filters .pill:nth-child(2) {
+        min-width: 90px !important;
+        flex: 0 0 90px !important;
+        justify-content: center;
+    }
+    #status-filters .pill:nth-child(3), #grade-filters .pill:nth-child(3) {
+        min-width: 100px !important;
+        flex: 0 0 100px !important;
+        justify-content: center;
+    }
+    #grade-filters .pill:nth-child(n+4) {
+        min-width: 75px !important;
+        justify-content: center;
+    }
+}
+
+/* ==================== PREMIUM ACTION BUTTONS (TOOLBAR & FAB) ==================== */
+.toolbar-actions .btn {
+    border-radius: 20px !important;
+    padding: 8px 18px !important;
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    border: none;
+}
+
+#btn-select-all-present {
+    background: rgba(16, 185, 129, 0.1) !important;
+    border: 1px solid rgba(16, 185, 129, 0.4) !important;
+    color: #059669 !important;
+}
+
+#btn-select-all-present:hover {
+    background: rgba(16, 185, 129, 0.2) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+}
+
+#btn-preview-from-checking {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
+    color: white !important;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3) !important;
+}
+
+#btn-preview-from-checking:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4) !important;
+}
+
+.fab-btn.extended-fab {
+    width: auto !important;
+    height: 46px !important;
+    padding: 0 20px;
+    border-radius: 23px !important;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    font-weight: 600;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.3) !important;
+}
+
+.fab-btn.extended-fab:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 10px 25px rgba(16, 185, 129, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Responsive Date Formatting */
+.desktop-date { display: inline; }
+.mobile-date { display: none; }
+
 @media (max-width: 768px) {
+    .desktop-date { display: none !important; }
+    .mobile-date { display: inline !important; }
+    
     .room-card {
         padding: 12px 14px;
     }
@@ -2312,10 +2408,6 @@ textarea.form-control {
     
     .room-card-count {
         font-size: 11px;
-    }
-    
-    .check-status-badge {
-        display: none !important;
     }
     
     .room-stats-pills {
@@ -2584,6 +2676,13 @@ textarea.form-control {
     }
     
     .attendance-table-header {
+        display: grid;
+        grid-template-columns: 40px 1fr;
+        padding: 12px 16px;
+        gap: 8px;
+    }
+    
+    .attendance-table-header .col-status-options {
         display: none;
     }
     
@@ -2988,4 +3087,214 @@ table.at-risk-table {
     border: 1px solid #A38182 !important;
     color: white !important;
     text-shadow: 0 1px 2px rgba(0,0,0,0.15) !important;
+}
+
+/* ==================== SMARTPHONE / MOBILE LAYOUT FIXES ==================== */
+@media (max-width: 768px) {
+    /* Summary Cards: 2 columns */
+    .summary-cards {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+    .summary-card {
+        padding: 12px 10px;
+        gap: 8px;
+    }
+    .mini-water-jar {
+        width: 48px;
+        height: 48px;
+    }
+    .mini-water-text {
+        font-size: 12px;
+    }
+    .summary-value {
+        font-size: 18px;
+    }
+    .summary-details h3 {
+        font-size: 12px;
+    }
+
+    /* Rooms Grid & Cards */
+    .rooms-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    .room-card {
+        padding: 12px;
+    }
+    .room-card-layout {
+        flex-wrap: wrap; /* Pills drop to new line */
+        gap: 8px;
+    }
+    .room-card-info {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-wrap: wrap; /* allow badge to stay next to title */
+        align-items: center;
+        gap: 6px;
+    }
+    .room-card-title {
+        font-size: 14px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .room-card-count {
+        font-size: 12px;
+    }
+    .check-status-badge {
+        padding: 2px 6px;
+        font-size: 10px;
+    }
+    .room-stats-pills {
+        width: 100%; /* Force pills to 2nd line */
+        display: flex;
+        justify-content: space-between;
+        gap: 4px;
+        margin-top: 4px;
+    }
+    .stat-pill {
+        flex: 1;
+        justify-content: center;
+        padding: 4px 0 !important;
+    }
+    .stat-pill span {
+        font-size: 9px;
+    }
+    .stat-pill strong {
+        font-size: 11px;
+    }
+    .donut-wrapper {
+        padding: 2px 4px;
+    }
+    .donut-label {
+        font-size: 11px;
+    }
+
+    /* Fix App Header / Login overflow */
+    .app-header {
+        padding: 0 12px;
+        gap: 8px;
+    }
+    .header-left {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .header-logo, .header-logo img {
+        width: 32px;
+        height: 32px;
+    }
+    .header-titles {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0;
+        min-width: 0;
+        width: 100%;
+    }
+    .header-title {
+        font-size: 13px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        width: 100%;
+        line-height: 1.2;
+    }
+    .header-divider {
+        display: none !important;
+    }
+    .header-subtitle {
+        font-size: 10px;
+        padding: 2px 6px;
+        margin-top: 2px;
+    }
+    #user-session-banner {
+        flex-shrink: 0;
+    }
+    #user-session-banner button {
+        font-size: 12px !important;
+    }
+    #user-session-name {
+        max-width: 80px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: inline-block;
+        vertical-align: bottom;
+    }
+
+    /* Fix Sidebar Menu overflow */
+    .sidebar {
+        overflow-y: auto;
+        max-height: 70vh !important;
+        padding-bottom: 20px !important;
+    }
+    .sidebar::-webkit-scrollbar {
+        width: 4px;
+    }
+    .sidebar::-webkit-scrollbar-thumb {
+        background: rgba(0,0,0,0.2);
+        border-radius: 4px;
+    }
+
+    /* Fix Grade Filters (ม.1, ม.2) overflow */
+    .filter-pills {
+        max-width: 100%;
+    }
+    
+    #status-filters {
+        display: grid;
+        grid-template-columns: 75px 1fr 1fr 1fr;
+        gap: 6px;
+        width: 100%;
+        margin-bottom: 0;
+    }
+    
+    #grade-filters {
+        display: grid;
+        grid-template-columns: 75px 1fr 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        gap: 6px;
+        width: 100%;
+    }
+    
+    #grade-filters .pill:nth-child(1) { /* ทุกระดับ */
+        grid-row: 1 / 3;
+        grid-column: 1;
+        height: 100%;
+        border-radius: 24px !important;
+    }
+    
+    .filter-pills .pill {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px 4px !important;
+        font-size: 12px;
+        text-align: center;
+    }
+    
+    .section-title-bar {
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+    
+    .filters-wrapper {
+        width: 100% !important;
+        align-items: stretch !important;
+    }
+    
+    /* Reduce gap between status and grade filters to match internal grid gap */
+    .filters-wrapper {
+        gap: 6px !important;
+    }
+    
+    /* Hide the separator line on mobile as we stack the filter groups */
+    .section-title-bar > div > div[style*="width: 1px"] {
+        display: none !important;
+    }
 }

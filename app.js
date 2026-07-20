@@ -336,6 +336,7 @@ async function fetchStatsDataOnce() {
                 });
             }
             if (typeof updateAtRiskNoticeInTab === 'function') updateAtRiskNoticeInTab();
+            if (typeof calculateOverallStats === 'function') calculateOverallStats();
         }
     } catch (e) {
         console.error("โหลดสถิติเริ่มต้นล้มเหลว", e);
@@ -387,23 +388,29 @@ async function loadStudentsFromCsvFallback() {
 
 // อัปเดตกสดงวันที่หน้ากรกตามวันที่เลือกจริง
 function updateHeaderDate() {
-    const days = ["วันอาทิตย์", "วันจันทร์", "วันอังคาร", "วันพุธ", "วันพฤหัสบดี", "วันศุกร์", "วันเสาร์"];
-    const months = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+    const fullDays = ["วันอาทิตย์", "วันจันทร์", "วันอังคาร", "วันพุธ", "วันพฤหัสบดี", "วันศุกร์", "วันเสาร์"];
+    const fullMonths = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+    const shortMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
     
     const parts = currentCheckingDate.split("-");
     const now = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
     
-    const dayName = days[now.getDay()];
+    const fullDayName = fullDays[now.getDay()];
     const dateNum = now.getDate();
-    const monthName = months[now.getMonth()];
+    const fullMonthName = fullMonths[now.getMonth()];
+    const shortMonthName = shortMonths[now.getMonth()];
     const yearNum = now.getFullYear() + 543; // กปลงเป็น พ.ศ.
     
-    const displayStr = `${dayName}ที่ ${dateNum} ${monthName} พ.ศ. ${yearNum}`;
-    document.getElementById("home-date-display").innerText = displayStr;
+    const displayStrDesktop = `${fullDayName}ที่ ${dateNum} ${fullMonthName} พ.ศ. ${yearNum}`;
+    const displayStrMobile = `${dateNum} ${shortMonthName} ${yearNum}`;
+    
+    const displayHtml = `<span class="desktop-date">${displayStrDesktop}</span><span class="mobile-date">${displayStrMobile}</span>`;
+    
+    document.getElementById("home-date-display").innerHTML = displayHtml;
     
     const attDateDisplay = document.getElementById("attendance-date-display");
     if (attDateDisplay) {
-        attDateDisplay.innerText = displayStr;
+        attDateDisplay.innerHTML = displayHtml;
     }
     
     // อัปเดตค่าปกิทิน input type="date" ด้วย
@@ -586,15 +593,58 @@ function calculateOverallStats() {
     let lateList = [];
     let cutList = [];
     
+    // คำนวณสถิติย้อนหลังสำหรับจัดการนักเรียนกลุ่มเสี่ยง (At-Risk)
+    let sStats = {};
+    if (allStatsData && allStatsData.logs) {
+        allStatsData.logs.forEach(log => {
+            let sid = log.studentId;
+            if (!sStats[sid]) sStats[sid] = { a: 0, l: 0 };
+            if (log.status === 'ขาด') sStats[sid].a++;
+            if (log.status === 'สาย') sStats[sid].l++;
+        });
+    }
+
     filteredStudents.forEach(s => {
         const status = todayLogsDetails[s.studentId];
         if (!status) return;
+        
         let label = `${s.fullName} (${s.grade}/${s.room})`;
+        
+        // ดึงสถิติขาด/สาย รวม
+        let totalA = sStats[s.studentId] ? sStats[s.studentId].a : 0;
+        let totalL = sStats[s.studentId] ? sStats[s.studentId].l : 0;
+        
         if (status === "มา") presentList.push(label);
         else if (status === "ลา") leaveList.push(label);
-        else if (status === "ขาด") absentList.push({text: label, color: "#ef4444"});
-        else if (status === "สาย") lateList.push({text: label, color: "#f59e0b"});
         else if (status === "โดด") cutList.push({text: label, color: "#8b5cf6"});
+        else if (status === "ขาด") {
+            let itemData = { text: label, color: "#ef4444" };
+            if (totalA >= 3) {
+                let noticeCount = totalA >= 9 ? 3 : (totalA >= 6 ? 2 : 1);
+                let docType = "ป.ค.9";
+                let fullDocType = `${docType}_ครั้งที่${noticeCount}`;
+                
+                itemData.text = `${label} <span style="background: #fee2e2; color: #b91c1c; padding: 2px 6px; border-radius: 6px; font-size: 11px; margin-left: 5px; font-weight: bold;">ขาด ${totalA} วัน</span> <span style="background: var(--color-primary); color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 5px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-file-signature"></i> จัดการเอกสาร</span>`;
+                itemData.action = () => {
+                    openAtRiskActionModal(s.studentId, s.fullName, `${s.grade}/${s.room}`, docType, fullDocType, 'hr');
+                };
+            }
+            absentList.push(itemData);
+        }
+        else if (status === "สาย") {
+            let itemData = { text: label, color: "#f59e0b" };
+            if (totalL >= 3) {
+                let noticeCount = totalL >= 8 ? 3 : (totalL >= 5 ? 2 : 1);
+                let docType = "ป.ค.8";
+                let fullDocType = `${docType}_ครั้งที่${noticeCount}`;
+                
+                itemData.text = `${label} <span style="background: #ffedd5; color: #c2410c; padding: 2px 6px; border-radius: 6px; font-size: 11px; margin-left: 5px; font-weight: bold;">สาย ${totalL} ครั้ง</span> <span style="background: var(--color-primary); color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 5px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-file-signature"></i> จัดการเอกสาร</span>`;
+                itemData.action = () => {
+                    openAtRiskActionModal(s.studentId, s.fullName, `${s.grade}/${s.room}`, docType, fullDocType, 'hr');
+                };
+            }
+            lateList.push(itemData);
+        }
     });
 
     bindSummaryTooltip("summary-card-present", "📌 มาเรียนปกติ", presentList);
@@ -687,7 +737,7 @@ function renderRooms() {
     if (statusFiltersContainer) {
         statusFiltersContainer.innerHTML = `
             <button class="pill status-all ${activeStatusFilter === 'ALL' ? 'active' : ''}" data-status="ALL">ทั้งหมด</button>
-            <button class="pill status-checked ${activeStatusFilter === 'CHECKED' ? 'active' : ''}" data-status="CHECKED">เช็คกล้ว</button>
+            <button class="pill status-checked ${activeStatusFilter === 'CHECKED' ? 'active' : ''}" data-status="CHECKED">เช็คแล้ว</button>
             <button class="pill status-unchecked ${activeStatusFilter === 'UNCHECKED' ? 'active' : ''}" data-status="UNCHECKED">ยังไม่เช็ค</button>
         `;
         
@@ -785,8 +835,8 @@ function renderRooms() {
             <div class="room-card-layout">
                 <div class="room-card-info">
                     <h3 class="room-card-title">ชั้น ${roomInfo.grade}/${roomInfo.room} <span class="room-card-count">(${roomInfo.totalCount} คน)</span></h3>
-                    <div class="check-status-badge desktop-only ${isChecked ? 'checked' : 'unchecked'}">
-                        ${isChecked ? 'เช็คกล้ว' : 'ยังไม่เช็ค'}
+                    <div class="check-status-badge ${isChecked ? 'checked' : 'unchecked'}">
+                        ${isChecked ? 'เช็คแล้ว' : 'ยังไม่เช็ค'}
                     </div>
                 </div>
                 ${donutHtml}
@@ -942,7 +992,7 @@ function openAttendanceCheck(grade, room) {
                 }
             }
             if (hasAtRisk) {
-                atRiskNotice = ` <span style="color: var(--color-absent); font-weight: bold; font-size: 0.9em;">(ติดตาม <i class="fa-solid fa-triangle-exclamation"></i>)</span>`;
+                atRiskNotice = ` <span style="color: var(--color-absent); font-weight: bold; font-size: 10px; letter-spacing: -0.3px;">(ติดตาม⚠️)</span>`;
             }
         }
         
@@ -964,10 +1014,10 @@ function openAttendanceCheck(grade, room) {
                         <div class="stat-pill stat-d"><span>โดด</span> <strong>${isChecked ? summary.Cut : '-'}</strong></div>
                     </div>
                 </div>
-                <div class="room-inner-tabs-container" style="display: grid; grid-template-columns: 1fr 1fr 1fr; text-align: center; margin-top: 20px; gap: 8px;">
-                    <button class="tab-btn room-inner-tab-btn active" data-target="room-tab-attendance">เช็คชื่อ</button>
-                    <button class="tab-btn room-inner-tab-btn" data-target="room-tab-stats">สรุป${atRiskNotice}</button>
-                    <button class="tab-btn room-inner-tab-btn" data-target="room-tab-schedule">ตาราง</button>
+                <div class="room-inner-tabs-container" style="display: grid; grid-template-columns: 1fr 1fr 1fr; text-align: center; margin-top: 20px; gap: 6px;">
+                    <button class="tab-btn room-inner-tab-btn active" data-target="room-tab-attendance" style="padding: 10px 2px; font-size: 13px; white-space: nowrap;">เช็คชื่อ</button>
+                    <button class="tab-btn room-inner-tab-btn" data-target="room-tab-stats" style="padding: 10px 2px; font-size: 13px; white-space: nowrap; letter-spacing: -0.3px;">สรุป${atRiskNotice}</button>
+                    <button class="tab-btn room-inner-tab-btn" data-target="room-tab-schedule" style="padding: 10px 2px; font-size: 13px; white-space: nowrap;">ตาราง</button>
                 </div>
             </div>
         `;
@@ -2448,6 +2498,7 @@ window.jumpToTracking = function(room) {
 };
 function switchView(viewName) {
     currentView = viewName;
+    window.scrollTo(0, 0);
     
     // ปิด Start Menu อัตโนมัติเมื่อเลือกเมนู
     const sidebar = document.querySelector(".sidebar");
@@ -3317,6 +3368,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 dateFormat: "Y-m-d",
                 defaultDate: currentCheckingDate,
                 position: "auto center",
+                disableMobile: true,
                 onChange: function(selectedDates, dateStr, instance) {
                     currentCheckingDate = dateStr;
                     loadInitialData(); // โหลดข้อมูลสำหรับวันที่เลือกใหม่
@@ -3595,7 +3647,7 @@ window.updateAtRiskNoticeInTab = function() {
             }
         }
         
-        let atRiskNotice = hasAtRisk ? ` <span style="color: var(--color-absent); font-weight: bold; font-size: 0.9em;">(ติดตาม <i class="fa-solid fa-triangle-exclamation"></i>)</span>` : '';
+        let atRiskNotice = hasAtRisk ? ` <span style="color: var(--color-absent); font-weight: bold; font-size: 10px; letter-spacing: -0.3px;">(ติดตาม⚠️)</span>` : '';
         statsTab.innerHTML = `สรุป${atRiskNotice}`;
     }
 };
@@ -3767,7 +3819,7 @@ window.renderRoomSpecificStats = function() {
             summaryContainer.innerHTML = `
                 <div style="width: 100%; background: rgba(255, 255, 255, 0.5); backdrop-filter: blur(8px); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 16px; padding: 20px; text-align: center; color: var(--color-present); margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
                     <i class="fa-solid fa-circle-check" style="font-size: 28px; margin-bottom: 10px;"></i>
-                    <p style="margin: 0; font-weight: bold; font-size: 16px;">ยอดเยี่ยม! ไม่มีนักเรียนขาดหรือสายเกินเกณฑ์</p>
+                    <p style="margin: 0; font-weight: bold; font-size: 16px;">ไม่มีนักเรียนขาดหรือสายเกินเกณฑ์</p>
                 </div>
             `;
         } else {
@@ -3812,6 +3864,10 @@ window.renderRoomSpecificStats = function() {
         let isAtRisk = (a >= 3 || s >= 3);
         let nameIcon = isAtRisk ? '<i class="fa-solid fa-triangle-exclamation" style="color: #ef4444; margin-right: 6px;"></i>' : '';
         
+        let totalPresent = p + s + c;
+        let percent = t > 0 ? Math.round((totalPresent / t) * 100) : 0;
+        let percentColor = percent >= 80 ? 'var(--color-present)' : (percent >= 60 ? 'var(--color-late)' : 'var(--color-absent)');
+
         let row = document.createElement('tr');
         if (isAtRisk) {
             row.style.backgroundColor = '#fef2f2';
@@ -3819,28 +3875,45 @@ window.renderRoomSpecificStats = function() {
             row.title = 'คลิกเพื่อติดตามนักเรียน';
             row.onclick = () => { if(typeof jumpToTracking === 'function') jumpToTracking(`${selectedRoom.grade}/${selectedRoom.room}`); };
             
-            // For styling the first cell (no.) with a left border
-            let td1 = `<td class="txt-center" style="border-left: 4px solid #ef4444;">${st.no}</td>`;
+            let td1 = `<td class="txt-center" style="border-left: 4px solid #ef4444; vertical-align: middle;">${st.no}</td>`;
             row.innerHTML = `
                 ${td1}
-                <td style="color: #b91c1c; font-weight: 500;">${nameIcon}${st.fullName}</td>
-                <td class="txt-center" style="color:var(--color-present);">${p}</td>
-                <td class="txt-center" style="color:var(--color-leave);">${l}</td>
-                <td class="txt-center" style="color:var(--color-absent);">${a}</td>
-                <td class="txt-center" style="color:var(--color-late);">${s}</td>
-                <td class="txt-center" style="color:var(--color-cut);">${c}</td>
-                <td class="txt-center fw-bold">${t}</td>
+                <td style="padding: 10px 15px;">
+                    <div style="color: #b91c1c; font-weight: 500; margin-bottom: 6px;">${nameIcon}${st.fullName}</div>
+                    <div class="mobile-only-flex" style="gap: 12px; font-size: 12px; font-weight: 600;">
+                        <span style="color:var(--color-present);">ม.${p}</span>
+                        <span style="color:var(--color-leave);">ล.${l}</span>
+                        <span style="color:var(--color-absent);">ข.${a}</span>
+                        <span style="color:var(--color-late);">ส.${s}</span>
+                        <span style="color:var(--color-cut);">ด.${c}</span>
+                    </div>
+                </td>
+                <td class="txt-center desktop-only" style="color:var(--color-present); vertical-align: middle;">${p}</td>
+                <td class="txt-center desktop-only" style="color:var(--color-leave); vertical-align: middle;">${l}</td>
+                <td class="txt-center desktop-only" style="color:var(--color-absent); vertical-align: middle;">${a}</td>
+                <td class="txt-center desktop-only" style="color:var(--color-late); vertical-align: middle;">${s}</td>
+                <td class="txt-center desktop-only" style="color:var(--color-cut); vertical-align: middle;">${c}</td>
+                <td class="txt-center fw-bold" style="vertical-align: middle; color: ${percentColor};">${percent}%</td>
             `;
         } else {
             row.innerHTML = `
-                <td class="txt-center">${st.no}</td>
-                <td>${st.fullName}</td>
-                <td class="txt-center" style="color:var(--color-present);">${p}</td>
-                <td class="txt-center" style="color:var(--color-leave);">${l}</td>
-                <td class="txt-center" style="color:var(--color-absent);">${a}</td>
-                <td class="txt-center" style="color:var(--color-late);">${s}</td>
-                <td class="txt-center" style="color:var(--color-cut);">${c}</td>
-                <td class="txt-center fw-bold">${t}</td>
+                <td class="txt-center" style="vertical-align: middle;">${st.no}</td>
+                <td style="padding: 10px 15px;">
+                    <div style="font-weight: 500; margin-bottom: 6px;">${st.fullName}</div>
+                    <div class="mobile-only-flex" style="gap: 12px; font-size: 12px; font-weight: 600;">
+                        <span style="color:var(--color-present);">ม.${p}</span>
+                        <span style="color:var(--color-leave);">ล.${l}</span>
+                        <span style="color:var(--color-absent);">ข.${a}</span>
+                        <span style="color:var(--color-late);">ส.${s}</span>
+                        <span style="color:var(--color-cut);">ด.${c}</span>
+                    </div>
+                </td>
+                <td class="txt-center desktop-only" style="color:var(--color-present); vertical-align: middle;">${p}</td>
+                <td class="txt-center desktop-only" style="color:var(--color-leave); vertical-align: middle;">${l}</td>
+                <td class="txt-center desktop-only" style="color:var(--color-absent); vertical-align: middle;">${a}</td>
+                <td class="txt-center desktop-only" style="color:var(--color-late); vertical-align: middle;">${s}</td>
+                <td class="txt-center desktop-only" style="color:var(--color-cut); vertical-align: middle;">${c}</td>
+                <td class="txt-center fw-bold" style="vertical-align: middle; color: ${percentColor};">${percent}%</td>
             `;
         }
         tbody.appendChild(row);

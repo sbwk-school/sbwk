@@ -1,14 +1,17 @@
 /**
- * Google Apps Script - ระบบเช็คชื่อนักเรียนออนไลน์ (เวอร์ชันคอลัมน์ความเร็วสูง - ป้องกันคอลัมน์วันที่ซ้ำซ้อน)
+ * Google Apps Script - ระบบเช็คชื่อนักเรียนออนไลน์ (เวอร์ชันประสิทธิภาพสูง คอลัมน์เดียว Web_ Prefix)
  * คัดลอกโค้ดนี้ทั้งหมดไปวางในเมนู Extensions -> Apps Script ของ Google Sheet ของคุณ
  */
 
-// ชื่อชีทต่าง ๆ ในระบบ
+// ชื่อชีทต่าง ๆ ในระบบที่เชื่อมต่อ
 const SHEETS = {
-  HOLIDAYS: "วันหยุด",
-  USERS: "ผู้ใช้งาน",
-  MISCONDUCT: "บันทึกความประพฤติ",
-  ATTENDANCE: "บันทึกเวลาเรียน"
+  STUDENTS: "Web_รายชื่อนักเรียน",
+  HOLIDAYS: "Web_วันหยุด",
+  USERS: "Web_ผู้ใช้งาน",
+  MISCONDUCT: "Web_บันทึกความประพฤติ",
+  ATTENDANCE: "Web_บันทึกเวลาเรียน",
+  DOCUMENTS: "Web_เอกสารที่ออกแล้ว",
+  AT_RISK_TEACHERS: "Web_ติดตามนักเรียน"
 };
 
 /**
@@ -17,42 +20,55 @@ const SHEETS = {
 function initDatabase() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   
-  // 1. ชีทวันหยุด
+  // 1. ชีทรายชื่อนักเรียน
+  if (!ss.getSheetByName(SHEETS.STUDENTS)) {
+    const sheet = ss.insertSheet(SHEETS.STUDENTS);
+    sheet.appendRow(["ข้อมูลดิบนักเรียน"]);
+    sheet.getRange(1, 1).setFontWeight("bold").setBackground("#efebe9").setHorizontalAlignment("center");
+  }
+  
+  // 2. ชีทวันหยุด
   if (!ss.getSheetByName(SHEETS.HOLIDAYS)) {
     const sheet = ss.insertSheet(SHEETS.HOLIDAYS);
-    sheet.appendRow(["วันที่", "ชื่อวันหยุด"]);
-    sheet.getRange(1, 1, 1, 2).setFontWeight("bold").setBackground("#efebe9");
+    sheet.appendRow(["ข้อมูลวันหยุด"]);
+    sheet.getRange(1, 1).setFontWeight("bold").setBackground("#efebe9").setHorizontalAlignment("center");
   }
   
-  // 2. ชีทผู้ใช้งาน
+  // 3. ชีทผู้ใช้งาน
   if (!ss.getSheetByName(SHEETS.USERS)) {
     const sheet = ss.insertSheet(SHEETS.USERS);
-    sheet.appendRow(["ชื่อ", "รหัสครู", "PIN", "บทบาท"]);
-    sheet.getRange(1, 1, 1, 4).setFontWeight("bold").setBackground("#e3f2fd");
-    // สร้าง Admin เริ่มต้น
-    sheet.appendRow(["Admin", "9999", "9999", "ADMIN"]);
+    sheet.appendRow(["ข้อมูลผู้ใช้"]);
+    sheet.getRange(1, 1).setFontWeight("bold").setBackground("#e3f2fd").setHorizontalAlignment("center");
+    // สร้าง Admin เริ่มต้น: ชื่อ|PIN|บทบาท
+    sheet.appendRow(["Admin|9999|ADMIN"]);
   }
   
-  // 3. ชีทบันทึกความประพฤติ
+  // 4. ชีทบันทึกความประพฤติ
   if (!ss.getSheetByName(SHEETS.MISCONDUCT)) {
     const sheet = ss.insertSheet(SHEETS.MISCONDUCT);
-    sheet.appendRow(["ID", "วันที่", "เลขประจำตัว", "ชื่อ-สกุล", "ชั้น", "ห้อง", "รายละเอียดการทำผิด", "สถานะการแก้ไข", "ผู้บันทึก", "เวลาบันทึก"]);
-    sheet.getRange(1, 1, 1, 10).setFontWeight("bold").setBackground("#ffebee");
+    sheet.appendRow(["ข้อมูลความประพฤติ"]);
+    sheet.getRange(1, 1).setFontWeight("bold").setBackground("#ffebee").setHorizontalAlignment("center");
   }
 
-  // 4. ชีทบันทึกเวลาเรียน
+  // 5. ชีทบันทึกเวลาเรียน
   if (!ss.getSheetByName(SHEETS.ATTENDANCE)) {
     const sheet = ss.insertSheet(SHEETS.ATTENDANCE);
-    sheet.appendRow(["เลขประจำตัว"]);
+    sheet.appendRow(["ข้อมูลดิบเวลาเรียน"]);
     sheet.getRange(1, 1).setFontWeight("bold").setBackground("#ffe082").setHorizontalAlignment("center");
-    
-    // ก๊อปปี้เลขประจำตัวนักเรียนทั้งหมดจากชีทแรก (รายชื่อนักเรียน) มาใส่ในคอลัมน์แรก
-    const studentSheet = ss.getSheets()[0];
-    const lastRow = studentSheet.getLastRow();
-    if (lastRow > 1) {
-      const studentIds = studentSheet.getRange(2, 2, lastRow - 1, 1).getValues();
-      sheet.getRange(2, 1, lastRow - 1, 1).setValues(studentIds);
-    }
+  }
+
+  // 6. ชีทเอกสารที่ออกแล้ว (ป.ค.8, ป.ค.9)
+  if (!ss.getSheetByName(SHEETS.DOCUMENTS)) {
+    const sheet = ss.insertSheet(SHEETS.DOCUMENTS);
+    sheet.appendRow(["ข้อมูลเอกสาร"]);
+    sheet.getRange(1, 1).setFontWeight("bold").setBackground("#e8f5e9").setHorizontalAlignment("center");
+  }
+
+  // 7. ชีทติดตามนักเรียน (ครูที่รับผิดชอบ)
+  if (!ss.getSheetByName(SHEETS.AT_RISK_TEACHERS)) {
+    const sheet = ss.insertSheet(SHEETS.AT_RISK_TEACHERS);
+    sheet.appendRow(["รหัสอ้างอิง", "ครูที่ปรึกษา", "หัวหน้ากิจการนักเรียน"]);
+    sheet.getRange(1, 1, 1, 3).setFontWeight("bold").setBackground("#fff3e0").setHorizontalAlignment("center");
   }
 }
 
@@ -72,6 +88,8 @@ function doGet(e) {
       const users = getUsers(ss);
       const todayLogs = getAttendanceSummaryForDate(ss, dateParam);
       const todayLogsDetails = getAttendanceDetailsForDate(ss, dateParam);
+      const documents = getDocuments(ss);
+      const atRiskTeachers = getAtRiskTeachers(ss);
       
       return jsonResponse({
         success: true,
@@ -79,7 +97,9 @@ function doGet(e) {
         holidays: holidays,
         users: users,
         todayLogs: todayLogs,
-        todayLogsDetails: todayLogsDetails
+        todayLogsDetails: todayLogsDetails,
+        documents: documents,
+        atRiskTeachers: atRiskTeachers
       });
     }
     
@@ -119,12 +139,27 @@ function doPost(e) {
   const pin = data.pin;
   
   try {
-    // การลงทะเบียนครูอนุญาตให้ทำได้โดยตรง โดยผู้ใช้เลือกชื่อและรหัสแล้วบันทึกได้ทันที
+    // การลงทะเบียนครูอนุญาตให้ทำได้โดยตรง
     if (action === "registerUser") {
       registerNewUser(ss, data.name, data.code, data.newPin, data.role);
       return jsonResponse({ success: true, message: "ลงทะเบียนผู้ใช้สำเร็จ" });
     }
     
+    // การบันทึกลายเซ็นลง Sheet (ไม่ต้องแปลง PDF ให้ค้าง)
+    if (action === "saveDocument") {
+      try {
+        logDocumentToSheet(ss, data.studentId, data.studentName, data.gradeRoom, data.documentType, data.signatureBase64);
+        return jsonResponse({ success: true, message: "บันทึกข้อมูลและลายเซ็นสำเร็จ" });
+      } catch (err) {
+        return jsonResponse({ success: false, message: "บันทึกข้อมูลผิดพลาด: " + err.toString() });
+      }
+    }
+
+    if (action === "saveAtRiskTeachers") {
+      saveAtRiskTeachersInSheet(ss, data.key, data.hr, data.sa, data.hrSign, data.saSign);
+      return jsonResponse({ success: true, message: "บันทึกข้อมูลครูรับผิดชอบสำเร็จ" });
+    }
+
     // การทำรายการอื่น ๆ ต้องยืนยันสิทธิ์ PIN แอดมิน/ครู
     const auth = verifyPin(ss, pin);
     if (!auth.success) {
@@ -183,6 +218,14 @@ function doPost(e) {
       return jsonResponse({ success: true, message: "อัปเดตสถานะความประพฤติสำเร็จ" });
     }
     
+    if (action === "clearAttendance") {
+      if (userRole !== "ADMIN") {
+        return jsonResponse({ success: false, message: "ไม่มีสิทธิ์ในการล้างข้อมูล (ต้องเป็น Admin เท่านั้น)" });
+      }
+      clearAttendanceHistory(ss);
+      return jsonResponse({ success: true, message: "ล้างประวัติการมาเรียนทั้งหมดสำเร็จ" });
+    }
+    
     if (action === "verifyPinOnly") {
       return jsonResponse({ success: true, name: userName, role: userRole });
     }
@@ -202,88 +245,67 @@ function jsonResponse(data) {
 }
 
 /**
- * ดึงรายชื่อนักเรียนจากชีทแรก (รายชื่อ)
+ * ดึงรายชื่อนักเรียนจากชีทรายชื่อนักเรียน
+ * รูปแบบคอลัมน์ A: เลขประจำตัว|ชั้นเรียน/ห้อง|ชื่อเต็ม
  */
 function getStudentsList(ss) {
-  const sheet = ss.getSheets()[0]; 
+  const sheet = ss.getSheetByName(SHEETS.STUDENTS); 
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return [];
-  // ดึงข้อมูลเฉพาะช่วง A-I (คอลัมน์ 1 ถึง 9) เพื่อป้องกันการขยายตัวความเร็ว
-  const rows = sheet.getRange(1, 1, lastRow, 9).getValues();
+  
+  const rows = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
   const list = [];
   
-  for (let i = 1; i < rows.length; i++) {
-    const studentId = String(rows[i][1]).trim();
-    if (!studentId || rows[i][0] === "") continue;
+  for (let i = 0; i < rows.length; i++) {
+    const line = String(rows[i][0]).trim();
+    if (!line) continue;
+    
+    const cells = line.split('|');
+    if (cells.length < 3) continue;
+    
+    const studentId = cells[0].trim();
+    const gradeRoom = cells[1].trim(); // e.g. "ม.1/1"
+    const fullName = cells[2].trim();
+    
+    const gradeRoomParts = gradeRoom.split('/');
+    const grade = gradeRoomParts[0] || "";
+    const room = gradeRoomParts[1] || "";
     
     list.push({
-      no: parseInt(rows[i][0]) || 0,
+      no: i + 1,
       studentId: studentId,
-      grade: String(rows[i][2]).trim(),
-      room: String(rows[i][3]).trim(),
-      gender: String(rows[i][4]).trim(),
-      prefix: String(rows[i][5]).trim(),
-      firstName: String(rows[i][6]).trim(),
-      lastName: String(rows[i][7]).trim(),
-      fullName: String(rows[i][8]).trim()
+      grade: grade,
+      room: room,
+      fullName: fullName
     });
   }
   return list;
 }
 
 /**
- * แปลงฟอร์แมตหัวตารางวันที่ต่าง ๆ เป็น YYYY-MM-DD แบบเป็นมาตรฐานเดียวกัน
- */
-function normalizeHeaderDate(cellValue) {
-  if (cellValue instanceof Date) {
-    return formatDate(cellValue);
-  }
-  const str = String(cellValue).trim();
-  if (str.match(/^\d{4}-\d{2}-\d{2}$/)) {
-    return str;
-  }
-  // ทดลอง Parse สตริงทั่วไปเป็นวันที่
-  const parsed = new Date(str);
-  if (!isNaN(parsed.getTime())) {
-    return formatDate(parsed);
-  }
-  return str;
-}
-
-/**
- * ฟังก์ชันช่วยค้นหาคอลัมน์ของชีทผู้ใช้งาน โดยอิงตามชื่อหัวคอลัมน์ (ยืดหยุ่นสูง)
- */
-function getUserSheetMapping(headers) {
-  let nameIdx = 0;
-  let codeIdx = -1;
-  let pinIdx = -1;
-  let roleIdx = -1;
-  
-  for (let j = 0; j < headers.length; j++) {
-    const h = String(headers[j]).trim().toUpperCase();
-    if (h.includes("ชื่อ") || h.includes("NAME")) nameIdx = j;
-    else if (h.includes("รหัสครู") || h.includes("รหัสประจำตัว") || h === "รหัส" || h.includes("CODE")) codeIdx = j;
-    else if (h.includes("PIN") || h.includes("พิน") || h.includes("รหัสผ่าน")) pinIdx = j;
-    else if (h.includes("บทบาท") || h.includes("สิทธิ์") || h.includes("สถานะ") || h.includes("ตำแหน่ง") || h.includes("ROLE") || h.includes("STATUS")) roleIdx = j;
-  }
-  
-  return { nameIdx, codeIdx, pinIdx, roleIdx };
-}
-
-/**
- * ตรวจสอบรหัส PIN 4 หลัก (แบบสแกนหัวคอลัมน์อัตโนมัติ)
+ * ตรวจสอบรหัส PIN 4 หลัก จากชีทผู้ใช้งาน
+ * รูปแบบคอลัมน์ A: ชื่อ|PIN|บทบาท
  */
 function verifyPin(ss, pin) {
   if (!pin) return { success: false };
   const sheet = ss.getSheetByName(SHEETS.USERS);
-  const rows = sheet.getDataRange().getDisplayValues();
-  if (rows.length === 0) return { success: false };
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { success: false };
   
-  const mapping = getUserSheetMapping(rows[0]);
-  
-  for (let i = 1; i < rows.length; i++) {
-    if (String(rows[i][mapping.pinIdx]).trim() === String(pin).trim()) {
-      return { success: true, name: rows[i][mapping.nameIdx], role: rows[i][mapping.roleIdx] };
+  const rows = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  for (let i = 0; i < rows.length; i++) {
+    const line = String(rows[i][0]).trim();
+    if (!line) continue;
+    
+    const cells = line.split('|');
+    if (cells.length < 3) continue;
+    
+    const name = cells[0].trim();
+    const userPin = cells[1].trim();
+    const role = cells[2].trim();
+    
+    if (userPin === String(pin).trim()) {
+      return { success: true, name: name, role: role };
     }
   }
   return { success: false };
@@ -291,118 +313,99 @@ function verifyPin(ss, pin) {
 
 /**
  * ดึงรายการวันหยุดทั้งหมด
+ * รูปแบบคอลัมน์ A: YYYY-MM-DD|ชื่อวันหยุด
  */
 function getHolidays(ss) {
   const sheet = ss.getSheetByName(SHEETS.HOLIDAYS);
-  const rows = sheet.getDataRange().getDisplayValues();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  
+  const rows = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
   const list = [];
-  for (let i = 1; i < rows.length; i++) {
-    if (rows[i][0]) {
-      list.push({
-        date: String(rows[i][0]).trim(),
-        name: rows[i][1]
-      });
-    }
+  for (let i = 0; i < rows.length; i++) {
+    const line = String(rows[i][0]).trim();
+    if (!line) continue;
+    
+    const cells = line.split('|');
+    if (cells.length < 2) continue;
+    
+    list.push({
+      date: cells[0].trim(),
+      name: cells[1].trim()
+    });
   }
   return list;
 }
 
 /**
- * ดึงรายการชื่อครูทั้งหมด (แบบสแกนหัวคอลัมน์อัตโนมัติ)
+ * ดึงรายการชื่อครูทั้งหมด
+ * รูปแบบคอลัมน์ A: ชื่อ|PIN|บทบาท
  */
 function getUsers(ss) {
   const sheet = ss.getSheetByName(SHEETS.USERS);
-  const rows = sheet.getDataRange().getDisplayValues();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  
+  const rows = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
   const list = [];
-  if (rows.length === 0) return [];
-  
-  const mapping = getUserSheetMapping(rows[0]);
-  
-  for (let i = 1; i < rows.length; i++) {
-    if (rows[i][mapping.nameIdx]) {
-      const codeVal = mapping.codeIdx !== -1 ? rows[i][mapping.codeIdx] : "";
-      let roleVal = mapping.roleIdx !== -1 ? String(rows[i][mapping.roleIdx]).trim().toUpperCase() : "TEACHER";
-      const pinVal = mapping.pinIdx !== -1 ? rows[i][mapping.pinIdx] : "";
-      
-      // Normalize role
-      let normalizedRole = "TEACHER";
-      if (roleVal.includes("ADMIN") || roleVal.includes("แอดมิน") || roleVal.includes("ผู้ดูแล") || roleVal === "A") {
-        normalizedRole = "ADMIN";
-      } else if (roleVal.includes("AFFAIR") || roleVal.includes("กิจการ") || roleVal.includes("ปกครอง") || roleVal.includes("ฝ่าย") || roleVal === "SA") {
-        normalizedRole = "STUDENT_AFFAIRS";
-      }
-      
-      list.push({
-        name: rows[i][mapping.nameIdx],
-        code: codeVal,
-        role: normalizedRole,
-        pin: pinVal, 
-        hasPin: pinVal !== ""
-      });
-    }
+  for (let i = 0; i < rows.length; i++) {
+    const line = String(rows[i][0]).trim();
+    if (!line) continue;
+    
+    const cells = line.split('|');
+    if (cells.length < 3) continue;
+    
+    const name = cells[0].trim();
+    const pin = cells[1].trim();
+    const role = cells[2].trim();
+    
+    list.push({
+      name: name,
+      code: "",
+      role: role,
+      pin: pin, 
+      hasPin: pin !== ""
+    });
   }
   return list;
 }
 
 /**
- * ค้นหาคอลัมน์ของวันที่ต้องการเช็คชื่อ (เปรียบเทียบจากวันที่ที่แปลงมาตรฐานแล้ว เริ่มต้นหาตั้งแต่คอลัมน์ที่ 2)
- */
-function findDateColumnIndex(sheet, dateStr, headersRaw) {
-  for (let j = 1; j < headersRaw.length; j++) {
-    if (normalizeHeaderDate(headersRaw[j]) === dateStr) {
-      return j + 1; // 1-based index
-    }
-  }
-  
-  // หากไม่พบ ให้สร้างคอลัมน์ใหม่ที่ท้ายตาราง บังคับเซฟเป็น Plain text เพื่อกันระบบจัดฟอร์แมตผิดเพี้ยน
-  const newColIdx = headersRaw.length + 1;
-  sheet.getRange(1, newColIdx).setValue("'" + dateStr)
-    .setFontWeight("bold")
-    .setBackground("#ffe082")
-    .setHorizontalAlignment("center");
-  return newColIdx;
-}
-
-/**
- * ดึงสถานะการเข้าเรียนรายบุคคลตามวันที่ระบุ (ดึงจากชีท "บันทึกเวลาเรียน")
+ * ดึงสถานะการเข้าเรียนรายบุคคลตามวันที่ระบุ
+ * ดึงจากชีท "Web_บันทึกเวลาเรียน"
+ * รูปแบบคอลัมน์ A: YYYYMMDD|เลขประจำตัว|สถานะ
  */
 function getAttendanceDetailsForDate(ss, dateStr) {
   const sheet = ss.getSheetByName(SHEETS.ATTENDANCE);
   if (!sheet) return {};
   
-  const lastCol = sheet.getLastColumn();
   const lastRow = sheet.getLastRow();
-  if (lastCol < 2 || lastRow < 2) return {};
+  if (lastRow < 2) return {};
   
-  const headersRaw = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-  
-  let dateColIdx = -1;
-  for (let j = 1; j < headersRaw.length; j++) {
-    if (normalizeHeaderDate(headersRaw[j]) === dateStr) {
-      dateColIdx = j + 1; // getRange uses 1-based index
-      break;
-    }
-  }
+  const targetDateCompact = dateStr.replace(/-/g, ""); // "20260706"
+  const rows = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
   
   const details = {};
-  if (dateColIdx !== -1) {
-    // โหลดเฉพาะคอลัมน์รหัส (A) และคอลัมน์สถานะของวันนั้น (แทนการโหลดทั้งตาราง) เพื่อความเร็วสูงสุด
-    const ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
-    const statuses = sheet.getRange(2, dateColIdx, lastRow - 1, 1).getValues();
+  for (let i = 0; i < rows.length; i++) {
+    const line = String(rows[i][0]).trim();
+    if (!line) continue;
     
-    for (let i = 0; i < ids.length; i++) {
-      const studentId = String(ids[i][0]).trim();
-      const status = String(statuses[i][0]).trim();
-      if (studentId && status) {
-        details[studentId] = status;
-      }
+    const cells = line.split('|');
+    if (cells.length < 3) continue;
+    
+    const recordDate = cells[0].trim();
+    const studentId = cells[1].trim();
+    const status = cells[2].trim();
+    
+    if (recordDate === targetDateCompact) {
+      details[studentId] = status; // ตัวหลังสุดจะทับตัวหน้าโดยอัตโนมัติ
     }
   }
   return details;
 }
 
 /**
- * ดึงสรุปผลสถิติเช็คชื่อตามวันที่ระบุเพื่อนำไปสรุปการ์ดห้องหน้าแรก (แบบคำนวณและ Map ผ่าน JS)
+ * ดึงสรุปผลสถิติเช็คชื่อตามวันที่ระบุเพื่อนำไปสรุปการ์ดห้องหน้าแรก
  */
 function getAttendanceSummaryForDate(ss, dateStr) {
   const students = getStudentsList(ss);
@@ -419,11 +422,11 @@ function getAttendanceSummaryForDate(ss, dateStr) {
       }
       
       summaries[key].Total++;
-      if (status === "มา") summaries[key].Present++;
-      else if (status === "ลา") summaries[key].Leave++;
-      else if (status === "ขาด") summaries[key].Absent++;
-      else if (status === "สาย") summaries[key].Late++;
-      else if (status === "โดด") summaries[key].Cut++;
+      if (status === "ม") summaries[key].Present++;
+      else if (status === "ล") summaries[key].Leave++;
+      else if (status === "ข") summaries[key].Absent++;
+      else if (status === "ส") summaries[key].Late++;
+      else if (status === "ด") summaries[key].Cut++;
     }
   });
   
@@ -431,80 +434,73 @@ function getAttendanceSummaryForDate(ss, dateStr) {
 }
 
 /**
- * ดึงสถิติตามเดือนและห้องเรียนย้อนหลัง (คัดกรองจากแนวคอลัมน์วันที่)
+ * ดึงสถิติตามเดือนและห้องเรียนย้อนหลัง
+ * รูปแบบคอลัมน์ A: YYYYMMDD|เลขประจำตัว|สถานะ
  */
 function getAttendanceStats(ss, month, targetRoom) {
-  const studentSheet = ss.getSheets()[0];
-  const studentsRows = studentSheet.getRange(1, 1, studentSheet.getLastRow(), 9).getValues();
-  
-  // สร้างแผนที่ข้อมูลเด็กเพื่อความเร็วในการค้นหา
+  const students = getStudentsList(ss);
   const studentMap = {};
-  for (let i = 1; i < studentsRows.length; i++) {
-    const studentId = String(studentsRows[i][1]).trim();
-    if (studentId && studentsRows[i][0] !== "") {
-      studentMap[studentId] = {
-        name: studentsRows[i][8],
-        grade: studentsRows[i][2],
-        room: studentsRows[i][3],
-        fullRoom: `${studentsRows[i][2]}/${studentsRows[i][3]}`
+  students.forEach(s => {
+    studentMap[s.studentId] = {
+      name: s.fullName,
+      grade: s.grade,
+      room: s.room,
+      fullRoom: `${s.grade}/${s.room}`
+    };
+  });
+  
+  const sheet = ss.getSheetByName(SHEETS.ATTENDANCE);
+  if (!sheet) {
+    return { logs: [], dates: [], availableMonths: [] };
+  }
+  
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    return { logs: [], dates: [], availableMonths: [] };
+  }
+  
+  const rows = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  const logsMap = {}; // เพื่อเก็บสถานะสุดท้ายของนักเรียนในแต่ละวัน
+  const dates = new Set();
+  const allMonths = new Set();
+  
+  const targetMonthCompact = month !== "ALL" ? month.replace(/-/g, "") : "ALL"; // "202607"
+  
+  for (let i = 0; i < rows.length; i++) {
+    const line = String(rows[i][0]).trim();
+    if (!line) continue;
+    
+    const cells = line.split('|');
+    if (cells.length < 3) continue;
+    
+    const recordDateCompact = cells[0].trim(); // "20260706"
+    const studentId = cells[1].trim();
+    const status = cells[2].trim();
+    
+    const info = studentMap[studentId];
+    if (!info) continue;
+    if (targetRoom !== "ALL" && info.fullRoom !== targetRoom) continue;
+    
+    const logMonthCompact = recordDateCompact.substring(0, 6);
+    const logMonthNorm = logMonthCompact.substring(0, 4) + "-" + logMonthCompact.substring(4, 6);
+    allMonths.add(logMonthNorm);
+    
+    if (targetMonthCompact === "ALL" || logMonthCompact === targetMonthCompact) {
+      const formattedDate = recordDateCompact.substring(0, 4) + "-" + recordDateCompact.substring(4, 6) + "-" + recordDateCompact.substring(6, 8);
+      dates.add(formattedDate);
+      
+      const key = `${formattedDate}|${studentId}`;
+      logsMap[key] = {
+        date: formattedDate,
+        studentId: studentId,
+        name: info.name,
+        room: info.fullRoom,
+        status: status
       };
     }
   }
   
-  const attSheet = ss.getSheetByName(SHEETS.ATTENDANCE);
-  if (!attSheet) {
-    return { logs: [], dates: [], availableMonths: [] };
-  }
-  
-  const lastCol = attSheet.getLastColumn();
-  if (lastCol < 2) {
-    return { logs: [], dates: [], availableMonths: [] };
-  }
-  
-  const headersRaw = attSheet.getRange(1, 1, 1, lastCol).getValues()[0];
-  const attRows = attSheet.getDataRange().getValues();
-  
-  const logs = [];
-  const dates = new Set();
-  const allMonths = new Set();
-  
-  const dateColumns = [];
-  for (let j = 1; j < headersRaw.length; j++) {
-    const headerNorm = normalizeHeaderDate(headersRaw[j]);
-    if (headerNorm.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      allMonths.add(headerNorm.substring(0, 7));
-      
-      const logMonth = headerNorm.substring(0, 7);
-      if (month === "ALL" || logMonth === month) {
-        dateColumns.push({ colIdx: j, date: headerNorm });
-        dates.add(headerNorm);
-      }
-    }
-  }
-  
-  for (let i = 1; i < attRows.length; i++) {
-    const studentId = String(attRows[i][0]).trim();
-    if (!studentId) continue;
-    
-    const info = studentMap[studentId];
-    if (!info) continue;
-    
-    if (targetRoom !== "ALL" && info.fullRoom !== targetRoom) continue;
-    
-    dateColumns.forEach(col => {
-      const status = attRows[i][col.colIdx].trim();
-      if (status) {
-        logs.push({
-          date: col.date,
-          studentId: studentId,
-          name: info.name,
-          room: info.fullRoom,
-          status: status
-        });
-      }
-    });
-  }
-  
+  const logs = Object.values(logsMap);
   return {
     logs: logs,
     dates: Array.from(dates).sort(),
@@ -514,175 +510,139 @@ function getAttendanceStats(ss, month, targetRoom) {
 
 /**
  * ดึงบันทึกความประพฤติทั้งหมด
+ * รูปแบบคอลัมน์ A: วันที่บันทึก|เลขประจำตัว|ชื่อ-สกุล|ชั้น/ห้อง|รายละเอียดความผิด|สถานะ|ครูผู้บันทึก|วันที่แก้ไข|รายละเอียดการแก้ไข|ครูผู้แก้ไข
  */
 function getMisconductLogs(ss) {
   const sheet = ss.getSheetByName(SHEETS.MISCONDUCT);
-  const rows = sheet.getDataRange().getDisplayValues();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  
+  const rows = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
   const list = [];
-  for (let i = 1; i < rows.length; i++) {
-    if (rows[i][0]) {
-      list.push({
-        id: rows[i][0],
-        date: String(rows[i][1]).trim(),
-        studentId: String(rows[i][2]).trim(),
-        name: rows[i][3],
-        grade: rows[i][4],
-        room: rows[i][5],
-        description: rows[i][6],
-        resolved: rows[i][7] === "แก้ไขแล้ว",
-        recorder: rows[i][8],
-        timestamp: rows[i][9],
-        resolution: rows[i][10] || ""
-      });
-    }
+  
+  for (let i = 0; i < rows.length; i++) {
+    const line = String(rows[i][0]).trim();
+    if (!line) continue;
+    
+    const cells = line.split('|');
+    const date = cells[0] || "";
+    const studentId = cells[1] || "";
+    const name = cells[2] || "";
+    const gradeRoom = cells[3] || "";
+    const description = cells[4] || "";
+    const status = cells[5] || "";
+    const recorder = cells[6] || "";
+    const resolutionDate = cells[7] || "";
+    const resolution = cells[8] || "";
+    const resolver = cells[9] || "";
+    
+    const gradeRoomParts = gradeRoom.split('/');
+    const grade = gradeRoomParts[0] || "";
+    const room = gradeRoomParts[1] || "";
+    
+    list.push({
+      id: `${date}|${studentId}|${i}`, // ใช้ดัชนีบรรทัดเป็นคีย์ในการระบุเพื่อใช้แก้ไขข้อมูลให้ถูกบรรทัด
+      date: date,
+      studentId: studentId,
+      name: name,
+      grade: grade,
+      room: room,
+      description: description,
+      resolved: status === "แก้ไขแล้ว",
+      recorder: recorder,
+      timestamp: date,
+      resolution: resolution,
+      resolutionDate: resolutionDate,
+      resolver: resolver
+    });
   }
   return list.reverse();
 }
 
 /**
- * บันทึกการเช็คชื่อความเร็วสูง (อัปเดตลงคอลัมน์วันที่แบบแบทช์)
+ * บันทึกการเช็คชื่อแบบต่อท้ายความเร็วสูง (Append Only)
+ * รูปแบบข้อมูลในคอลัมน์ A: YYYYMMDD|เลขประจำตัว|สถานะ
  */
 function saveAttendanceRecords(ss, dateStr, grade, room, records, teacher) {
-  // เปิดระบบล็อกเพื่อป้องกันปัญหาครูเซฟพร้อมกันแล้วข้อมูลหาย
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(15000); // รอสูงสุด 15 วินาที
+    lock.waitLock(15000);
     
-    const attSheet = ss.getSheetByName(SHEETS.ATTENDANCE);
-    const lastRow = attSheet.getLastRow();
-    const lastCol = attSheet.getLastColumn();
+    const sheet = ss.getSheetByName(SHEETS.ATTENDANCE);
+    const targetDateCompact = dateStr.replace(/-/g, ""); // "20260706"
     
-    // ดึงหัวตารางของชีทเช็คชื่อ
-    const headersRaw = lastCol > 0 ? attSheet.getRange(1, 1, 1, lastCol).getValues()[0] : ["เลขประจำตัว"];
-    const colIdx = findDateColumnIndex(attSheet, dateStr, headersRaw);
-    
-    // ดึงรหัสเด็กทั้งหมดที่มีในชีทเช็คชื่อปัจจุบัน (ใช้ getDisplayValues ป้องกันเลขนัยสำคัญและเลขศูนย์นำหน้าหาย)
-    const attIdsRange = attSheet.getRange(1, 1, lastRow, 1);
-    const attIds = attIdsRange.getDisplayValues().map(r => String(r[0]).trim());
-    
-    // ดึงสถานะเดิมในคอลัมน์วันที่นี้
-    const colRange = attSheet.getRange(1, colIdx, lastRow, 1);
-    const colValues = colRange.getValues();
-    
-    const recordMap = {};
+    const newRows = [];
     records.forEach(r => {
-      recordMap[String(r.studentId).trim()] = r.status;
+      newRows.push([`${targetDateCompact}|${r.studentId}|${r.status}`]);
     });
     
-    // วนลูปเช็คสถานะเด็กที่มีอยู่ในคอลัมน์
-    for (let i = 1; i < attIds.length; i++) {
-      const studentId = attIds[i];
-      if (recordMap[studentId] !== undefined) {
-        colValues[i][0] = recordMap[studentId];
-        delete recordMap[studentId]; // ลบออกจากรายการเพื่อดูตัวตกหล่น (เด็กใหม่)
-      }
+    if (newRows.length > 0) {
+      const lastRow = sheet.getLastRow();
+      sheet.getRange(lastRow + 1, 1, newRows.length, 1).setValues(newRows);
     }
-    
-    // จัดการเขียนค่ากลับ
-    colRange.setValues(colValues);
-    
-    // กรณีมีเด็กที่ย้ายมาใหม่และไม่มีรหัสในชีทเช็คชื่อนี้ (ให้ append ต่อท้ายและเช็คชื่อ)
-    const remainingIds = Object.keys(recordMap);
-    if (remainingIds.length > 0) {
-      // ใช้ setValues แทน appendRow ในลูปเพื่อเพิ่มความเร็วและป้องกัน Timeout
-      const newRowsData = remainingIds.map(id => [id]);
-      attSheet.getRange(lastRow + 1, 1, newRowsData.length, 1).setValues(newRowsData);
-      
-      // ดึงคอลัมน์ใหม่อีกครั้งหลังขยายแถว
-      const newLastRow = lastRow + remainingIds.length;
-      const updatedColRange = attSheet.getRange(1, colIdx, newLastRow, 1);
-      const updatedColValues = updatedColRange.getValues();
-      
-      // ดึงรายชื่ออัปเดตใหม่ทั้งหมด
-      const updatedAttIdsRange = attSheet.getRange(1, 1, newLastRow, 1);
-      const updatedAttIds = updatedAttIdsRange.getDisplayValues().map(r => String(r[0]).trim());
-      
-      for (let i = attIds.length; i < updatedAttIds.length; i++) {
-        const studentId = updatedAttIds[i];
-        if (recordMap[studentId] !== undefined) {
-          updatedColValues[i][0] = recordMap[studentId];
-        }
-      }
-      updatedColRange.setValues(updatedColValues);
-    }
-    
   } finally {
-    // ปลดล็อกระบบเพื่อให้เครื่องถัดไปทำต่อได้
     lock.releaseLock();
   }
 }
 
 /**
- * สมัครสมาชิกลงทะเบียน PIN ให้ครูผู้ใช้
+ * ลงทะเบียนผู้ใช้ครู
+ * รูปแบบคอลัมน์ A: ชื่อ|PIN|บทบาท
  */
 function registerNewUser(ss, name, code, pin, role) {
   const sheet = ss.getSheetByName(SHEETS.USERS);
-  const range = sheet.getDataRange();
-  const rows = range.getDisplayValues();
-  
-  let mapping = getUserSheetMapping(rows[0]);
-  
-  // สร้างคอลัมน์ถ้ายังไม่มี
-  let headersUpdated = false;
-  let currentHeaders = [...rows[0]];
-  
-  if (mapping.codeIdx === -1) {
-    currentHeaders.push("รหัสครู");
-    mapping.codeIdx = currentHeaders.length - 1;
-    headersUpdated = true;
-  }
-  if (mapping.roleIdx === -1) {
-    currentHeaders.push("บทบาท");
-    mapping.roleIdx = currentHeaders.length - 1;
-    headersUpdated = true;
-  }
-  
-  if (headersUpdated) {
-    sheet.getRange(1, 1, 1, currentHeaders.length).setValues([currentHeaders]);
-  }
+  const lastRow = sheet.getLastRow();
   
   let existingRow = -1;
-  for (let i = 1; i < rows.length; i++) {
-    if (rows[i][mapping.nameIdx] === name) {
-      existingRow = i + 1;
-      break;
+  let rows = [];
+  if (lastRow > 1) {
+    rows = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+    for (let i = 0; i < rows.length; i++) {
+      const line = String(rows[i][0]).trim();
+      const cells = line.split('|');
+      if (cells[0] === name) {
+        existingRow = i + 2;
+        break;
+      }
     }
   }
   
+  const lineContent = `${name}|${pin}|${role}`;
   if (existingRow !== -1) {
-    sheet.getRange(existingRow, mapping.codeIdx + 1).setValue(code);
-    sheet.getRange(existingRow, mapping.pinIdx + 1).setValue(pin);
-    
-    const currentRole = sheet.getRange(existingRow, mapping.roleIdx + 1).getValue();
-    if (!currentRole || String(currentRole).trim() === "") {
-      sheet.getRange(existingRow, mapping.roleIdx + 1).setValue(role);
-    }
+    sheet.getRange(existingRow, 1).setValue(lineContent);
   } else {
-    const newRowData = new Array(currentHeaders.length).fill("");
-    newRowData[mapping.nameIdx] = name;
-    newRowData[mapping.codeIdx] = code;
-    newRowData[mapping.pinIdx] = pin;
-    newRowData[mapping.roleIdx] = role;
-    
-    sheet.appendRow(newRowData);
+    sheet.appendRow([lineContent]);
   }
 }
 
 /**
  * เพิ่มวันหยุด
+ * รูปแบบคอลัมน์ A: YYYY-MM-DD|ชื่อวันหยุด
  */
 function addHolidayRecord(ss, dateStr, name) {
   const sheet = ss.getSheetByName(SHEETS.HOLIDAYS);
-  const rows = sheet.getDataRange().getDisplayValues();
+  const lastRow = sheet.getLastRow();
   
-  for (let i = 1; i < rows.length; i++) {
-    const rowDate = String(rows[i][0]).trim();
-    if (rowDate === dateStr) {
-      sheet.getRange(i + 1, 2).setValue(name);
-      return;
+  let existingRow = -1;
+  let rows = [];
+  if (lastRow > 1) {
+    rows = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+    for (let i = 0; i < rows.length; i++) {
+      const line = String(rows[i][0]).trim();
+      const cells = line.split('|');
+      if (cells[0] === dateStr) {
+        existingRow = i + 2;
+        break;
+      }
     }
   }
-  sheet.appendRow([dateStr, name]);
+  
+  const lineContent = `${dateStr}|${name}`;
+  if (existingRow !== -1) {
+    sheet.getRange(existingRow, 1).setValue(lineContent);
+  } else {
+    sheet.appendRow([lineContent]);
+  }
 }
 
 /**
@@ -690,68 +650,57 @@ function addHolidayRecord(ss, dateStr, name) {
  */
 function deleteHolidayRecord(ss, dateStr) {
   const sheet = ss.getSheetByName(SHEETS.HOLIDAYS);
-  const rows = sheet.getDataRange().getDisplayValues();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
   
-  for (let i = rows.length - 1; i >= 1; i--) {
-    const rowDate = String(rows[i][0]).trim();
-    if (rowDate === dateStr) {
-      sheet.deleteRow(i + 1);
+  const rows = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const line = String(rows[i][0]).trim();
+    const cells = line.split('|');
+    if (cells[0] === dateStr) {
+      sheet.deleteRow(i + 2);
     }
   }
 }
 
 /**
- * บันทึกความประพฤติ
+ * บันทึกความประพฤติแบบต่อท้ายคอลัมน์เดียว
+ * รูปแบบ: วันที่บันทึก|เลขประจำตัว|ชื่อ-สกุล|ชั้น/ห้อง|รายละเอียดความผิด|สถานะ|ครูผู้บันทึก|วันที่แก้ไข|รายละเอียดการแก้ไข|ครูผู้แก้ไข
  */
 function saveMisconductRecord(ss, dateStr, studentId, studentName, grade, room, description, teacher) {
   const sheet = ss.getSheetByName(SHEETS.MISCONDUCT);
-  const id = "MC-" + new Date().getTime() + "-" + Math.floor(Math.random() * 1000);
-  const timestamp = new Date();
-  
-  sheet.appendRow([id, dateStr, studentId, studentName, grade, room, description, "ยังไม่แก้ไข", teacher, timestamp]);
+  const lineContent = `${dateStr}|${studentId}|${studentName}|${grade}/${room}|${description}|ยังไม่แก้ไข|${teacher}|||`;
+  sheet.appendRow([lineContent]);
 }
 
 /**
- * ลบข้อมูลความประพฤติ (เก็บไว้ก่อน เผื่ออนาคต)
- */
-function deleteMisconductRecord(ss, id) {
-  const sheet = ss.getSheetByName(SHEETS.MISCONDUCT);
-  const rows = sheet.getDataRange().getDisplayValues();
-  
-  for (let i = rows.length - 1; i >= 1; i--) {
-    if (String(rows[i][0]) === String(id)) {
-      sheet.deleteRow(i + 1);
-      break;
-    }
-  }
-}
-
-/**
- * สลับสถานะกล่องติ๊ก "แก้ไขแล้ว" / "ยังไม่แก้ไข" ในความประพฤติ
+ * สลับสถานะและอัปเดตข้อมูลการแก้ไขบันทึกความประพฤติ
  */
 function toggleMisconductResolvedRecord(ss, id, resolved, resolutionText, resolverName) {
   const sheet = ss.getSheetByName(SHEETS.MISCONDUCT);
-  const rows = sheet.getDataRange().getDisplayValues();
+  const parts = id.split('|');
+  const rowIdx = parseInt(parts[parts.length - 1]);
+  const rowNum = rowIdx + 2;
   
-  for (let i = 1; i < rows.length; i++) {
-    if (String(rows[i][0]) === String(id)) {
-      const statusText = resolved ? "แก้ไขแล้ว" : "ยังไม่แก้ไข";
-      sheet.getRange(i + 1, 8).setValue(statusText);
-      
-      // บันทึกรายละเอียดการแก้ไขลงคอลัมน์ 11 (K)
-      if (resolved && resolutionText) {
-        const dateStr = formatDate(new Date());
-        // รูปแบบ: ข้อความ (ชื่อ, ว/ด/ป)
-        const finalText = `${resolutionText} (${resolverName}, ${dateStr})`;
-        sheet.getRange(i + 1, 11).setValue(finalText);
-      } else if (!resolved) {
-        // ถ้ายกเลิก ให้ล้างข้อความทิ้ง
-        sheet.getRange(i + 1, 11).setValue("");
-      }
-      
-      break;
-    }
+  const lastRow = sheet.getLastRow();
+  if (rowNum < 2 || rowNum > lastRow) {
+    throw new Error("ไม่พบแถวความประพฤติที่ต้องการแก้ไข");
   }
+  
+  const line = String(sheet.getRange(rowNum, 1).getValue()).trim();
+  const cells = line.split('|');
+  
+  cells[5] = resolved ? "แก้ไขแล้ว" : "ยังไม่แก้ไข";
+  cells[7] = resolved ? formatDate(new Date()) : "";
+  cells[8] = resolved ? resolutionText : "";
+  cells[9] = resolved ? resolverName : "";
+  
+  while (cells.length < 10) {
+    cells.push("");
+  }
+  
+  const newLineContent = cells.join('|');
+  sheet.getRange(rowNum, 1).setValue(newLineContent);
 }
 
 /**
@@ -769,56 +718,48 @@ function formatDate(date) {
  */
 function updateUserRoleInSheet(ss, name, newRole) {
   const sheet = ss.getSheetByName(SHEETS.USERS);
-  const rows = sheet.getDataRange().getDisplayValues();
-  let mapping = getUserSheetMapping(rows[0]);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
   
-  // ถ้าไม่มีคอลัมน์บทบาท ให้สร้างใหม่
-  if (mapping.roleIdx === -1) {
-    const newColIdx = rows[0].length + 1;
-    sheet.getRange(1, newColIdx).setValue("บทบาท").setFontWeight("bold");
-    mapping.roleIdx = newColIdx - 1;
-  }
-  
-  for (let i = 1; i < rows.length; i++) {
-    if (rows[i][mapping.nameIdx] === name) {
-      sheet.getRange(i + 1, mapping.roleIdx + 1).setValue(newRole);
+  const rows = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  for (let i = 0; i < rows.length; i++) {
+    const line = String(rows[i][0]).trim();
+    const cells = line.split('|');
+    if (cells[0] === name) {
+      cells[2] = newRole;
+      sheet.getRange(i + 2, 1).setValue(cells.join('|'));
       break;
     }
   }
 }
 
 /**
- * อัปเดตบทบาททั้งหมดในครั้งเดียวแบบรวดเร็ว
+ * อัปเดตบทบาทผู้ใช้ทั้งหมด
  */
 function updateAllUserRolesInSheet(ss, updates) {
   const sheet = ss.getSheetByName(SHEETS.USERS);
   const lastRow = sheet.getLastRow();
   if (lastRow < 2 || !updates || updates.length === 0) return;
   
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  let mapping = getUserSheetMapping(headers);
-  
-  if (mapping.roleIdx === -1) {
-    const newColIdx = headers.length + 1;
-    sheet.getRange(1, newColIdx).setValue("บทบาท").setFontWeight("bold").setBackground("#e3f2fd");
-    mapping.roleIdx = newColIdx - 1;
-  }
-  
-  const nameValues = sheet.getRange(2, mapping.nameIdx + 1, lastRow - 1, 1).getValues();
-  const roleRange = sheet.getRange(2, mapping.roleIdx + 1, lastRow - 1, 1);
-  const roleValues = roleRange.getValues();
-  
+  const rows = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
   const updateMap = {};
-  updates.forEach(u => updateMap[u.name] = u.role);
+  updates.forEach(u => {
+    updateMap[u.name] = {
+      role: u.role,
+      pin: u.pin
+    };
+  });
   
-  for (let i = 0; i < nameValues.length; i++) {
-    const name = String(nameValues[i][0]).trim();
+  for (let i = 0; i < rows.length; i++) {
+    const line = String(rows[i][0]).trim();
+    const cells = line.split('|');
+    const name = cells[0];
     if (updateMap[name]) {
-      roleValues[i][0] = updateMap[name];
+      cells[1] = updateMap[name].pin;
+      cells[2] = updateMap[name].role;
+      sheet.getRange(i + 2, 1).setValue(cells.join('|'));
     }
   }
-  
-  roleRange.setValues(roleValues);
 }
 
 /**
@@ -826,13 +767,124 @@ function updateAllUserRolesInSheet(ss, updates) {
  */
 function deleteUserFromSheet(ss, name) {
   const sheet = ss.getSheetByName(SHEETS.USERS);
-  const rows = sheet.getDataRange().getDisplayValues();
-  const mapping = getUserSheetMapping(rows[0]);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
   
-  for (let i = rows.length - 1; i >= 1; i--) {
-    if (rows[i][mapping.nameIdx] === name) {
-      sheet.deleteRow(i + 1);
+  const rows = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const line = String(rows[i][0]).trim();
+    const cells = line.split('|');
+    if (cells[0] === name) {
+      sheet.deleteRow(i + 2);
       break;
     }
+  }
+}
+
+/**
+ * ล้างข้อมูลบันทึกเวลาเรียนทั้งหมด (คงเหลือแถวหัวตาราง)
+ */
+function clearAttendanceHistory(ss) {
+  const sheet = ss.getSheetByName(SHEETS.ATTENDANCE);
+  const lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    sheet.deleteRows(2, lastRow - 1);
+  }
+}
+
+/**
+ * ดึงประวัติเอกสารและลายเซ็น
+ */
+function getDocuments(ss) {
+  const sheet = ss.getSheetByName(SHEETS.DOCUMENTS);
+  if (!sheet) return [];
+  const data = sheet.getDataRange().getValues();
+  const docs = [];
+  
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (!row[0]) continue;
+    docs.push({
+      date: formatDate(row[0]),
+      studentId: row[2],
+      documentType: row[5],
+      signatureBase64: row[6] || ""
+    });
+  }
+  return docs;
+}
+
+/**
+ * บันทึกประวัติการออกเอกสารลง Sheet
+ */
+function logDocumentToSheet(ss, studentId, studentName, gradeRoom, documentType, signatureBase64) {
+  let sheet = ss.getSheetByName(SHEETS.DOCUMENTS);
+  const now = new Date();
+  const dateStr = formatDate(now);
+  const timeStr = Utilities.formatDate(now, "GMT+7", "HH:mm:ss");
+  
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(["วันที่", "เวลา", "รหัสนักเรียน", "ชื่อ-สกุล", "ชั้น/ห้อง", "ประเภทเอกสาร", "ลายเซ็น (Base64)"]);
+    sheet.getRange(1, 1, 1, 7).setFontWeight("bold").setBackground("#e1bee7").setHorizontalAlignment("center");
+  }
+  
+  sheet.appendRow([dateStr, timeStr, studentId, studentName, gradeRoom, documentType, signatureBase64]);
+}
+
+/**
+ * ดึงข้อมูลครูที่รับผิดชอบเอกสารติดตามนักเรียน
+ */
+function getAtRiskTeachers(ss) {
+  const sheet = ss.getSheetByName(SHEETS.AT_RISK_TEACHERS);
+  if (!sheet) return {};
+  const data = sheet.getDataRange().getValues();
+  const teachers = {};
+  
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const keyParts = String(row[0]).split('|');
+    if (keyParts.length < 3) continue;
+    
+    // คีย์อ้างอิงหลักคือ 3 ส่วนแรก: รหัส|เอกสาร|ครั้งที่
+    const baseKey = keyParts.slice(0, 3).join('|');
+    
+    teachers[baseKey] = {
+      hr: keyParts[3] || "",
+      sa: keyParts[4] || "",
+      hrSign: row[1] || "",
+      saSign: row[2] || ""
+    };
+  }
+  return teachers;
+}
+
+/**
+ * บันทึกหรืออัปเดตข้อมูลครูที่รับผิดชอบเอกสารติดตามนักเรียน
+ */
+function saveAtRiskTeachersInSheet(ss, key, hr, sa, hrSign, saSign) {
+  const sheet = ss.getSheetByName(SHEETS.AT_RISK_TEACHERS);
+  if (!sheet) return;
+  
+  const fullColA = `${key}|${hr || ""}|${sa || ""}`;
+  
+  const data = sheet.getDataRange().getValues();
+  let foundRowIndex = -1;
+  
+  for (let i = 1; i < data.length; i++) {
+    const rowKeyStr = String(data[i][0]);
+    if (rowKeyStr.startsWith(key + "|") || rowKeyStr === key) {
+      foundRowIndex = i + 1; // +1 เพราะ data index เริ่มที่ 0 แต่ชีทเริ่มที่ 1
+      break;
+    }
+  }
+  
+  if (foundRowIndex > -1) {
+    // อัปเดตบรรทัดเดิม
+    sheet.getRange(foundRowIndex, 1).setValue(fullColA);
+    if (hrSign !== undefined && hrSign !== null) sheet.getRange(foundRowIndex, 2).setValue(hrSign);
+    if (saSign !== undefined && saSign !== null) sheet.getRange(foundRowIndex, 3).setValue(saSign);
+  } else {
+    // เพิ่มบรรทัดใหม่
+    sheet.appendRow([fullColA, hrSign || "", saSign || ""]);
   }
 }
