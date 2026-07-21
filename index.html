@@ -94,7 +94,7 @@
             </span>
             <span id="session-logged-in" style="display: none; align-items: center;">
                 <i class="fa-solid fa-user-circle" style="color: var(--color-primary); margin-right: 4px; font-size: 16px;"></i> 
-                <span style="color: var(--text-main);">ผู้ใช้งาน: <b id="user-session-name" style="margin-right: 8px;"></b></span>
+                <span style="color: var(--text-main); font-weight: 500; margin-right: 8px;" id="user-session-name"></span>
                 <button onclick="logout()" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: inherit; text-decoration: underline; padding: 0;">ออกจากระบบ</button>
             </span>
         </div>
@@ -454,83 +454,87 @@
                     <div style="display: flex; align-items: flex-start; gap: 15px;">
                         <button onclick="switchView('home')" class="btn-back-to-home" style="margin-top: 5px; background: transparent; border: none; font-size: 22px; color: var(--color-absent); cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" title="กลับหน้าหลัก"><i class="fa-solid fa-arrow-left"></i></button>
                         <div>
-                            <h1>สรุปบันทึกการมาเรียนรวม</h1>
-                            <p>ตรวจสอบข้อมูลสถิติภาพรวมโรงเรียนและข้อมูลรายบุคคล</p>
+                            <h1 style="margin: 0; font-size: clamp(18px, 4vw, 22px); color: var(--text-main);">สรุปบันทึกการมาเรียนรวม</h1>
                         </div>
                     </div>
                 </div>
 
-                <!-- กราฟแนวโน้มระดับโรงเรียน -->
-                <div id="stats-school-chart" style="margin-bottom: 20px; background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; min-height: 300px;">
-                    <div style="text-align: center; color: var(--text-muted); padding-top: 100px;">กำลังโหลดกราฟสถิติ...</div>
-                </div>
-
-                <!-- แผงกรองและแท็บ -->
-                <div class="filters-panel">
-                    <div class="tab-buttons" style="display: grid; grid-template-columns: 1fr 1fr; text-align: center; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px; padding: 4px; gap: 4px;">
-                        <button class="tab-btn active" id="tab-btn-accumulated" style="border-radius: 6px; padding: 10px;">สรุปเวลาเรียน</button>
-                        <button class="tab-btn" id="tab-btn-daily" style="border-radius: 6px; padding: 10px;">ตารางเวลาเรียน</button>
+                <!-- การ์ดที่ 1: กราฟและตัวกรองหลัก -->
+                <div class="content-card" style="margin-bottom: 25px; background: white; border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow-md); border: 1px solid var(--border-color);">
+                    <!-- ตัวกรองหลัก (Global Filters) เดือน และ ห้องเรียน -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div class="filter-group" style="min-width: 0;">
+                            <label for="stats-month-select" style="font-size: 13px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 6px;">เลือกเดือน</label>
+                            <select id="stats-month-select" class="form-control" style="padding: 6px 12px; font-size: 13px; height: auto; border-radius: var(--radius-md);">
+                                <option value="ALL">ทั้งภาคเรียน</option>
+                            </select>
+                        </div>
+                        <div class="filter-group" style="min-width: 0;">
+                            <label for="stats-room-select" style="font-size: 13px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 6px;">เลือกห้องเรียน</label>
+                            <select id="stats-room-select" class="form-control" style="padding: 6px 12px; font-size: 13px; height: auto; border-radius: var(--radius-md);">
+                                <option value="ALL">ทุกระดับชั้น</option>
+                            </select>
+                        </div>
                     </div>
 
-                    <div class="filters-row">
-                        <div class="filter-group">
-                            <label for="stats-month-select">เลือกเดือน</label>
-                            <select id="stats-month-select" class="form-control">
-                                <option value="ALL">รวมทั้งหมด</option>
-                            </select>
-                        </div>
-                        <div class="filter-group">
-                            <label for="stats-room-select">เลือกห้องเรียน</label>
-                            <select id="stats-room-select" class="form-control">
-                                <option value="ALL">ทุกห้องเรียน</option>
-                            </select>
-                        </div>
-                        <div class="filter-group">
-                            <label for="stats-status-select">สถานะ</label>
-                            <select id="stats-status-select" class="form-control">
-                                <option value="ALL">ทั้งหมด</option>
-                                <option value="ABSENT">ขาด</option>
-                                <option value="LEAVE">ลา</option>
-                                <option value="LATE">สาย</option>
-                                <option value="CUT">โดด</option>
-                            </select>
-                        </div>
+                    <!-- กราฟแนวโน้มระดับโรงเรียน -->
+                    <div id="stats-school-chart" style="min-height: 300px;">
+                        <div style="text-align: center; color: var(--text-muted); padding-top: 100px;">กำลังโหลดกราฟสถิติ...</div>
                     </div>
                 </div>
 
-                <div class="tab-container">
-                    <!-- แท็บ A: สถิติสะสม -->
-                    <div class="tab-content active" id="tab-content-accumulated">
-                        <div class="table-responsive">
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>เลขที่</th>
-                                        <th class="col-id">รหัส นร</th>
-                                        <th>ชื่อ-สกุล</th>
-                                        <th>ห้อง</th>
-                                        <th class="txt-center">มา (ม)</th>
-                                        <th class="txt-center">ลา (ล)</th>
-                                        <th class="txt-center">ขาด (ข)</th>
-                                        <th class="txt-center">สาย (ส)</th>
-                                        <th class="txt-center">โดด (ด)</th>
-                                        <th class="txt-center">คิดเป็น %</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="stats-accumulated-tbody">
-                                    <!-- ข้อมูลจาก JS -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                <!-- การ์ดที่ 2: ตารางข้อมูล -->
+                <div class="content-card" style="background: white; border-radius: var(--radius-lg); padding: 0; box-shadow: var(--shadow-md); border: 1px solid var(--border-color); overflow: hidden;">
                     
-                    <!-- แท็บ B: เช็คชื่อรายวัน (Daily Attendance Grid) -->
-                    <div class="tab-content" id="tab-content-daily">
-                        <p class="tab-info-text"><i class="fa-solid fa-info-circle"></i> ตารางแสดงข้อมูลเฉพาะห้องที่ระบุเท่านั้น กรุณาเลือกห้องเรียนเพื่อดูรายละเอียดแบบรายวัน</p>
-                        <div class="table-responsive grid-responsive">
-                            <table class="grid-table" id="stats-daily-grid-table">
-                                <!-- แสดงผลปฏิทินตารางจาก JS -->
-                            </table>
+                    <!-- แผงกรองตาราง (Table Filters) แบบกระชับ -->
+                    <div style="display: flex; gap: 10px; padding: 20px; padding-bottom: 15px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid #f1f5f9;">
+                        <div class="tab-buttons" style="flex: 1; min-width: 200px; display: grid; grid-template-columns: 1fr 1fr; text-align: center; gap: 6px; background: transparent; border: none;">
+                            <button class="tab-btn room-inner-tab-btn active" id="tab-btn-accumulated" style="padding: 10px 2px; font-size: 13px; border-radius: var(--radius-md);">สรุปเวลาเรียน</button>
+                            <button class="tab-btn room-inner-tab-btn" id="tab-btn-daily" style="padding: 10px 2px; font-size: 13px; border-radius: var(--radius-md);">ตารางเวลาเรียน</button>
+                        </div>
+
+                        <select id="stats-status-select" class="form-control" style="width: auto; min-width: 130px; padding: 8px 12px; font-size: 13px; height: auto; border-radius: var(--radius-md);">
+                            <option value="ALL">สถานะ: ทั้งหมด</option>
+                            <option value="ABSENT">ขาดเรียน</option>
+                            <option value="LEAVE">ลา</option>
+                            <option value="LATE">มาสาย</option>
+                            <option value="CUT">โดดเรียน</option>
+                        </select>
+                    </div>
+
+                    <div class="tab-container">
+                        <!-- แท็บ A: สถิติสะสม -->
+                        <div class="tab-content active" id="tab-content-accumulated" style="padding: 0;">
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="text-align: center; white-space: nowrap; padding: 12px 8px;">เลขที่</th>
+                                            <th style="text-align: center; white-space: nowrap; padding: 12px 8px;">ชื่อ-สกุล <span class="mobile-only-inline">/ สถิติ</span></th>
+                                            <th class="desktop-only" style="text-align: center; white-space: nowrap; padding: 12px 8px;">ห้อง</th>
+                                            <th class="desktop-only" style="text-align: center; white-space: nowrap; padding: 12px 8px;">มา (ม)</th>
+                                            <th class="desktop-only" style="text-align: center; white-space: nowrap; padding: 12px 8px;">ลา (ล)</th>
+                                            <th class="desktop-only" style="text-align: center; white-space: nowrap; padding: 12px 8px;">ขาด (ข)</th>
+                                            <th class="desktop-only" style="text-align: center; white-space: nowrap; padding: 12px 8px;">สาย (ส)</th>
+                                            <th class="desktop-only" style="text-align: center; white-space: nowrap; padding: 12px 8px;">โดด (ด)</th>
+                                            <th style="text-align: center; white-space: nowrap; padding: 12px 8px;">% มาเรียน</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="stats-accumulated-tbody">
+                                        <!-- ข้อมูลจาก JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- แท็บ B: เช็คชื่อรายวัน (Daily Attendance Grid) -->
+                        <div class="tab-content" id="tab-content-daily" style="padding: 0;">
+                            <p class="tab-info-text" id="daily-stats-info-text" style="padding: 15px; margin: 0;"><i class="fa-solid fa-info-circle"></i> ตารางแสดงข้อมูลเฉพาะห้องที่ระบุเท่านั้น กรุณาเลือกห้องเรียนเพื่อดูรายละเอียดแบบรายวัน</p>
+                            <div class="table-responsive grid-responsive">
+                                <table class="grid-table" id="stats-daily-grid-table">
+                                    <!-- แสดงผลปฏิทินตารางจาก JS -->
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1115,6 +1119,6 @@
     <!-- Custom Frontend JavaScript -->
     <script src="config.js?v=update43" charset="utf-8" defer></script>
     <script src="documents.js?v=update43" charset="utf-8" defer></script>
-    <script src="app.js?v=update50" charset="utf-8" defer></script>
+    <script src="app.js?v=update65" charset="utf-8" defer></script>
 </body>
 </html>

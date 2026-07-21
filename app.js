@@ -1409,7 +1409,12 @@ window.updateUserSessionUI = function() {
         if(loggedOutSpan) loggedOutSpan.style.display = 'none';
         if(loggedInSpan) {
             loggedInSpan.style.display = 'inline-flex';
-            document.getElementById('user-session-name').innerText = loggedInUser.name;
+            let shortName = loggedInUser.name;
+            // Remove common Thai prefixes
+            shortName = shortName.replace(/^(นาย|นางสาว|นาง|ด\.ช\.|ด\.ญ\.|คุณครู|ครู)\s*/, '');
+            // Get only the first name (before space)
+            shortName = shortName.split(/\s+/)[0];
+            document.getElementById('user-session-name').innerText = shortName;
         }
     } else {
         if(loggedOutSpan) loggedOutSpan.style.display = 'inline-flex';
@@ -1673,7 +1678,7 @@ function renderSchoolTrendChart(logs, datesList) {
 
 function updateMonthDropdown(monthsList, currentValue) {
     const select = document.getElementById("stats-month-select");
-    select.innerHTML = '<option value="ALL">รวมทั้งหมด</option>';
+    select.innerHTML = '<option value="ALL">ทั้งภาคเรียน</option>';
     
     const thMonths = {
         "01": "มกราคม", "02": "กุมภาพันธ์", "03": "มีนาคม", "04": "เมษายน", "05": "พฤษภาคม", "06": "มิถุนายน",
@@ -1768,28 +1773,49 @@ function renderAccumulatedStats(logs, targetRoom) {
         }
         
         tr.innerHTML = `
-            <td>${renderedCount}</td>
-            <td class="col-id">${id}</td>
-            <td><strong>${item.name}</strong></td>
-            <td>${item.room}</td>
-            <td class="txt-center" style="color: var(--color-present); font-weight: 600;">${item.Present}</td>
-            <td class="txt-center" style="color: var(--color-leave); font-weight: 600;">${item.Leave}</td>
-            <td class="txt-center" style="color: var(--color-absent); font-weight: 600;">${item.Absent}</td>
-            <td class="txt-center" style="color: var(--color-late); font-weight: 600;">${item.Late}</td>
-            <td class="txt-center" style="color: var(--color-cut); font-weight: 600;">${item.Cut}</td>
-            <td class="txt-center"><strong style="color: ${percent >= 80 ? 'var(--color-present)' : (percent >= 60 ? 'var(--color-late)' : 'var(--color-absent)')};">${percent}%</strong></td>
+            <td style="text-align: center; padding: 10px 8px;">${renderedCount}</td>
+            <td style="padding: 10px 8px;">
+                <div style="font-weight: 500; color: var(--text-main); margin-bottom: 4px; line-height: 1.3;">
+                    ${item.name} <span class="mobile-only-inline" style="color: var(--text-muted); font-size: 12px; margin-left: 4px; white-space: nowrap;">(ชั้น ${item.room})</span>
+                </div>
+                <div class="mobile-only-flex" style="font-size: 12px; gap: 6px; flex-wrap: wrap;">
+                    <span style="color: var(--color-present); white-space: nowrap;">ม.${item.Present}</span>
+                    <span style="color: var(--color-leave); white-space: nowrap;">ล.${item.Leave}</span>
+                    <span style="color: var(--color-absent); white-space: nowrap;">ข.${item.Absent}</span>
+                    <span style="color: var(--color-late); white-space: nowrap;">ส.${item.Late}</span>
+                    <span style="color: var(--color-cut); white-space: nowrap;">ด.${item.Cut}</span>
+                </div>
+            </td>
+            <td class="desktop-only" style="text-align: center; padding: 10px 8px;">${item.room}</td>
+            <td class="desktop-only" style="text-align: center; padding: 10px 8px; color: var(--color-present); font-weight: 600;">${item.Present}</td>
+            <td class="desktop-only" style="text-align: center; padding: 10px 8px; color: var(--color-leave); font-weight: 600;">${item.Leave}</td>
+            <td class="desktop-only" style="text-align: center; padding: 10px 8px; color: var(--color-absent); font-weight: 600;">${item.Absent}</td>
+            <td class="desktop-only" style="text-align: center; padding: 10px 8px; color: var(--color-late); font-weight: 600;">${item.Late}</td>
+            <td class="desktop-only" style="text-align: center; padding: 10px 8px; color: var(--color-cut); font-weight: 600;">${item.Cut}</td>
+            <td style="text-align: center; padding: 10px 8px;">
+                <strong style="color: ${percent >= 80 ? 'var(--color-present)' : (percent >= 60 ? 'var(--color-late)' : 'var(--color-absent)')};">${percent}%</strong>
+            </td>
         `;
         tbody.appendChild(tr);
     });
     
     if (renderedCount === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="txt-center" style="color: var(--text-muted); padding: 30px;">ไม่พบข้อมูลสถิตินักเรียนตามเงื่อนไขที่ติ๊กเลือก</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="3" class="txt-center" style="color: var(--text-muted); padding: 30px;">ไม่พบข้อมูลสถิตินักเรียนตามเงื่อนไขที่เลือก</td></tr>';
     }
 }
 
 function renderDailyGridStats(logs, datesList, targetRoom, tableId = "stats-daily-grid-table") {
     const table = document.getElementById(tableId);
     table.innerHTML = "";
+    
+    const infoText = document.getElementById("daily-stats-info-text");
+    if (infoText) {
+        if (targetRoom === "ALL") {
+            infoText.innerHTML = '<i class="fa-solid fa-info-circle"></i> ตารางแสดงข้อมูลสถิติของทุกระดับชั้น';
+        } else {
+            infoText.innerHTML = `<i class="fa-solid fa-info-circle"></i> ตารางแสดงข้อมูลสถิติของห้อง: <strong>ชั้น ${targetRoom}</strong>`;
+        }
+    }
     
     const sortedDates = datesList.sort();
     
@@ -1811,12 +1837,26 @@ function renderDailyGridStats(logs, datesList, targetRoom, tableId = "stats-dail
     }
     
     let headerHtml = `<tr>
-        <th class="col-student-name">เลขที่ / รายชื่อนักเรียน</th>
+        <th class="col-student-name" style="vertical-align: bottom; padding-bottom: 12px;">เลขที่ / รายชื่อนักเรียน</th>
     `;
+    
+    const thMonthsAbbr = {
+        "01": "ม.ค.", "02": "ก.พ.", "03": "มี.ค.", "04": "เม.ย.", "05": "พ.ค.", "06": "มิ.ย.",
+        "07": "ก.ค.", "08": "ส.ค.", "09": "ก.ย.", "10": "ต.ค.", "11": "พ.ย.", "12": "ธ.ค."
+    };
+    
     sortedDates.forEach(date => {
         const parts = date.split("-");
-        const displayDate = `${parts[2]}/${parts[1]}`;
-        headerHtml += `<th>${displayDate}</th>`;
+        const d = parseInt(parts[2], 10);
+        // Fallback for month if not exactly 01-12
+        let m = thMonthsAbbr[parts[1]];
+        if (!m) {
+            const thaiMonthsArr = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+            m = thaiMonthsArr[parseInt(parts[1], 10) - 1] || "";
+        }
+        const y = (parseInt(parts[0], 10) + 543).toString().slice(-2);
+        const displayDate = `${d}<br>${m}<br>${y}`;
+        headerHtml += `<th style="text-align: center; vertical-align: middle; line-height: 1.2; font-size: 11px; padding: 12px 5px; color: var(--text-main);">${displayDate}</th>`;
     });
     headerHtml += "</tr>";
     
@@ -3382,7 +3422,7 @@ function populateStatsRoomDropdown() {
     });
     roomsList.sort();
     
-    select.innerHTML = '<option value="ALL">ทุกห้องเรียน</option>';
+    select.innerHTML = '<option value="ALL">ทุกระดับชั้น</option>';
     
     roomsList.forEach(r => {
         const option = document.createElement("option");
