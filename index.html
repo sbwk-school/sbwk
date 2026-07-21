@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     
     <!-- Custom Style Sheet -->
-    <link rel="stylesheet" href="styles.css?v=update43">
+    <link rel="stylesheet" href="styles.css?v=update46">
 
     <!-- Deferred JS Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
@@ -454,10 +454,15 @@
                     <div style="display: flex; align-items: flex-start; gap: 15px;">
                         <button onclick="switchView('home')" class="btn-back-to-home" style="margin-top: 5px; background: transparent; border: none; font-size: 22px; color: var(--color-absent); cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" title="กลับหน้าหลัก"><i class="fa-solid fa-arrow-left"></i></button>
                         <div>
-                            <h1>สรุปบันทึกการมาเรียนรายบุคคล</h1>
-                            <p>ตรวจสอบข้อมูลสะสมและประวัติการเช็คชื่อรายวัน</p>
+                            <h1>สรุปบันทึกการมาเรียนรวม</h1>
+                            <p>ตรวจสอบข้อมูลสถิติภาพรวมโรงเรียนและข้อมูลรายบุคคล</p>
                         </div>
                     </div>
+                </div>
+
+                <!-- กราฟแนวโน้มระดับโรงเรียน -->
+                <div id="stats-school-chart" style="margin-bottom: 20px; background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; min-height: 300px;">
+                    <div style="text-align: center; color: var(--text-muted); padding-top: 100px;">กำลังโหลดกราฟสถิติ...</div>
                 </div>
 
                 <!-- แผงกรองและแท็บ -->
@@ -480,31 +485,15 @@
                                 <option value="ALL">ทุกห้องเรียน</option>
                             </select>
                         </div>
-                    </div>
-                    
-                    <div class="filters-checkbox-row">
-                        <span class="checkbox-group-label">แสดงคนที่มีสถานะอย่างน้อย 1 ครั้ง:</span>
-                        <div class="checkbox-wrapper">
-                            <label class="checkbox-container">
-                                <input type="checkbox" id="chk-filter-present" checked>
-                                <span class="checkmark chk-present"></span> มา
-                            </label>
-                            <label class="checkbox-container">
-                                <input type="checkbox" id="chk-filter-leave" checked>
-                                <span class="checkmark chk-leave"></span> ลา
-                            </label>
-                            <label class="checkbox-container">
-                                <input type="checkbox" id="chk-filter-absent" checked>
-                                <span class="checkmark chk-absent"></span> ขาด
-                            </label>
-                            <label class="checkbox-container">
-                                <input type="checkbox" id="chk-filter-late" checked>
-                                <span class="checkmark chk-late"></span> สาย
-                            </label>
-                            <label class="checkbox-container">
-                                <input type="checkbox" id="chk-filter-cut" checked>
-                                <span class="checkmark chk-cut"></span> โดด
-                            </label>
+                        <div class="filter-group">
+                            <label for="stats-status-select">สถานะ</label>
+                            <select id="stats-status-select" class="form-control">
+                                <option value="ALL">ทั้งหมด</option>
+                                <option value="ABSENT">ขาด</option>
+                                <option value="LEAVE">ลา</option>
+                                <option value="LATE">สาย</option>
+                                <option value="CUT">โดด</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -1126,6 +1115,6 @@
     <!-- Custom Frontend JavaScript -->
     <script src="config.js?v=update43" charset="utf-8" defer></script>
     <script src="documents.js?v=update43" charset="utf-8" defer></script>
-    <script src="app.js?v=update43" charset="utf-8" defer></script>
+    <script src="app.js?v=update50" charset="utf-8" defer></script>
 </body>
 </html>

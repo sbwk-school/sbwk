@@ -3280,7 +3280,7 @@ table.at-risk-table {
     
     .section-title-bar {
         max-width: 100%;
-        overflow-x: hidden;
+        overflow: visible;
     }
     
     .filters-wrapper {

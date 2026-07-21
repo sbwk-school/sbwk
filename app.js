@@ -1,6 +1,6 @@
 /**
  * Frontend JavaScript - ระบบเช็คชื่อนักเรียนออนไลน์
- * จัดการตรรกะหน้าจอกละการเชื่อมต่อกับ Google Apps Script Web App
+ * จัดการตรรกะหน้าจอและการเชื่อมต่อกับ Google Apps Script Web App
  */
 
 // ค่ากำหนดตั้งค่าเริ่มต้น
@@ -18,32 +18,35 @@ let config = {
 
 // สถานะการทำงานของระบบ (Global State)
 let students = [];       // รายชื่อนักเรียนทั้งหมด
-let rooms = [];          // ห้องเรียนทั้งหมดกยกเป็นกลุ่ม
+let rooms = [];          // ห้องเรียนทั้งหมดแยกเป็นกลุ่ม
 let holidays = [];       // รายการวันหยุด
 let users = [];          // รายชื่อครู
-let todayLogs = {};      // บันทึกเช็คชื่อของวันนี้กยกตามห้อง (ภาพรวม)
-let todayLogsDetails = {}; // บันทึกเช็คชื่อของวันนี้กยกรายคนเพื่อใช้คงสถานะ: { studentId: status }
+let todayLogs = {};      // บันทึกเช็คชื่อของวันนี้แยกตามห้อง (ภาพรวม)
+let todayLogsDetails = {}; // บันทึกเช็คชื่อของวันนี้แยกรายคนเพื่อใช้คงสถานะ: { studentId: status }
 let loggedInUser = null; // ผู้ใช้งานที่เข้าสู่ระบบ
 let loginPinDigits = ""; // รหัส PIN ที่กำลังกรอกในหน้าล็อกอิน
 let currentView = "home";
 let activeGradeFilter = "ALL";
 let activeStatusFilter = "ALL"; // ALL, CHECKED, UNCHECKED
 let activeStatsTab = "accumulated";
-let currentCheckingDate = "2026-07-17"; // วันที่กำลังดำเนินการเช็คชื่อ (17 ก.ค. 2569)
-let allStatsData = null; // โหลดสถิติทั้งหมดมาเก็บไว้ในกรมครั้งเดียวตอนเริ่มต้น
-let documentsData = []; // ประวัติเอกสารกละลายเซ็น
-let atRiskTeachersCache = {}; // ข้อมูลครูที่รับผิดชอบเอกสารกละลายเซ็น
+let currentCheckingDate = (function(){
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+})(); // วันที่กำลังดำเนินการเช็คชื่อเริ่มต้นเป็นวันปัจจุบัน
+let allStatsData = null; // โหลดสถิติทั้งหมดมาเก็บไว้ในแรมครั้งเดียวตอนเริ่มต้น
+let documentsData = []; // ประวัติเอกสารและลายเซ็น
+let atRiskTeachersCache = {}; // ข้อมูลครูที่รับผิดชอบเอกสารและลายเซ็น
 
-// ตัวกปรควบคุมการเช็คชื่อของห้องที่เลือก
+// ตัวแปรควบคุมการเช็คชื่อของห้องที่เลือก
 let selectedRoom = null; // { grade, room }
 let attendanceRecords = []; // [{ studentId, name, gender, status }]
 
-// ตัวกปรควบคุมกป้นกดรหัส PIN
+// ตัวแปรควบคุมแป้นกดรหัส PIN
 let pinDigits = "";
 let pinCallback = null; // ฟังก์ชันที่จะรันเมื่อกรอก PIN ถูกต้อง
 let pinRequiredRole = null; // บทบาทที่ต้องการ ("ADMIN" หรือ "STUDENT_AFFAIRS" หรือ "ANY")
-let authenticatedAdminPin = null; // เก็บ PIN ของกอดมินชั่วคราวขณะเข้าเมนูจัดการ
-// ตัวกปรบันทึกความประพฤติ
+let authenticatedAdminPin = null; // เก็บ PIN ของแอดมินชั่วคราวขณะเข้าเมนูจัดการ
+// ตัวแปรบันทึกความประพฤติ
 let misconductLogs = [];
 let selectedMisconductStudent = null; // นักเรียนที่กำลังจะเพิ่มบันทึกความประพฤติ
 
@@ -82,7 +85,7 @@ function applyMetadataToUI() {
     document.title = `${config.schoolName} - ระบบเช็คชื่อนักเรียนออนไลน์`;
 }
 
-// กยก Sheet ID จาก URL
+// แยก Sheet ID จาก URL
 function extractSheetId(url) {
     if (!url) return null;
     const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
@@ -99,7 +102,7 @@ function getLocalDateString() {
 }
 
 /**
- * กปลงรูปกบบวันที่ YYYY-MM-DD เป็นรูปกบบภาษาไทยที่เป็นมิตร เช่น "6 ก.ค. 2569"
+ * แปลงรูปแบบวันที่ YYYY-MM-DD เป็นรูปแบบภาษาไทยที่เป็นมิตร เช่น "6 ก.ค. 2569"
  */
 function formatThaiFriendlyDate(dateStr) {
     if (!dateStr) return "";
@@ -118,7 +121,7 @@ function formatThaiFriendlyDate(dateStr) {
     return `${day} ${monthName} ${year}`;
 }
 
-// กสดงข้อความกจ้งเตือน Toast
+// แสดงข้อความแจ้งเตือน Toast
 function showToast(message, type = "success") {
     const container = document.getElementById("toast-container");
     const toast = document.createElement("div");
@@ -136,7 +139,7 @@ function showToast(message, type = "success") {
     }, 4000);
 }
 
-// กสดง/ซ่อน Loader (มีเอฟเฟกต์เบลอกึ่งโปร่งใส ป้องกันจอกระพริบ)
+// แสดง/ซ่อน Loader (มีเอฟเฟกต์เบลอกึ่งโปร่งใส ป้องกันจอกระพริบ)
 function setLoader(show) {
     const loader = document.getElementById("app-loading");
     if (show) {
@@ -147,7 +150,7 @@ function setLoader(show) {
 }
 
 /**
- * ฟังก์ชันประมวลผลข้อมูลกยกเพศ คำนำหน้า กละชื่อ-นามสกุล ของนักเรียน
+ * ฟังก์ชันประมวลผลข้อมูลแยกเพศ คำนำหน้า และชื่อ-นามสกุล ของนักเรียน
  */
 function processStudentData(student) {
     let fullName = student.fullName || "";
@@ -191,7 +194,7 @@ function processStudentData(student) {
 }
 
 /**
- * กปลงอักษรย่อสถานะเช็คชื่อจาก Google Sheets เป็นคำเต็มสำหรับการประมวลผลบนหน้าจอ
+ * แปลงอักษรย่อสถานะเช็คชื่อจาก Google Sheets เป็นคำเต็มสำหรับการประมวลผลบนหน้าจอ
  */
 function translateAbbreviationToStatus(abbr) {
     const map = {
@@ -205,7 +208,7 @@ function translateAbbreviationToStatus(abbr) {
 }
 
 /**
- * กปลงคำเต็มของสถานะเช็คชื่อเป็นอักษรย่อ เพื่อลดขนาดพื้นที่กละกบนด์วิดท์ในการจัดเก็บข้อมูลลง Sheets
+ * แปลงคำเต็มของสถานะเช็คชื่อเป็นอักษรย่อ เพื่อลดขนาดพื้นที่และแบนด์วิดท์ในการจัดเก็บข้อมูลลง Sheets
  */
 function translateStatusToAbbreviation(status) {
     const map = {
@@ -219,7 +222,7 @@ function translateStatusToAbbreviation(status) {
 }
 
 /**
- * กปลงข้อความ CSV เป็นอาเรย์ (กรณี Fallback)
+ * แปลงข้อความ CSV เป็นอาเรย์ (กรณี Fallback)
  * รองรับคอลัมน์ A: เลขประจำตัว|ชั้นเรียน/ห้อง|ชื่อเต็ม
  */
 function parseCSV(text) {
@@ -265,7 +268,7 @@ function parseCSV(text) {
 async function loadInitialData() {
     setLoader(true);
     
-    // หากมีการกำหนดลิงก์ Apps Script ให้โหลดข้อมูลรวมถึงรายชื่อนักเรียนกละข้อมูลการเช็คชื่อของวันนี้ในคราวเดียว เพื่อเลี่ยงปักหา CORS
+    // หากมีการกำหนดลิงก์ Apps Script ให้โหลดข้อมูลรวมถึงรายชื่อนักเรียนและข้อมูลการเช็คชื่อของวันนี้ในคราวเดียว เพื่อเลี่ยงปักหา CORS
     if (config.scriptUrl) {
         try {
             const res = await fetch(`${config.scriptUrl}?action=init&date=${currentCheckingDate}`);
@@ -274,10 +277,11 @@ async function loadInitialData() {
             if (data.success) {
                 let roomCounters = {};
                 students = (data.students || []).map((s) => {
-                    let roomKey = `${s.grade}/${s.room}`;
+                    let processed = processStudentData(s);
+                    let roomKey = `${processed.grade}/${processed.room}`;
                     if (!roomCounters[roomKey]) roomCounters[roomKey] = 1;
-                    s.no = roomCounters[roomKey]++;
-                    return processStudentData(s);
+                    processed.no = roomCounters[roomKey]++;
+                    return processed;
                 });
                 holidays = data.holidays || [];
                 users = data.users || [];
@@ -290,7 +294,7 @@ async function loadInitialData() {
                 atRiskTeachersCache = data.atRiskTeachers || {};
                 
                 if (students.length === 0) {
-                    showToast("ดึงข้อมูลเรียบร้อย กต่ไม่พบรายชื่อในหน้าชีทกรก", "error");
+                    showToast("ดึงข้อมูลเรียบร้อย แต่ไม่พบรายชื่อในหน้าชีทแรก", "error");
                 } else {
                     showToast(`โหลดรายชื่อสำหรับวันที่ ${currentCheckingDate} สำเร็จ ${students.length} คน`);
                 }
@@ -299,20 +303,20 @@ async function loadInitialData() {
             }
         } catch (e) {
             console.error(e);
-            showToast("สคริปต์ขัดข้อง กำลังโหลดรายชื่อด้วยวิธีสำรองกบบ CSV...", "error");
+            showToast("สคริปต์ขัดข้อง กำลังโหลดรายชื่อด้วยวิธีสำรองแบบ CSV...", "error");
             await loadStudentsFromCsvFallback();
         }
     } else {
-        showToast("ไม่ได้ตั้งค่า Apps Script กำลังโหลดรายชื่อกบบดึงชีทตรง...", "error");
+        showToast("ไม่ได้ตั้งค่า Apps Script กำลังโหลดรายชื่อแบบดึงชีทตรง...", "error");
         await loadStudentsFromCsvFallback();
     }
     
-    // โหลดประวัติสถิติทั้งหมดมาเก็บในหน่วยความจำตั้งกต่ต้นกบบเบื้องหลัง (Async)
+    // โหลดประวัติสถิติทั้งหมดมาเก็บในหน่วยความจำตั้งแต่ต้นแบบเบื้องหลัง (Async)
     if (config.scriptUrl && !allStatsData) {
         fetchStatsDataOnce();
     }
     
-    // เริ่มต้นกสดงผลหน้ากรก
+    // เริ่มต้นแสดงผลหน้าแรก
     updateHeaderDate();
     checkTodayHoliday();
     renderRooms();
@@ -372,21 +376,21 @@ async function loadStudentsFromCsvFallback() {
     
     try {
         const res = await fetch(csvUrl);
-        if (!res.ok) throw new Error("การเข้าถึงชีทล้มเหลว โปรดเช็คการกชร์ชีท");
+        if (!res.ok) throw new Error("การเข้าถึงชีทล้มเหลว โปรดเช็คการแชร์ชีท");
         const text = await res.text();
         students = parseCSV(text);
         
         if (students.length === 0) {
             showToast("ไม่พบรายชื่อนักเรียนใน Google Sheet", "error");
         } else {
-            showToast(`โหลดรายชื่อผ่าน CSV สำเร็จ ${students.length} คน (กบบออฟไลน์/อ่านอย่างเดียว)`);
+            showToast(`โหลดรายชื่อผ่าน CSV สำเร็จ ${students.length} คน (แบบออฟไลน์/อ่านอย่างเดียว)`);
         }
     } catch (e) {
         showToast("โหลดรายชื่อผ่าน CSV ไม่สำเร็จ: " + e.message, "error");
     }
 }
 
-// อัปเดตกสดงวันที่หน้ากรกตามวันที่เลือกจริง
+// อัปเดตแสดงวันที่หน้าแรกตามวันที่เลือกจริง
 function updateHeaderDate() {
     const fullDays = ["วันอาทิตย์", "วันจันทร์", "วันอังคาร", "วันพุธ", "วันพฤหัสบดี", "วันศุกร์", "วันเสาร์"];
     const fullMonths = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
@@ -399,7 +403,7 @@ function updateHeaderDate() {
     const dateNum = now.getDate();
     const fullMonthName = fullMonths[now.getMonth()];
     const shortMonthName = shortMonths[now.getMonth()];
-    const yearNum = now.getFullYear() + 543; // กปลงเป็น พ.ศ.
+    const yearNum = now.getFullYear() + 543; // แปลงเป็น พ.ศ.
     
     const displayStrDesktop = `${fullDayName}ที่ ${dateNum} ${fullMonthName} พ.ศ. ${yearNum}`;
     const displayStrMobile = `${dateNum} ${shortMonthName} ${yearNum}`;
@@ -472,7 +476,7 @@ function isHoliday(dateStr) {
     return holidays.some(h => h.date === dateStr);
 }
 
-// ตัวกปรสำหรับเก็บ Instance ของกราฟ
+// ตัวแปรสำหรับเก็บ Instance ของกราฟ
 let miniRadialCharts = {};
 
 // Removed initStackedBarChart
@@ -679,7 +683,7 @@ function calculateOverallStats() {
     
     const progressData = {
         type: "two-columns",
-        col1: { title: "✅ เช็คกล้ว", items: checkedItems },
+        col1: { title: "✅ เช็คแล้ว", items: checkedItems },
         col2: { title: "❌ ยังไม่เช็ค", items: uncheckedItems }
     };
     
@@ -692,7 +696,7 @@ function calculateOverallStats() {
     
     const waterWaveFill = document.getElementById("water-wave-fill");
     if (waterWaveFill) {
-        // top: 100% คือน้ำกห้ง, top: 0% คือน้ำเต็ม
+        // top: 100% คือน้ำแห้ง, top: 0% คือน้ำเต็ม
         // ชดเชยคลื่นให้ดันขึ้นเล็กน้อยเวลาน้ำเต็ม เพื่อให้มิดโหลพอดี
         const waveTop = 100 - (fillPct * 1.1); 
         waterWaveFill.style.top = Math.max(-10, waveTop) + "%";
@@ -717,7 +721,7 @@ function calculateOverallStats() {
     updateMiniJar("leave", getPctNum(totalLeave));
     updateMiniJar("cut", getPctNum(totalCut));
     
-    // อัปเดตการ์ดที่ 6: เช็คครบกล้ว
+    // อัปเดตการ์ดที่ 6: เช็คครบแล้ว
     if (document.getElementById("total-progress")) {
         document.getElementById("total-progress").innerText = `${checkedRoomsCount}/${totalRoomsCount}`;
         updateMiniJar("progress", fillPct);
@@ -725,13 +729,13 @@ function calculateOverallStats() {
 }
 
 /**
- * 2. กสดงกริดห้องเรียน (Home View)
+ * 2. แสดงกริดห้องเรียน (Home View)
  */
 function renderRooms() {
     const container = document.getElementById("rooms-list-container");
     container.innerHTML = "";
     
-    // ตั้งค่า Event Listener สำหรับปุ่มกรอง (ทำกค่ครั้งเดียวด้วย Event Delegation ถ้าทำได้ หรือผูกตอนสร้าง)
+    // ตั้งค่า Event Listener สำหรับปุ่มกรอง (ทำแค่ครั้งเดียวด้วย Event Delegation ถ้าทำได้ หรือผูกตอนสร้าง)
     // สำหรับ status filter:
     const statusFiltersContainer = document.getElementById("status-filters");
     if (statusFiltersContainer) {
@@ -866,13 +870,13 @@ function renderRooms() {
 }
 
 /**
- * 3. หน้าลงเช็คชื่อรายห้อง (Check-in View) - มีการดึงประวัติมากสดงคงสถานะเดิม
+ * 3. หน้าลงเช็คชื่อรายห้อง (Check-in View) - มีการดึงประวัติมาแสดงคงสถานะเดิม
  */
 function openAttendanceCheck(grade, room) {
     selectedRoom = { grade, room };
     document.getElementById("attendance-title").innerText = `เช็คชื่อชั้น ${grade} ห้อง ${room}`;
     
-    // ตั้งค่า Date Picker ภายในหน้าเช็คชื่อ (ปกิทินที่เหมือนหน้ากรก)
+    // ตั้งค่า Date Picker ภายในหน้าเช็คชื่อ (ปกิทินที่เหมือนหน้าแรก)
     const checkingDatePicker = document.getElementById("checking-date-picker");
     if (checkingDatePicker) {
         if (window.flatpickr) {
@@ -1002,7 +1006,7 @@ function openAttendanceCheck(grade, room) {
                     <div class="room-card-info">
                         <h3 class="room-card-title">ชั้น ${grade}/${room} <span class="room-card-count" style="font-size: 0.85em; font-weight: normal; color: #64748b;">(${studentCount} คน)</span></h3>
                         <div class="check-status-badge desktop-only ${isChecked ? 'checked' : 'unchecked'}">
-                            ${isChecked ? 'เช็คกล้ว' : 'ยังไม่เช็ค'}
+                            ${isChecked ? 'เช็คแล้ว' : 'ยังไม่เช็ค'}
                         </div>
                     </div>
                     ${donutHtml}
@@ -1085,8 +1089,8 @@ function openAttendanceCheck(grade, room) {
     
     const roomStudents = students.filter(s => s.grade === grade && s.room === room);
     
-    // ตั้งค่าตัวกปรเริ่มต้น: ตรวจสอบว่าใน todayLogsDetails มีการบันทึกของเด็กคนนี้ในวันนี้กล้วหรือไม่
-    // หากมีกล้วจะคงสถานะเช็คชื่อเดิมไว้ หากไม่มีจะให้ค่าเริ่มต้นเป็น "มา" เพื่อความสะดวกรวดเร็ว
+    // ตั้งค่าตัวแปรเริ่มต้น: ตรวจสอบว่าใน todayLogsDetails มีการบันทึกของเด็กคนนี้ในวันนี้แล้วหรือไม่
+    // หากมีแล้วจะคงสถานะเช็คชื่อเดิมไว้ หากไม่มีจะให้ค่าเริ่มต้นเป็น "มา" เพื่อความสะดวกรวดเร็ว
     attendanceRecords = roomStudents.map(s => {
         const savedStatus = todayLogsDetails[s.studentId];
         return {
@@ -1109,7 +1113,7 @@ function renderAttendanceStudentsList(recordsToRender) {
     recordsToRender.forEach(rec => {
         const row = document.createElement("div");
         
-        // กำหนดสีพื้นหลังกถวตามสถานะที่บันทึกไว้
+        // กำหนดสีพื้นหลังแถวตามสถานะที่บันทึกไว้
         let rowClass = "student-row";
         if (rec.status === "มา") rowClass += " selected-present";
         else if (rec.status === "ลา") rowClass += " selected-leave";
@@ -1167,7 +1171,7 @@ function updateStudentStatus(studentId, status, buttons, rowElement) {
 }
 
 /**
- * 4. หน้าสรุปพรีวิวการเช็คชื่อกบบ 2 คอลัมน์ (ชาย/หกิง) - ปรับกก้การเรนเดอร์สีสถานะให้ตรงสี
+ * 4. หน้าสรุปพรีวิวการเช็คชื่อแบบ 2 คอลัมน์ (ชาย/หกิง) - ปรับแก้การเรนเดอร์สีสถานะให้ตรงสี
  */
 function showPreviewSummary() {
     const grade = selectedRoom.grade;
@@ -1262,7 +1266,7 @@ function showPreviewSummary() {
 }
 
 /**
- * 5. กป้นป้อนรหัสผ่าน PIN 4 หลัก (Keypad)
+ * 5. แป้นป้อนรหัสผ่าน PIN 4 หลัก (Keypad)
  */
 function verifyLoginPin(pin) {
     const user = users.find(u => String(u.pin) === String(pin));
@@ -1279,7 +1283,7 @@ function verifyLoginPin(pin) {
 
 function openPinModal(title, roleRequired, onSuccess) {
     document.getElementById("pin-modal-title").innerText = title;
-    document.getElementById("pin-modal-subtitle").innerText = roleRequired === "ADMIN" ? "กรุณากรอกรหัสผู้ดูกลระบบ" : "กรุณากรอกรหัสผ่านเพื่อยืนยันสิทธิ์";
+    document.getElementById("pin-modal-subtitle").innerText = roleRequired === "ADMIN" ? "กรุณากรอกรหัสผู้ดูแลระบบ" : "กรุณากรอกรหัสผ่านเพื่อยืนยันสิทธิ์";
     document.getElementById("pin-error-message").innerText = "";
     
     pinDigits = "";
@@ -1337,10 +1341,10 @@ async function verifyPinAndRun() {
         return;
     }
     
-    // ทำการยืนยันรหัส PIN บนเครื่องจากหน่วยความจำโดยตรง (Local Cache Verification) เพื่อผลการตรวจสอบกบบทันที
+    // ทำการยืนยันรหัส PIN บนเครื่องจากหน่วยความจำโดยตรง (Local Cache Verification) เพื่อผลการตรวจสอบแบบทันที
     let matchedUser = users.find(u => String(u.pin).trim() === String(pinDigits).trim());
     
-    // Master Bypass: ถ้าระบบยังไม่เชื่อมต่อกานข้อมูล หรือยังไม่มีผู้ใช้ ให้ใช้รหัส 9999 เข้ากอดมินได้
+    // Master Bypass: ถ้าระบบยังไม่เชื่อมต่อกานข้อมูล หรือยังไม่มีผู้ใช้ ให้ใช้รหัส 9999 เข้าแอดมินได้
     if (!matchedUser && (!config.scriptUrl || users.length === 0) && pinDigits === "9999") {
         matchedUser = { name: "System Setup", role: "ADMIN", pin: "9999" };
     }
@@ -1416,7 +1420,7 @@ window.updateUserSessionUI = function() {
 window.logout = function() {
     loggedInUser = null;
     updateUserSessionUI();
-    showToast("ออกจากระบบเรียบร้อยกล้ว");
+    showToast("ออกจากระบบเรียบร้อยแล้ว");
 };
 
 /**
@@ -1425,7 +1429,7 @@ window.logout = function() {
 async function saveAttendanceToSheet(pinCode, teacherName) {
     showToast(`บันทึกการเช็คชื่อห้อง ${selectedRoom.grade}/${selectedRoom.room} ล่วงหน้าเรียบร้อย (ระบบกำลังบันทึกลงชีทเบื้องหลัง)`);
     
-    // อัปเดตข้อมูลภาพรวมรายห้องลง State วันนี้เพื่อสะท้อนหน้ากรก
+    // อัปเดตข้อมูลภาพรวมรายห้องลง State วันนี้เพื่อสะท้อนหน้าแรก
     const summary = { Present: 0, Leave: 0, Absent: 0, Late: 0, Cut: 0, Total: attendanceRecords.length };
     attendanceRecords.forEach(r => {
         if (r.status === "มา") summary.Present++;
@@ -1437,7 +1441,7 @@ async function saveAttendanceToSheet(pinCode, teacherName) {
         // สำคัก: บันทึกสถานะรายบุคคลลง todayLogsDetails ทันทีเพื่อให้ค้างสถานะเวลาเปิดใหม่
         todayLogsDetails[r.studentId] = r.status;
         
-        // บวกสถานะเข้าสถิติย้อนหลังในกรมโดยตรง
+        // บวกสถานะเข้าสถิติย้อนหลังในแรมโดยตรง
         if (allStatsData) {
             const fullRoom = `${selectedRoom.grade}/${selectedRoom.room}`;
             let existing = allStatsData.logs.find(log => log.studentId === r.studentId && log.date === currentCheckingDate);
@@ -1455,7 +1459,7 @@ async function saveAttendanceToSheet(pinCode, teacherName) {
         }
     });
     
-    // เพิ่มวันที่ในคอลเลกชันวันที่สถิติในกรมหากยังไม่มี
+    // เพิ่มวันที่ในคอลเลกชันวันที่สถิติในแรมหากยังไม่มี
     if (allStatsData && !allStatsData.dates.includes(currentCheckingDate)) {
         allStatsData.dates.push(currentCheckingDate);
         allStatsData.dates.sort();
@@ -1508,7 +1512,7 @@ async function fetchAndRenderStats() {
         return;
     }
     
-    // โหลดประวัติทั้งหมดมาไว้ในกรมหากยังไม่มี
+    // โหลดประวัติทั้งหมดมาไว้ในแรมหากยังไม่มี
     if (!allStatsData) {
         setLoader(true);
         try {
@@ -1537,7 +1541,7 @@ async function fetchAndRenderStats() {
     const selectedMonth = document.getElementById("stats-month-select").value;
     const selectedRoom = document.getElementById("stats-room-select").value;
     
-    // อัปเดต Dropdown เดือนจากข้อมูลที่มีในกรม
+    // อัปเดต Dropdown เดือนจากข้อมูลที่มีในแรม
     updateMonthDropdown(allStatsData.availableMonths, selectedMonth);
     
     // กรองประวัติเช็คชื่อทั้งหมดจากหน่วยความจำโดยไม่ต้องเชื่อมต่ออินเทอร์เน็ตใหม่
@@ -1560,10 +1564,110 @@ async function fetchAndRenderStats() {
         }
     });
     
+    if (typeof renderSchoolTrendChart === 'function') {
+        renderSchoolTrendChart(filteredLogs, filteredDates);
+    }
+    
     if (activeStatsTab === "accumulated") {
         renderAccumulatedStats(filteredLogs, selectedRoom);
     } else {
         renderDailyGridStats(filteredLogs, filteredDates, selectedRoom);
+    }
+}
+
+let schoolTrendChart = null;
+function renderSchoolTrendChart(logs, datesList) {
+    const chartEl = document.getElementById("stats-school-chart");
+    if (!chartEl) return;
+    
+    if (datesList.length === 0) {
+        chartEl.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding-top: 100px;">ไม่พบข้อมูลสถิติในช่วงเวลาที่เลือก</div>';
+        if (schoolTrendChart) {
+            schoolTrendChart.destroy();
+            schoolTrendChart = null;
+        }
+        return;
+    }
+    
+    const sortedDates = datesList.sort();
+    const seriesPresent = [];
+    const seriesLeave = [];
+    const seriesAbsent = [];
+    const seriesLate = [];
+    const seriesCut = [];
+    
+    sortedDates.forEach(date => {
+        let pCount = 0, lCount = 0, aCount = 0, lateCount = 0, cutCount = 0;
+        logs.forEach(log => {
+            if (log.date === date) {
+                if (log.status === "มา") pCount++;
+                else if (log.status === "ลา") lCount++;
+                else if (log.status === "ขาด") aCount++;
+                else if (log.status === "สาย") lateCount++;
+                else if (log.status === "โดด") cutCount++;
+            }
+        });
+        seriesPresent.push(pCount);
+        seriesLeave.push(lCount);
+        seriesAbsent.push(aCount);
+        seriesLate.push(lateCount);
+        seriesCut.push(cutCount);
+    });
+    
+    const thMonthsAbbr = {
+        "01": "ม.ค.", "02": "ก.พ.", "03": "มี.ค.", "04": "เม.ย.", "05": "พ.ค.", "06": "มิ.ย.",
+        "07": "ก.ค.", "08": "ส.ค.", "09": "ก.ย.", "10": "ต.ค.", "11": "พ.ย.", "12": "ธ.ค."
+    };
+    
+    const categories = sortedDates.map(date => {
+        const parts = date.split("-");
+        return `${parseInt(parts[2], 10)} ${thMonthsAbbr[parts[1]]}`;
+    });
+    
+    const options = {
+        series: [
+            { name: 'มา', data: seriesPresent },
+            { name: 'ลา', data: seriesLeave },
+            { name: 'สาย', data: seriesLate },
+            { name: 'ขาด', data: seriesAbsent },
+            { name: 'โดด', data: seriesCut }
+        ],
+        chart: {
+            type: 'area',
+            height: 300,
+            toolbar: { show: true, tools: { download: false, selection: true, zoom: true, zoomin: true, zoomout: true, pan: true, reset: true } },
+            zoom: { enabled: true },
+            fontFamily: 'Sarabun, sans-serif',
+            animations: { enabled: true, easing: 'easeinout', speed: 800 }
+        },
+        colors: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'],
+        dataLabels: { enabled: false },
+        stroke: { curve: 'smooth', width: 2 },
+        xaxis: {
+            categories: categories,
+            tooltip: { enabled: false }
+        },
+        yaxis: {
+            title: { text: 'จำนวน (คน)' },
+            labels: { formatter: function (val) { return val.toFixed(0); } }
+        },
+        fill: {
+            type: 'gradient',
+            gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05, stops: [0, 100] }
+        },
+        legend: { position: 'top', horizontalAlign: 'center' },
+        tooltip: { theme: 'light' }
+    };
+    
+    chartEl.innerHTML = "";
+    if (schoolTrendChart) {
+        schoolTrendChart.destroy();
+    }
+    try {
+        schoolTrendChart = new ApexCharts(chartEl, options);
+        schoolTrendChart.render();
+    } catch (e) {
+        console.error("ApexCharts error:", e);
     }
 }
 
@@ -1619,11 +1723,7 @@ function renderAccumulatedStats(logs, targetRoom) {
         }
     });
     
-    const showP = document.getElementById("chk-filter-present").checked;
-    const showL = document.getElementById("chk-filter-leave").checked;
-    const showA = document.getElementById("chk-filter-absent").checked;
-    const showLa = document.getElementById("chk-filter-late").checked;
-    const showC = document.getElementById("chk-filter-cut").checked;
+    const statusFilter = document.getElementById("stats-status-select") ? document.getElementById("stats-status-select").value : "ALL";
     
     const sortedStudentIds = Object.keys(countsMap).sort((a,b) => {
         const roomA = countsMap[a].room;
@@ -1638,15 +1738,21 @@ function renderAccumulatedStats(logs, targetRoom) {
         const item = countsMap[id];
         let shouldShow = false;
         
-        if (showP && item.Present > 0) shouldShow = true;
-        if (showL && item.Leave > 0) shouldShow = true;
-        if (showA && item.Absent > 0) shouldShow = true;
-        if (showLa && item.Late > 0) shouldShow = true;
-        if (showC && item.Cut > 0) shouldShow = true;
+        if (statusFilter === "ALL") {
+            shouldShow = true;
+        } else if (statusFilter === "ABSENT" && item.Absent > 0) {
+            shouldShow = true;
+        } else if (statusFilter === "LEAVE" && item.Leave > 0) {
+            shouldShow = true;
+        } else if (statusFilter === "LATE" && item.Late > 0) {
+            shouldShow = true;
+        } else if (statusFilter === "CUT" && item.Cut > 0) {
+            shouldShow = true;
+        }
         
         const totalEvents = item.Present + item.Leave + item.Absent + item.Late + item.Cut;
-        if (totalEvents === 0) {
-            shouldShow = showP;
+        if (totalEvents === 0 && statusFilter === "ALL") {
+            shouldShow = true;
         }
         
         if (!shouldShow) return;
@@ -1829,7 +1935,7 @@ function renderMisconductTable() {
             <td class="row-clickable" style="max-width: 120px;"><div style="font-size: 13px; color: ${item.resolution ? '#166534' : 'var(--text-muted)'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.resolution || '-'}</div></td>
         `;
         
-        // เมื่อคลิกที่ส่วนใดๆ ของกถว (ยกเว้น checkbox) ให้เปิดหน้าต่างรายละเอียด
+        // เมื่อคลิกที่ส่วนใดๆ ของแถว (ยกเว้น checkbox) ให้เปิดหน้าต่างรายละเอียด
         tr.querySelectorAll('.row-clickable').forEach(td => {
             td.style.cursor = "pointer";
             td.onclick = () => {
@@ -1867,11 +1973,11 @@ function renderMisconductTable() {
             input.value = ""; // เคลียร์ข้อความเดิม
             
             if (newStatus) {
-                title.innerText = "บันทึกการกก้ไขความประพฤติ";
+                title.innerText = "บันทึกการแก้ไขความประพฤติ";
                 inputGroup.style.display = "block";
                 confirmText.style.display = "none";
             } else {
-                title.innerText = "ยกเลิกการกก้ไขความประพฤติ?";
+                title.innerText = "ยกเลิกการแก้ไขความประพฤติ?";
                 inputGroup.style.display = "none";
                 confirmText.style.display = "block";
             }
@@ -1887,18 +1993,18 @@ function renderMisconductTable() {
                 if (newStatus) {
                     resolutionText = input.value.trim();
                     if (!resolutionText) {
-                        showToast("กรุณาระบุรายละเอียดการกก้ไข", "error");
+                        showToast("กรุณาระบุรายละเอียดการแก้ไข", "error");
                         return;
                     }
                 }
                 
                 modal.classList.remove("active");
                 
-                openPinModal("ป้อนรหัสกอดมิน / ครูปกครอง", "STUDENT_AFFAIRS", async (pin, userName) => {
+                openPinModal("ป้อนรหัสแอดมิน / ครูปกครอง", "STUDENT_AFFAIRS", async (pin, userName) => {
                     // Optimistic UI Update - เปลี่ยนค่าในตารางให้เห็นทันทีก่อนบันทึกเสร็จ
                     item.resolved = newStatus;
                     
-                    // ถ้ายกเลิก ให้ล้างข้อความ ถ้ากก้ให้เติมชั่วคราว
+                    // ถ้ายกเลิก ให้ล้างข้อความ ถ้าแก้ให้เติมชั่วคราว
                     if (newStatus) {
                         const dateStr = new Date().toLocaleDateString('en-GB'); // DD/MM/YYYY
                         item.resolution = `${resolutionText} (${userName}, ${dateStr})`;
@@ -1908,7 +2014,7 @@ function renderMisconductTable() {
                     
                     renderMisconductTable();
                     
-                    // ไม่ต้องบล็อคหน้าจอทั้งหมดด้วย Loader กล้ว ปล่อยให้มันบันทึกเงียบๆ ด้านหลัง
+                    // ไม่ต้องบล็อคหน้าจอทั้งหมดด้วย Loader แล้ว ปล่อยให้มันบันทึกเงียบๆ ด้านหลัง
                     if (!config.scriptUrl) {
                         showToast("ไม่สามารถอัปเดตออนไลน์ได้เนื่องจากไม่ได้ตั้งค่า Apps Script", "error");
                         return;
@@ -2038,7 +2144,7 @@ async function submitMisconduct(pinCode) {
             document.getElementById("selected-student-display").classList.add("hidden");
             selectedMisconductStudent = null;
             
-            // ดึงข้อมูลใหม่จากหลังบ้านทันที เพื่อให้กสดงผลในตารางพร้อม ID ที่ถูกต้อง
+            // ดึงข้อมูลใหม่จากหลังบ้านทันที เพื่อให้แสดงผลในตารางพร้อม ID ที่ถูกต้อง
             await fetchMisconductDataOnce();
             renderMisconductTable();
             // อัปเดตตารางเพื่อเปลี่ยนสีปุ่ม
@@ -2111,13 +2217,13 @@ function handleRegisterSubmit() {
     // ตรวจสอบว่า PIN ซ้ำกับผู้ใช้งานคนอื่นหรือไม่
     const duplicateUser = users.find(u => String(u.pin || "").trim() === String(pinVal).trim() && u.name !== name);
     if (duplicateUser) {
-        showToast("รหัส PIN นี้ถูกใช้งานโดยคุณครูท่านอื่นกล้ว กรุณาตั้งรหัสอื่น", "error");
+        showToast("รหัส PIN นี้ถูกใช้งานโดยคุณครูท่านอื่นแล้ว กรุณาตั้งรหัสอื่น", "error");
         return;
     }
     
     document.getElementById("modal-register").classList.remove("active");
     
-    // ตั้งรหัสผ่าน PIN ของคุณครูคนนั้นโดยตรง โดยนำไปบันทึกเลย (ส่งค่า code เป็นว่างไปเพราะเราไม่ได้ใช้รหัสครูกล้ว)
+    // ตั้งรหัสผ่าน PIN ของคุณครูคนนั้นโดยตรง โดยนำไปบันทึกเลย (ส่งค่า code เป็นว่างไปเพราะเราไม่ได้ใช้รหัสครูแล้ว)
     saveUserRegistration(name, "", pinVal, "TEACHER");
 }
 
@@ -2176,7 +2282,7 @@ async function saveUserRegistration(name, code, pinCode, role) {
 }
 
 /**
- * เรนเดอร์ตารางรายชื่อครูในส่วนกก้ไขสถานะของหน้ากอดมิน
+ * เรนเดอร์ตารางรายชื่อครูในส่วนแก้ไขสถานะของหน้าแอดมิน
  */
 function renderAdminTeachers() {
     const tbody = document.getElementById("admin-teacher-list-tbody");
@@ -2214,7 +2320,7 @@ function renderAdminTeachers() {
             </td>
         `;
         
-        // เมื่อมีการเปลี่ยนบทบาท หรือกก้ไขรหัสผ่าน จะโชว์ข้อความเตือนให้กดบันทึก
+        // เมื่อมีการเปลี่ยนบทบาท หรือแก้ไขรหัสผ่าน จะโชว์ข้อความเตือนให้กดบันทึก
         const select = tr.querySelector(".admin-role-select");
         select.onchange = () => {
             document.getElementById("admin-teacher-unsaved-msg").style.display = "inline-block";
@@ -2309,7 +2415,7 @@ document.getElementById("btn-save-all-teachers").onclick = async () => {
         return;
     }
     
-    // ตรวจสอบ PIN ซ้ำกันในการกก้ไขรอบนี้
+    // ตรวจสอบ PIN ซ้ำกันในการแก้ไขรอบนี้
     const pinsSeen = {};
     let pinDuplicate = false;
     for (let u of updates) {
@@ -2320,7 +2426,7 @@ document.getElementById("btn-save-all-teachers").onclick = async () => {
         pinsSeen[u.pin] = u.name;
     }
     if (pinDuplicate) {
-        showToast("พบรหัส PIN ซ้ำกันสำหรับผู้ใช้งานต่างคนกัน กรุณากก้ไขรหัสไม่ให้ซ้ำกัน", "error");
+        showToast("พบรหัส PIN ซ้ำกันสำหรับผู้ใช้งานต่างคนกัน กรุณาแก้ไขรหัสไม่ให้ซ้ำกัน", "error");
         return;
     }
     
@@ -2346,7 +2452,7 @@ document.getElementById("btn-save-all-teachers").onclick = async () => {
         const data = await res.json();
         
         if (data.success) {
-            showToast("บันทึกข้อมูลครูกละรหัสผ่านทั้งหมดสำเร็จ");
+            showToast("บันทึกข้อมูลครูและรหัสผ่านทั้งหมดสำเร็จ");
             document.getElementById("admin-teacher-unsaved-msg").style.display = "none";
             // อัปเดตในหน่วยความจำ
             updates.forEach(u => {
@@ -2367,7 +2473,7 @@ document.getElementById("btn-save-all-teachers").onclick = async () => {
 };
 
 /**
- * 10. หน้ากอดมิน (Admin Control Panel)
+ * 10. หน้าแอดมิน (Admin Control Panel)
  */
 async function loadHolidaysInAdmin() {
     const tbody = document.getElementById("holiday-list-tbody");
@@ -2407,7 +2513,7 @@ async function loadHolidaysInAdmin() {
                     method: "POST",
                     body: JSON.stringify({
                         action: "deleteHoliday",
-                        pin: authenticatedAdminPin, // ส่งรหัสกอดมินจริงที่ล็อกอินเข้ามา
+                        pin: authenticatedAdminPin, // ส่งรหัสแอดมินจริงที่ล็อกอินเข้ามา
                         date: h.date
                     })
                 });
@@ -2435,7 +2541,7 @@ async function addHoliday() {
     const nameInput = document.getElementById("holiday-name-input").value.trim();
     
     if (!dateInput || !nameInput) {
-        showToast("กรุณากรอกวันที่กละระบุชื่อวันหยุด", "error");
+        showToast("กรุณากรอกวันที่และระบุชื่อวันหยุด", "error");
         return;
     }
     
@@ -2452,7 +2558,7 @@ async function addHoliday() {
             method: "POST",
             body: JSON.stringify({
                 action: "addHoliday",
-                pin: authenticatedAdminPin, // ส่งรหัสกอดมินจริงที่ล็อกอินเข้ามา
+                pin: authenticatedAdminPin, // ส่งรหัสแอดมินจริงที่ล็อกอินเข้ามา
                 date: dateInput,
                 name: nameInput
             })
@@ -2508,15 +2614,15 @@ function switchView(viewName) {
     if (startMenuBtn) startMenuBtn.classList.remove("active");
     if (sidebarBackdrop) sidebarBackdrop.style.display = "none";
     
-    // อัปเดตหัวข้อกถบด้านบนสุดตามหน้าจอที่กำลังเปิดทำงาน
+    // อัปเดตหัวข้อแถบด้านบนสุดตามหน้าจอที่กำลังเปิดทำงาน
     const pageTitleEl = document.getElementById("header-page-title");
     if (pageTitleEl) {
         if (viewName === "home") {
-            pageTitleEl.innerText = "หน้ากรก";
+            pageTitleEl.innerText = "หน้าแรก";
         } else if (viewName === "stats") {
             pageTitleEl.innerText = "สถิติเข้าเรียน";
         } else if (viewName === "misconduct") {
-            pageTitleEl.innerText = "กจ้งพฤติกรรมนักเรียน";
+            pageTitleEl.innerText = "แจ้งพฤติกรรมนักเรียน";
         } else if (viewName === "at-risk") {
             pageTitleEl.innerText = "ติดตามนักเรียน";
         } else if (viewName === "attendance-check") {
@@ -2538,7 +2644,7 @@ function switchView(viewName) {
         view.classList.remove("active");
     });
     
-    // จัดการการกสดงผลของปุ่มย้อนกลับกละเส้นคั่น
+    // จัดการการแสดงผลของปุ่มย้อนกลับกละเส้นคั่น
     const backBtn = document.getElementById("shortcut-back");
     const backSep = document.getElementById("mobile-back-separator");
     if (backBtn && backSep) {
@@ -2600,13 +2706,13 @@ window.toggleSubMenu = function(headerElement) {
 };
 
 /**
- * ดึงกละกสดงข้อมูลนักเรียนกลุ่มเสี่ยง
+ * ดึงและแสดงข้อมูลนักเรียนกลุ่มเสี่ยง
  */
 window.renderAtRiskStudents = async function() {
     const tbody = document.getElementById("at-risk-table-body");
     const badge = document.getElementById("at-risk-badge");
     
-    tbody.innerHTML = '<tr><td colspan="5" class="txt-center" style="padding: 30px;"><div class="empty-state" style="color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin" style="font-size: 30px; margin-bottom: 10px;"></i><p>กำลังโหลดกละคำนวณข้อมูล...</p></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="txt-center" style="padding: 30px;"><div class="empty-state" style="color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin" style="font-size: 30px; margin-bottom: 10px;"></i><p>กำลังโหลดและคำนวณข้อมูล...</p></div></td></tr>';
     
     if (!config.scriptUrl) {
         tbody.innerHTML = '<tr><td colspan="5" class="txt-center" style="padding: 30px;">โปรดตั้งค่าลิงก์ Apps Script ก่อน</td></tr>';
@@ -2666,7 +2772,7 @@ window.renderAtRiskStudents = async function() {
         }
     });
     
-    // อัปเดตตัวเลขกจ้งเตือน
+    // อัปเดตตัวเลขแจ้งเตือน
     if (atRiskList.length > 0) {
         badge.innerText = atRiskList.length;
         badge.style.display = "inline-block";
@@ -2674,7 +2780,7 @@ window.renderAtRiskStudents = async function() {
         badge.style.display = "none";
     }
     
-    // 4. กสดงผล
+    // 4. แสดงผล
     if (atRiskList.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 30px;"><div class="empty-state"><i class="fa-solid fa-circle-check" style="font-size: 40px; color: var(--color-present); margin-bottom: 10px;"></i><p>ไม่มีนักเรียนกลุ่มเสี่ยงที่ค้างดำเนินการยอดเยี่ยมมากครับ!</p></div></td></tr>';
         return;
@@ -2682,10 +2788,16 @@ window.renderAtRiskStudents = async function() {
     
     const filterValue = document.getElementById('at-risk-filter') ? document.getElementById('at-risk-filter').value : 'all';
     const roomFilterSelect = document.getElementById('at-risk-room-filter');
-    const roomFilterValue = roomFilterSelect ? roomFilterSelect.value : 'ALL';
     
     // Populate room filter if it's the first time
-    if (roomFilterSelect && roomFilterSelect.options.length <= 1) {
+    if (roomFilterSelect && !roomFilterSelect.getAttribute('data-populated')) {
+        roomFilterSelect.setAttribute('data-populated', 'true');
+        const currentValue = roomFilterSelect.value;
+        
+        while (roomFilterSelect.options.length > 1) {
+            roomFilterSelect.remove(1);
+        }
+        
         const uniqueRooms = [...new Set(atRiskList.map(s => `${s.grade}/${s.room}`))].sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
         uniqueRooms.forEach(room => {
             const opt = document.createElement('option');
@@ -2693,7 +2805,11 @@ window.renderAtRiskStudents = async function() {
             opt.text = 'ชั้น ' + room;
             roomFilterSelect.appendChild(opt);
         });
+        
+        roomFilterSelect.value = currentValue;
     }
+    
+    const roomFilterValue = roomFilterSelect ? roomFilterSelect.value : 'ALL';
     
     let filteredList = atRiskList;
     if (roomFilterValue !== 'ALL') {
@@ -2756,7 +2872,7 @@ window.renderAtRiskStudents = async function() {
         let savedHr = "";
         let savedSa = "";
         
-        // ให้ได้คีย์กบบ: รหัส|เอกสาร|ครั้งที่1 (เช่น 4879|ป.ค.9|ครั้งที่1)
+        // ให้ได้คีย์แบบ: รหัส|เอกสาร|ครั้งที่1 (เช่น 4879|ป.ค.9|ครั้งที่1)
         const backendKey = `${s.studentId}|${docType}|ครั้งที่${fullDocType.split('_ครั้งที่')[1] || '1'}`;
         
         if (atRiskTeachersCache && atRiskTeachersCache[backendKey]) {
@@ -2772,7 +2888,7 @@ window.renderAtRiskStudents = async function() {
         if (savedHr) {
             if (isSigned) {
                 hrBtnClass = "btn-success";
-                hrBtnText = "เสร็จกล้ว";
+                hrBtnText = "เสร็จแล้ว";
                 hrIcon = "fa-circle-check";
             } else {
                 hrBtnClass = "";
@@ -2790,7 +2906,7 @@ window.renderAtRiskStudents = async function() {
         if (savedSa) {
             if (isSigned) {
                 saBtnClass = "btn-success";
-                saBtnText = "เสร็จกล้ว";
+                saBtnText = "เสร็จแล้ว";
                 saIcon = "fa-circle-check";
             } else {
                 saBtnClass = "";
@@ -2858,7 +2974,7 @@ window.openAtRiskActionModal = function(studentId, fullName, gradeRoom, docType,
     document.getElementById("at-risk-action-title").innerText = `จัดการ${roleName}`;
     document.getElementById("at-risk-action-subtitle").innerText = `ระบุรายชื่อผู้รับผิดชอบเพื่อพิมพ์ลงในเอกสาร ${docType}`;
     
-    // กสดง/ซ่อน dropdown
+    // แสดง/ซ่อน dropdown
     if (role === 'hr') {
         document.getElementById("group-action-hr").style.display = "block";
         document.getElementById("group-action-sa").style.display = "none";
@@ -2881,8 +2997,8 @@ window.openAtRiskActionModal = function(studentId, fullName, gradeRoom, docType,
     saSelect.innerHTML = teacherOptions;
     
     const storageKey = `${studentId}_${fullDocType}`;
-    // ใช้ตัวคั่น | กทน _ เวลาบันทึกจริงเพื่อการจัดเก็บใน Google Sheets กต่ key กั่งเว็บอนุโลมให้เป็น _ หรือ | ก็ได้
-    // ขอปรับ storageKey ให้ตรงกับกบคเอนด์เลยคือ StudentId|DocType|NoticeCount
+    // ใช้ตัวคั่น | แทน _ เวลาบันทึกจริงเพื่อการจัดเก็บใน Google Sheets แต่ key กั่งเว็บอนุโลมให้เป็น _ หรือ | ก็ได้
+    // ขอปรับ storageKey ให้ตรงกับแบคเอนด์เลยคือ StudentId|DocType|NoticeCount
     const backendKey = `${studentId}|${docType}|ครั้งที่${fullDocType.split('ครั้งที่')[1] || '1'}`;
     currentSigningStudent.backendKey = backendKey;
     
@@ -2901,7 +3017,7 @@ window.openAtRiskActionModal = function(studentId, fullName, gradeRoom, docType,
     if (savedHr) hrSelect.value = savedHr;
     if (savedSa) saSelect.value = savedSa;
     
-    // กสดงลายเซ็นถ้ามี
+    // แสดงลายเซ็นถ้ามี
     const hrPreview = document.getElementById("hr-signature-preview");
     const hrContainer = document.getElementById("hr-signature-preview-container");
     if (window.tempHrSign) {
@@ -3000,7 +3116,7 @@ window.previewAtRiskDocument = async function() {
     currentSigningStudent.headOfStudentAffairs = saved.sa;
     
     // ตั้งค่ากลับไปใช้ documentType ธรรมดาสำหรับการพิมพ์ (ป.ค.8 ไม่ใช่ ป.ค.8_ครั้งที่1)
-    // กต่ให้เอกสารรู้ว่านี่คือเอกสารที่ดึงมาจาก fullDocType ไหน หากมีการเซ็นจะบันทึกลง fullDocType
+    // แต่ให้เอกสารรู้ว่านี่คือเอกสารที่ดึงมาจาก fullDocType ไหน หากมีการเซ็นจะบันทึกลง fullDocType
     const docToPrint = { ...currentSigningStudent, documentType: currentSigningStudent.fullDocType };
     
     closeAtRiskActionModal();
@@ -3008,7 +3124,7 @@ window.previewAtRiskDocument = async function() {
 };
 
 /* =========================================================
- * 13. ระบบ E-Signature กละออกเอกสารอัตโนมัติ
+ * 13. ระบบ E-Signature และออกเอกสารอัตโนมัติ
  * ========================================================= */
 let signaturePadCanvas = null;
 let signaturePadCtx = null;
@@ -3080,7 +3196,7 @@ window.openDocumentPreview = function(studentInfo) {
     const thaiMonths = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
     const formattedDate = `${today.getDate()} ${thaiMonths[today.getMonth()]} ${today.getFullYear() + 543}`;
     
-    // ดึงวันที่ขาดกละสายจาก allStatsData ถ้ามี
+    // ดึงวันที่ขาดและสายจาก allStatsData ถ้ามี
     if (allStatsData && allStatsData.logs) {
         studentInfo.absentDates = allStatsData.logs
             .filter(log => log.studentId === studentInfo.studentId && log.status === 'ขาด')
@@ -3099,7 +3215,7 @@ window.openDocumentPreview = function(studentInfo) {
 
     const actualDocTypeForSave = studentInfo.documentType || studentInfo.docType;
 
-    // ตรวจสอบว่าเคยเซ็นไว้กล้วหรือไม่
+    // ตรวจสอบว่าเคยเซ็นไว้แล้วหรือไม่
     const existingDoc = documentsData.find(d => d.studentId === studentInfo.studentId && d.documentType === actualDocTypeForSave);
     let signatureHtml = "";
     
@@ -3161,7 +3277,7 @@ window.clearTeacherSignature = function(role) {
 window.saveSignature = function() {
     if (!signaturePadCanvas) return;
     
-    // สร้าง Canvas สีขาวกละบีบอัด JPEG
+    // สร้าง Canvas สีขาวและบีบอัด JPEG
     const tempCanvas = document.createElement("canvas");
     tempCanvas.width = signaturePadCanvas.width;
     tempCanvas.height = signaturePadCanvas.height;
@@ -3213,7 +3329,7 @@ window.saveDocumentData = async function() {
         const data = await res.json();
         
         if (data.success) {
-            showToast("บันทึกข้อมูลกละลายเซ็นสำเร็จ!", "success");
+            showToast("บันทึกข้อมูลและลายเซ็นสำเร็จ!", "success");
             document.getElementById("btn-save-signature").style.display = "none";
             // นำเข้าข้อมูลจำลองเพื่อให้เปิดครั้งต่อไปเห็นทันที
             documentsData.push({
@@ -3277,13 +3393,13 @@ function populateStatsRoomDropdown() {
 }
 
 /**
- * 12. กำหนดจุดเชื่อมต่อ Event Listeners กละการโหลดตั้งค่า
+ * 12. กำหนดจุดเชื่อมต่อ Event Listeners และการโหลดตั้งค่า
  */
 document.addEventListener("DOMContentLoaded", () => {
     loadConfig();
     applyMetadataToUI();
     
-    // จัดการเปิด/ปิด Start Menu (FAB) ทั้งบนคอมกละมือถือ
+    // จัดการเปิด/ปิด Start Menu (FAB) ทั้งบนคอมและมือถือ
     const startMenuBtn = document.getElementById("start-menu-btn");
     const mobileSidebarClose = document.getElementById("mobile-sidebar-close");
     const sidebarBackdrop = document.getElementById("sidebar-backdrop");
@@ -3331,7 +3447,7 @@ document.addEventListener("DOMContentLoaded", () => {
     bindShortcut("shortcut-misconduct", "misconduct");
     bindShortcut("shortcut-at-risk", "at-risk");
     
-    // สวิตซ์กท็บย่อยในหน้าสถิติ
+    // สวิตซ์แท็บย่อยในหน้าสถิติ
     document.getElementById("tab-btn-accumulated").onclick = () => {
         document.getElementById("tab-btn-accumulated").classList.add("active");
         document.getElementById("tab-btn-daily").classList.remove("active");
@@ -3352,14 +3468,11 @@ document.addEventListener("DOMContentLoaded", () => {
     
     document.getElementById("stats-month-select").onchange = () => fetchAndRenderStats();
     document.getElementById("stats-room-select").onchange = () => fetchAndRenderStats();
-    document.getElementById("chk-filter-present").onchange = () => fetchAndRenderStats();
-    document.getElementById("chk-filter-leave").onchange = () => fetchAndRenderStats();
-    document.getElementById("chk-filter-absent").onchange = () => fetchAndRenderStats();
-    document.getElementById("chk-filter-late").onchange = () => fetchAndRenderStats();
-    document.getElementById("chk-filter-cut").onchange = () => fetchAndRenderStats();
+    const statusSelect = document.getElementById("stats-status-select");
+    if (statusSelect) statusSelect.onchange = () => fetchAndRenderStats();
     
-    // จัดการเปลี่ยนวันที่ของปกิทินหน้ากรก
-    // จัดการเปลี่ยนวันที่ของปกิทินหน้ากรก
+    // จัดการเปลี่ยนวันที่ของปกิทินหน้าแรก
+    // จัดการเปลี่ยนวันที่ของปกิทินหน้าแรก
     const homeDateInput = document.getElementById("home-date-picker");
     if (homeDateInput) {
         if (window.flatpickr) {
@@ -3460,18 +3573,18 @@ document.addEventListener("DOMContentLoaded", () => {
         trigger.onclick = () => {
             document.querySelectorAll(".modal-overlay").forEach(m => m.classList.remove("active"));
             document.getElementById("misconduct-student-dropdown").classList.remove("active");
-            authenticatedAdminPin = null; // ล้างรหัสผ่านกอดมินเมื่อปิดโมดอลเพื่อความปลอดภัย
+            authenticatedAdminPin = null; // ล้างรหัสผ่านแอดมินเมื่อปิดโมดอลเพื่อความปลอดภัย
         };
     });
     
-    // ตั้งค่าสลับกท็บในโมดอลกอดมิน
+    // ตั้งค่าสลับแท็บในโมดอลแอดมิน
     document.querySelectorAll(".admin-tab-btn").forEach(btn => {
         btn.onclick = () => {
             // ลบ active ออกจากทุกปุ่ม
             document.querySelectorAll(".admin-tab-btn").forEach(b => b.classList.remove("active"));
             document.querySelectorAll(".admin-tab-content").forEach(c => c.classList.remove("active"));
             
-            // เพิ่ม active ให้ปุ่มกละเนื้อหาที่เลือก
+            // เพิ่ม active ให้ปุ่มและเนื้อหาที่เลือก
             const tabId = btn.getAttribute("data-tab");
             btn.classList.add("active");
             document.getElementById(`admin-content-${tabId}`).classList.add("active");
@@ -3553,7 +3666,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
                 const data = await res.json();
                 if (data.success) {
-                    showToast("ล้างประวัติเวลาเรียนทั้งหมดเรียบร้อยกล้ว");
+                    showToast("ล้างประวัติเวลาเรียนทั้งหมดเรียบร้อยแล้ว");
                     document.getElementById("modal-admin").classList.remove("active");
                     await loadInitialData();
                 } else {
@@ -3602,7 +3715,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // รองรับการกดกป้นพิมพ์ตัวเลข (Physical Keyboard)
+    // รองรับการกดแป้นพิมพ์ตัวเลข (Physical Keyboard)
     document.addEventListener("keydown", (e) => {
         const pinModal = document.getElementById("modal-pin");
         
@@ -3958,19 +4071,21 @@ function renderRoomSpecificSchedule() {
         const m = parseInt(parts[1], 10) - 1;
         const d = parseInt(parts[2], 10);
         const displayDate = `${d}<br>${thaiMonths[m]}<br>${y.toString().substring(2)}`;
-        headerHtml += `<th style="text-align: center; vertical-align: middle; line-height: 1.2;">${displayDate}</th>`;
+        headerHtml += `<th style="text-align: center; vertical-align: middle; line-height: 1.2; font-size: 11px;">${displayDate}</th>`;
     });
     headerHtml += "</tr>";
     
     const logsLookup = {};
-    allStatsData.logs.forEach(log => {
-        logsLookup[`${log.studentId}_${log.date}`] = log.status;
-    });
+    if (allStatsData && allStatsData.logs) {
+        allStatsData.logs.forEach(log => {
+            logsLookup[`${log.studentId}_${log.date}`] = log.status;
+        });
+    }
     
     let bodyHtml = "";
-    roomStudents.forEach((s, index) => {
+    roomStudents.forEach(s => {
         bodyHtml += `<tr>
-            <td class="col-student-name">${index + 1}. ${s.fullName}</td>
+            <td class="col-student-name">${s.no}. ${s.fullName}</td>
         `;
         
         sortedDates.forEach(date => {
@@ -3988,12 +4103,11 @@ function renderRoomSpecificSchedule() {
                 statusChar = "-";
                 classStyle = "status-none";
             }
-            
-            bodyHtml += `<td class="txt-center"><span class="status-badge ${classStyle}">${statusChar}</span></td>`;
+            bodyHtml += `<td class="txt-center ${classStyle}">${statusChar}</td>`;
         });
         
         bodyHtml += `</tr>`;
     });
     
-    table.innerHTML = `<thead>${headerHtml}</thead><tbody>${bodyHtml}</tbody>`;
+    table.innerHTML = headerHtml + bodyHtml;
 }
