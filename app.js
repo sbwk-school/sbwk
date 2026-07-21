@@ -290,8 +290,6 @@ async function loadInitialData() {
                 for (let id in todayLogsDetails) {
                     todayLogsDetails[id] = translateAbbreviationToStatus(todayLogsDetails[id]);
                 }
-                documentsData = data.documents || [];
-                atRiskTeachersCache = data.atRiskTeachers || {};
                 
                 if (students.length === 0) {
                     showToast("ดึงข้อมูลเรียบร้อย แต่ไม่พบรายชื่อในหน้าชีทแรก", "error");
@@ -311,11 +309,6 @@ async function loadInitialData() {
         await loadStudentsFromCsvFallback();
     }
     
-    // โหลดประวัติสถิติทั้งหมดมาเก็บในหน่วยความจำตั้งแต่ต้นแบบเบื้องหลัง (Async)
-    if (config.scriptUrl && !allStatsData) {
-        fetchStatsDataOnce();
-    }
-    
     // เริ่มต้นแสดงผลหน้าแรก
     updateHeaderDate();
     checkTodayHoliday();
@@ -324,7 +317,38 @@ async function loadInitialData() {
     
     setLoader(false);
     
-    populateTeacherDropdowns();
+    // โหลดประวัติสถิติทั้งหมดมาเก็บในหน่วยความจำตั้งแต่ต้นแบบเบื้องหลัง (Async)
+    if (config.scriptUrl && !allStatsData) {
+        fetchStatsDataOnce();
+    }
+    
+    // โหลดข้อมูลอื่นๆ ที่รอได้ (Deferred Load) ไว้เบื้องหลัง
+    if (config.scriptUrl) {
+        fetchDeferredDataOnce();
+    }
+}
+
+let deferredDataPromise = null;
+async function fetchDeferredDataOnce() {
+    if (!config.scriptUrl) return;
+    if (deferredDataPromise) return deferredDataPromise;
+    
+    deferredDataPromise = (async () => {
+        try {
+            const res = await fetch(`${config.scriptUrl}?action=getDeferredData`);
+            const data = await res.json();
+            if (data.success) {
+                documentsData = data.documents || [];
+                atRiskTeachersCache = data.atRiskTeachers || {};
+                isDeferredDataLoaded = true;
+                populateTeacherDropdowns();
+            }
+        } catch (e) {
+            console.error("โหลดข้อมูลเบื้องหลังล้มเหลว", e);
+            deferredDataPromise = null; // retry on next call
+        }
+    })();
+    return deferredDataPromise;
 }
 
 async function fetchStatsDataOnce() {
@@ -2777,9 +2801,16 @@ window.renderAtRiskStudents = async function() {
                 return;
             }
         } catch (e) {
-            tbody.innerHTML = '<tr><td colspan="5" class="txt-center">เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="txt-center">เกิดข้อผิดพลาดในการโหลดข้อมูลสถิติ</td></tr>';
             return;
         }
+    }
+    
+    // รอข้อมูล At-Risk / Documents จาก Deferred Load
+    if (deferredDataPromise) {
+        await deferredDataPromise;
+    } else if (!isDeferredDataLoaded) {
+        await fetchDeferredDataOnce();
     }
     
     // 2. คำนวณสถิติ
