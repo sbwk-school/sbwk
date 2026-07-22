@@ -123,7 +123,9 @@ function getPK8Template(studentInfo, signatureHtml, formattedDate) {
                             <div style="display: flex; align-items: flex-start; margin-bottom: 15px;">
                                 <div style="white-space: nowrap;">ลงชื่อ</div>
                                 <div style="text-align: center; margin: 0 5px;">
-                                    <div>...........................................</div>
+                                    <div style="height: 35px; display: flex; align-items: flex-end; justify-content: center;">
+                                        ${studentInfo.hrSign ? `<img src="${studentInfo.hrSign}" style="max-height: 45px;">` : '...........................................'}
+                                    </div>
                                     <div>(${studentInfo.homeroomTeacher || '...........................................'})</div>
                                 </div>
                                 <div style="white-space: nowrap;">ครูที่ปรึกษา</div>
@@ -132,7 +134,9 @@ function getPK8Template(studentInfo, signatureHtml, formattedDate) {
                             <div style="display: flex; align-items: flex-start;">
                                 <div style="white-space: nowrap;">ลงชื่อ</div>
                                 <div style="text-align: center; margin: 0 5px;">
-                                    <div>...........................................</div>
+                                    <div style="height: 35px; display: flex; align-items: flex-end; justify-content: center;">
+                                        ${studentInfo.saSign ? `<img src="${studentInfo.saSign}" style="max-height: 45px;">` : '...........................................'}
+                                    </div>
                                     <div>(${studentInfo.headOfStudentAffairs || '...........................................'})</div>
                                 </div>
                                 <div style="white-space: nowrap;">หัวหน้ากิจการนักเรียน</div>
@@ -238,7 +242,9 @@ function getPK9Template(studentInfo, signatureHtml, formattedDate) {
                             <div style="display: flex; align-items: flex-start; margin-bottom: 15px;">
                                 <div style="white-space: nowrap;">ลงชื่อ</div>
                                 <div style="text-align: center; margin: 0 5px;">
-                                    <div>...........................................</div>
+                                    <div style="height: 35px; display: flex; align-items: flex-end; justify-content: center;">
+                                        ${studentInfo.hrSign ? `<img src="${studentInfo.hrSign}" style="max-height: 45px;">` : '...........................................'}
+                                    </div>
                                     <div>(${studentInfo.homeroomTeacher || '...........................................'})</div>
                                 </div>
                                 <div style="white-space: nowrap;">ครูที่ปรึกษา</div>
@@ -247,7 +253,9 @@ function getPK9Template(studentInfo, signatureHtml, formattedDate) {
                             <div style="display: flex; align-items: flex-start;">
                                 <div style="white-space: nowrap;">ลงชื่อ</div>
                                 <div style="text-align: center; margin: 0 5px;">
-                                    <div>...........................................</div>
+                                    <div style="height: 35px; display: flex; align-items: flex-end; justify-content: center;">
+                                        ${studentInfo.saSign ? `<img src="${studentInfo.saSign}" style="max-height: 45px;">` : '...........................................'}
+                                    </div>
                                     <div>(${studentInfo.headOfStudentAffairs || '...........................................'})</div>
                                 </div>
                                 <div style="white-space: nowrap;">หัวหน้ากิจการนักเรียน</div>
@@ -335,7 +343,9 @@ function getPlaceholderTemplate(docCode, docTitle, studentInfo, signatureHtml, f
                             <div style="display: flex; align-items: flex-start; margin-bottom: 15px;">
                                 <div style="white-space: nowrap;">ลงชื่อ</div>
                                 <div style="text-align: center; margin: 0 5px;">
-                                    <div>...........................................</div>
+                                    <div style="height: 35px; display: flex; align-items: flex-end; justify-content: center;">
+                                        ${studentInfo.hrSign ? `<img src="${studentInfo.hrSign}" style="max-height: 45px;">` : '...........................................'}
+                                    </div>
                                     <div>(${studentInfo.homeroomTeacher || '...........................................'})</div>
                                 </div>
                                 <div style="white-space: nowrap;">ครูที่ปรึกษา</div>
@@ -344,7 +354,9 @@ function getPlaceholderTemplate(docCode, docTitle, studentInfo, signatureHtml, f
                             <div style="display: flex; align-items: flex-start;">
                                 <div style="white-space: nowrap;">ลงชื่อ</div>
                                 <div style="text-align: center; margin: 0 5px;">
-                                    <div>...........................................</div>
+                                    <div style="height: 35px; display: flex; align-items: flex-end; justify-content: center;">
+                                        ${studentInfo.saSign ? `<img src="${studentInfo.saSign}" style="max-height: 45px;">` : '...........................................'}
+                                    </div>
                                     <div>(${studentInfo.headOfStudentAffairs || '...........................................'})</div>
                                 </div>
                                 <div style="white-space: nowrap;">หัวหน้ากิจการนักเรียน</div>

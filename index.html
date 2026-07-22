@@ -38,8 +38,8 @@
                 padding: 0 !important;
             }
             
-            /* ซ่อนสิ่งที่อาจจะหลงเหลือใน body */
-            #toast-container, .app-container, .fullscreen-overlay, .modal-overlay {
+            /* ซ่อนสิ่งที่ไม่อยากให้ลงบน body */
+            #toast-container, .app-container, .fullscreen-overlay, .modal-overlay, .app-header, .dock-container {
                 display: none !important;
             }
         }
@@ -179,20 +179,18 @@
                     <i class="fa-solid fa-file-pen"></i>
                     <span>แจ้งพฤติกรรมนักเรียน</span>
                 </a>
-                <!-- กลุ่มงานกิจการนักเรียน (แบบมี Sub-menu) -->
-                <div class="menu-accordion">
-                    <div class="menu-item menu-accordion-header" id="menu-group-student-affairs" onclick="toggleSubMenu(this)">
-                        <i class="fa-solid fa-shield-halved"></i>
-                        <span>งานกิจการนักเรียน</span>
-                        <i class="fa-solid fa-chevron-down menu-chevron" style="margin-left: auto; transition: transform 0.3s;"></i>
-                    </div>
-                    <div class="menu-sub-items" style="display: none; background: rgba(0,0,0,0.15); padding-left: 10px;">
-                        <a href="#" class="menu-item" id="menu-at-risk" style="padding-left: 45px; font-size: 0.9em; color: var(--color-absent);">
-                            <i class="fa-solid fa-triangle-exclamation" style="font-size: 0.9em;"></i> ติดตามนักเรียน 
-                            <span id="at-risk-badge" class="badge" style="background: var(--color-absent); display: none; padding: 2px 6px; font-size: 10px;">0</span>
-                        </a>
-                    </div>
-                </div>
+                <!-- ติดตามนักเรียน (แยกเป็นหัวข้อใหญ่) -->
+                <a href="#" class="menu-item" id="menu-at-risk">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>ติดตามนักเรียน</span>
+                    <span id="at-risk-badge" class="badge" style="background: var(--color-absent); display: none; padding: 2px 6px; font-size: 10px; margin-left: auto;">0</span>
+                </a>
+
+                <!-- กลุ่มงานกิจการนักเรียน (หน้าเปล่า) -->
+                <a href="#" class="menu-item" id="menu-student-affairs" onclick="alert('หน้างานกิจการนักเรียนกำลังอยู่ระหว่างการพัฒนา'); return false;">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <span>งานกิจการนักเรียน</span>
+                </a>
                 <div class="menu-separator"></div>
             </nav>
 
@@ -605,29 +603,12 @@
                     </div>
                 </div>
                 
-                <div class="card p-0" style="margin-top: 20px;">
-                    <div style="overflow-x: auto;">
-                        <table class="data-table at-risk-table">
-                            <thead id="at-risk-table-head">
-                                <tr>
-                                    <th width="15%">สถิติ (ขาด/สาย)</th>
-                                    <th>ข้อมูลนักเรียน (ชั้น/รหัส/ชื่อ)</th>
-                                    <th style="width: 1%; white-space: nowrap; padding: 0 10px;">เอกสาร</th>
-                                    <th style="width: 1%; white-space: nowrap; padding: 0 10px;">ครูที่ปรึกษา</th>
-                                    <th style="width: 1%; white-space: nowrap; padding: 0 10px;">หัวหน้ากิจการฯ</th>
-                                </tr>
-                            </thead>
-                            <tbody id="at-risk-table-body">
-                                <tr>
-                                    <td colspan="5" style="text-align: center; padding: 30px;">
-                                        <div class="empty-state" style="color: var(--text-muted);">
-                                            <i class="fa-solid fa-spinner fa-spin" style="font-size: 30px; margin-bottom: 10px;"></i>
-                                            <p>กำลังประมวลผลข้อมูลนักเรียนที่ต้องติดตาม...</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+                <div id="at-risk-container" style="display: flex; flex-direction: column; gap: 12px; margin-top: 20px;">
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 40px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <div class="empty-state" style="color: var(--text-muted);">
+                            <i class="fa-solid fa-spinner fa-spin" style="font-size: 30px; margin-bottom: 10px;"></i>
+                            <p>กำลังประมวลผลข้อมูลนักเรียนที่ต้องติดตาม...</p>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -891,7 +872,7 @@
     </div>
 
     <!-- 5.5. หน้าต่างสำหรับเซ็นลายเซ็นอิเล็กทรอนิกส์ (E-Signature Pad) -->
-    <div id="modal-signature" class="modal-overlay" style="z-index: 2100;">
+    <div id="modal-signature" class="modal-overlay" style="z-index: 2300;">
         <div class="modal-box" style="max-width: 500px; padding: 20px;">
             <div class="modal-header">
                 <h2 id="signature-modal-title">เซ็นลายเซ็น</h2>
@@ -1010,32 +991,31 @@
 
     <!-- 8. Modal Document Preview -->
     <div id="modal-document-preview" class="modal-overlay">
-        <div class="modal-box" style="max-width: 800px; padding: 0; background: #f3f4f6; overflow: hidden; display: flex; flex-direction: column; max-height: 90vh;">
+        <div class="modal-box" style="max-width: 800px; padding: 0; background: #f3f4f6; overflow: hidden; display: flex; flex-direction: column; max-height: 85dvh; margin: 20px 10px;">
             <div class="modal-header" style="background: #fff; padding: 15px 20px; border-bottom: 1px solid #e5e7eb;">
                 <h3 id="preview-modal-title" style="margin: 0; font-size: 1.25rem;">ตัวอย่างเอกสาร</h3>
                 <button class="modal-close-btn" onclick="closeDocumentPreview()"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
-            <div class="modal-body" style="padding: 20px; text-align: center; overflow-y: auto; flex: 1;">
-                <!-- A4 Paper Container -->
-                <div id="document-print-area" style="background: white; padding: 40px; margin: 0 auto; max-width: 210mm; min-height: 297mm; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: left; position: relative; color: #000;">
-                    <!-- Content will be injected here -->
+            <div class="modal-body" style="padding: 20px 0; text-align: center; overflow: auto; flex: 1; background: #f8fafc;">
+                <div style="display: inline-block; padding: 10px; min-width: max-content;">
+                    <!-- A4 Paper Container -->
+                    <div id="document-print-area" style="background: white; padding: 40px; margin: 0 auto; width: 210mm; min-height: 297mm; box-shadow: 0 4px 15px rgba(0,0,0,0.08); text-align: left; position: relative; color: #000;">
+                        <!-- Content will be injected here -->
+                    </div>
                 </div>
             </div>
             
-            <div class="modal-footer" style="background: #fff; padding: 15px 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
-                <button class="btn btn-secondary" onclick="closeDocumentPreview()"><i class="fa-solid fa-xmark"></i> ปิด</button>
-                <div>
-                    <button class="btn btn-primary" id="btn-open-signature" onclick="openSignatureFromPreview()" style="margin-right: 10px;">
-                        <i class="fa-solid fa-pen-nib"></i> กดเพื่อเซ็นชื่อ
-                    </button>
-                    <button class="btn btn-primary" id="btn-save-signature" onclick="saveDocumentData()" style="margin-right: 10px; display: none;">
-                        <i class="fa-solid fa-floppy-disk"></i> บันทึกลายเซ็นลงระบบ
-                    </button>
-                    <button class="btn btn-success" id="btn-print-pdf" onclick="printDocument()">
-                        <i class="fa-solid fa-print"></i> พิมพ์ / บันทึกเป็น PDF
-                    </button>
-                </div>
+            <div class="modal-footer" style="background: #fff; padding: 15px 20px; border-top: 1px solid #e5e7eb; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; padding-bottom: max(15px, env(safe-area-inset-bottom));">
+                <button class="btn btn-primary" id="btn-open-signature" onclick="openTeacherModalFromPreview()" style="flex: 1; min-width: 140px;">
+                    <i class="fa-solid fa-pen-nib"></i> เปลี่ยน/เซ็น
+                </button>
+                <button class="btn btn-primary" id="btn-save-signature" onclick="saveDocumentData()" style="display: none; flex: 1; min-width: 140px;">
+                    <i class="fa-solid fa-floppy-disk"></i> บันทึกลายเซ็นลงระบบ
+                </button>
+                <button class="btn btn-success" id="btn-print-pdf" onclick="printDocument()" style="flex: 1; min-width: 140px;">
+                    <i class="fa-solid fa-print"></i> พิมพ์ / บันทึกเป็น PDF
+                </button>
             </div>
         </div>
     </div>
@@ -1055,7 +1035,7 @@
                 <div class="form-group" style="margin-bottom: 15px;" id="group-action-hr">
                     <label>ครูที่ปรึกษา</label>
                     <div style="display: flex; gap: 10px;">
-                        <select id="action-hr-select" class="form-control" style="flex: 1;">
+                        <select id="action-hr-select" class="form-control" style="flex: 1;" onchange="handleTeacherSelectChange('hr')">
                             <!-- options generated by JS -->
                         </select>
                         <button class="btn btn-outline" onclick="openTeacherSignature('hr')" style="padding: 0 15px;">
@@ -1073,7 +1053,7 @@
                 <div class="form-group" style="margin-bottom: 25px;" id="group-action-sa">
                     <label>หัวหน้ากิจการนักเรียน</label>
                     <div style="display: flex; gap: 10px;">
-                        <select id="action-sa-select" class="form-control" style="flex: 1;">
+                        <select id="action-sa-select" class="form-control" style="flex: 1;" onchange="handleTeacherSelectChange('sa')">
                             <!-- options generated by JS -->
                         </select>
                         <button class="btn btn-outline" onclick="openTeacherSignature('sa')" style="padding: 0 15px;">
@@ -1088,13 +1068,9 @@
                     </div>
                 </div>
                 
-                <div class="form-actions" style="justify-content: space-between; display: flex; gap: 10px;">
-
-                    <button class="btn btn-primary" onclick="saveAtRiskTeachers()" style="flex: 1; background-color: var(--color-primary); color: white;">
-                        <i class="fa-solid fa-floppy-disk"></i> บันทึกชื่อ
-                    </button>
-                    <button class="btn btn-success" onclick="previewAtRiskDocument()" style="flex: 1.5;">
-                        <i class="fa-regular fa-file-lines"></i> พรีวิว / เซ็น
+                <div class="form-actions" style="justify-content: center; display: flex; gap: 10px;">
+                    <button class="btn btn-primary" onclick="previewAtRiskDocument()" style="flex: 1;">
+                        <i class="fa-solid fa-floppy-disk"></i> บันทึก
                     </button>
                 </div>
             </div>

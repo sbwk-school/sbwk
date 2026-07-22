@@ -2648,6 +2648,192 @@ async function addHoliday() {
 /**
  * 11. ฟังก์ชันเปลี่ยนหน้า (SPA View Switcher)
  */
+window.handleNoticeClick = function(studentId, fullName, gradeRoom, docType, fullDocType) {
+    // 1. Check if already logged in (Admin or Teacher)
+    let currentRole = null;
+    let currentName = "";
+    
+    if (authenticatedAdminPin) {
+        // Admin or SA logged in
+        currentRole = "ADMIN";
+    } else if (loggedInUser) {
+        // Teacher logged in (from checking attendance)
+        currentRole = loggedInUser.role;
+        currentName = loggedInUser.name;
+    }
+    
+    // 2. If logged in, proceed directly
+    if (currentRole) {
+        processNoticeClick(studentId, fullName, gradeRoom, docType, fullDocType, currentRole, currentName);
+    } else {
+        // 3. If not logged in, request login
+        requestLogin("ANY", (pin, name, role) => {
+            processNoticeClick(studentId, fullName, gradeRoom, docType, fullDocType, role, name);
+        });
+    }
+};
+
+function processNoticeClick(studentId, fullName, gradeRoom, docType, fullDocType, role, name) {
+    const backendKey = `${studentId}|${docType}|ครั้งที่${fullDocType.split('_ครั้งที่')[1] || '1'}`;
+    
+    let savedHr = "";
+    let savedSa = "";
+    if (atRiskTeachersCache && atRiskTeachersCache[backendKey]) {
+        savedHr = atRiskTeachersCache[backendKey].hr || "";
+        savedSa = atRiskTeachersCache[backendKey].sa || "";
+    }
+    
+    // ข้ามไปพรีวิวทันที ถ้ามีชื่อครูที่ปรึกษาแล้ว
+    if (savedHr) {
+        currentSigningStudent = {
+            studentId: studentId,
+            fullName: fullName,
+            gradeRoom: gradeRoom,
+            docType: docType,
+            fullDocType: fullDocType,
+            documentType: fullDocType,
+            backendKey: backendKey,
+            homeroomTeacher: savedHr,
+            headOfStudentAffairs: savedSa,
+            hrSign: atRiskTeachersCache[backendKey] ? (atRiskTeachersCache[backendKey].hrSign || "") : "",
+            saSign: atRiskTeachersCache[backendKey] ? (atRiskTeachersCache[backendKey].saSign || "") : ""
+        };
+        openDocumentPreview(currentSigningStudent);
+    } else {
+        // เปิดหน้าเลือกครู
+        openNoticeActionModal(studentId, fullName, gradeRoom, docType, fullDocType, role, backendKey);
+    }
+}
+
+window.handleTeacherSelectChange = function(role) {
+    const selectEl = document.getElementById(`action-${role}-select`);
+    if (!selectEl) return;
+    const teacherName = selectEl.value;
+    if (!teacherName) {
+        if (role === 'hr') {
+            window.tempHrSign = "";
+            document.getElementById("hr-signature-preview-container").style.display = "none";
+            document.getElementById("hr-signature-preview").src = "";
+        } else {
+            window.tempSaSign = "";
+            document.getElementById("sa-signature-preview-container").style.display = "none";
+            document.getElementById("sa-signature-preview").src = "";
+        }
+        return;
+    }
+
+    let foundSignature = "";
+    if (atRiskTeachersCache) {
+        for (const key in atRiskTeachersCache) {
+            const item = atRiskTeachersCache[key];
+            if (role === 'hr' && item.hr === teacherName && item.hrSign) {
+                foundSignature = item.hrSign;
+                break;
+            }
+            if (role === 'sa' && item.sa === teacherName && item.saSign) {
+                foundSignature = item.saSign;
+                break;
+            }
+        }
+    }
+
+    if (foundSignature) {
+        if (role === 'hr') {
+            window.tempHrSign = foundSignature;
+            document.getElementById("hr-signature-preview").src = foundSignature;
+            document.getElementById("hr-signature-preview-container").style.display = "block";
+        } else {
+            window.tempSaSign = foundSignature;
+            document.getElementById("sa-signature-preview").src = foundSignature;
+            document.getElementById("sa-signature-preview-container").style.display = "block";
+        }
+    } else {
+        if (role === 'hr') {
+            window.tempHrSign = "";
+            document.getElementById("hr-signature-preview-container").style.display = "none";
+            document.getElementById("hr-signature-preview").src = "";
+        } else {
+            window.tempSaSign = "";
+            document.getElementById("sa-signature-preview-container").style.display = "none";
+            document.getElementById("sa-signature-preview").src = "";
+        }
+    }
+};
+
+window.openNoticeActionModal = function(studentId, fullName, gradeRoom, docType, fullDocType, role, backendKey) {
+    currentSigningStudent = { studentId, fullName, gradeRoom, docType, fullDocType, backendKey };
+    
+    document.getElementById("at-risk-action-title").innerText = `รายชื่อลงนาม`;
+    document.getElementById("at-risk-action-subtitle").style.display = "none";
+    document.getElementById("at-risk-action-subtitle").innerText = ``;
+    
+    // แสดงทั้ง 2 Dropdown
+    document.getElementById("group-action-hr").style.display = "block";
+    document.getElementById("group-action-sa").style.display = "block";
+    
+    let teacherOptions = '<option value="">- เลือกครู -</option>';
+    if (typeof users !== 'undefined') {
+        users.forEach(u => {
+            teacherOptions += `<option value="${u.name}">${u.name}</option>`;
+        });
+    }
+    
+    const hrSelect = document.getElementById("action-hr-select");
+    const saSelect = document.getElementById("action-sa-select");
+    hrSelect.innerHTML = teacherOptions;
+    saSelect.innerHTML = teacherOptions;
+    
+    let savedHr = "";
+    let savedSa = "";
+    window.tempHrSign = "";
+    window.tempSaSign = "";
+    
+    if (atRiskTeachersCache && atRiskTeachersCache[backendKey]) {
+        savedHr = atRiskTeachersCache[backendKey].hr || "";
+        savedSa = atRiskTeachersCache[backendKey].sa || "";
+        window.tempHrSign = atRiskTeachersCache[backendKey].hrSign || "";
+        window.tempSaSign = atRiskTeachersCache[backendKey].saSign || "";
+    }
+    
+    if (savedHr) hrSelect.value = savedHr;
+    if (savedSa) saSelect.value = savedSa;
+    
+    // สิทธิ์การเลือกชื่อครู (Role-based Blocking)
+    if (role === 'ครูที่ปรึกษา' || role === 'ครูผู้สอน') {
+        saSelect.disabled = true;
+        saSelect.title = "คุณไม่มีสิทธิ์เปลี่ยนชื่อหัวหน้ากิจการนักเรียน";
+    } else {
+        saSelect.disabled = false;
+        saSelect.title = "";
+    }
+    
+    // แสดงลายเซ็นถ้ามี
+    const hrPreview = document.getElementById("hr-signature-preview");
+    const hrContainer = document.getElementById("hr-signature-preview-container");
+    if (window.tempHrSign) {
+        hrPreview.src = window.tempHrSign;
+        hrContainer.style.display = "block";
+    } else {
+        hrContainer.style.display = "none";
+        hrPreview.src = "";
+    }
+    
+    const saPreview = document.getElementById("sa-signature-preview");
+    const saContainer = document.getElementById("sa-signature-preview-container");
+    if (window.tempSaSign) {
+        saPreview.src = window.tempSaSign;
+        saContainer.style.display = "block";
+    } else {
+        saContainer.style.display = "none";
+        saPreview.src = "";
+    }
+    
+    if (!window.tempHrSign && hrSelect.value) handleTeacherSelectChange('hr');
+    if (!window.tempSaSign && saSelect.value) handleTeacherSelectChange('sa');
+    
+    document.getElementById("modal-at-risk-action").classList.add("active");
+};
+
 window.jumpToTracking = function(room) {
     const roomFilterSelect = document.getElementById('at-risk-room-filter');
     if (roomFilterSelect) {
@@ -2773,13 +2959,15 @@ window.toggleSubMenu = function(headerElement) {
  * ดึงและแสดงข้อมูลนักเรียนกลุ่มเสี่ยง
  */
 window.renderAtRiskStudents = async function() {
-    const tbody = document.getElementById("at-risk-table-body");
+    const container = document.getElementById("at-risk-container");
     const badge = document.getElementById("at-risk-badge");
     
-    tbody.innerHTML = '<tr><td colspan="5" class="txt-center" style="padding: 30px;"><div class="empty-state" style="color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin" style="font-size: 30px; margin-bottom: 10px;"></i><p>กำลังโหลดและคำนวณข้อมูล...</p></div></td></tr>';
+    if (!container) return; // Add null check
+    
+    container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);"><div class="empty-state" style="color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin" style="font-size: 30px; margin-bottom: 10px;"></i><p>กำลังโหลดและคำนวณข้อมูล...</p></div></div>';
     
     if (!config.scriptUrl) {
-        tbody.innerHTML = '<tr><td colspan="5" class="txt-center" style="padding: 30px;">โปรดตั้งค่าลิงก์ Apps Script ก่อน</td></tr>';
+        container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; background: white; border-radius: 12px;">โปรดตั้งค่าลิงก์ Apps Script ก่อน</div>';
         return;
     }
     
@@ -2797,11 +2985,11 @@ window.renderAtRiskStudents = async function() {
                 }
                 if (typeof updateAtRiskNoticeInTab === 'function') updateAtRiskNoticeInTab();
             } else {
-                tbody.innerHTML = `<tr><td colspan="5" class="txt-center">ดึงข้อมูลไม่สำเร็จ: ${data.message}</td></tr>`;
+                container.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; padding: 40px; background: white; border-radius: 12px;">ดึงข้อมูลไม่สำเร็จ: ${data.message}</div>`;
                 return;
             }
         } catch (e) {
-            tbody.innerHTML = '<tr><td colspan="5" class="txt-center">เกิดข้อผิดพลาดในการโหลดข้อมูลสถิติ</td></tr>';
+            container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; background: white; border-radius: 12px;">เกิดข้อผิดพลาดในการโหลดข้อมูลสถิติ</div>';
             return;
         }
     }
@@ -2853,7 +3041,7 @@ window.renderAtRiskStudents = async function() {
     
     // 4. แสดงผล
     if (atRiskList.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 30px;"><div class="empty-state"><i class="fa-solid fa-circle-check" style="font-size: 40px; color: var(--color-present); margin-bottom: 10px;"></i><p>ไม่มีนักเรียนกลุ่มเสี่ยงที่ค้างดำเนินการยอดเยี่ยมมากครับ!</p></div></td></tr>';
+        container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 50px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);"><div class="empty-state"><i class="fa-solid fa-circle-check" style="font-size: 40px; color: var(--color-present); margin-bottom: 10px;"></i><p>ไม่มีนักเรียนกลุ่มเสี่ยงที่ค้างดำเนินการ<br>ยอดเยี่ยมมากครับ!</p></div></div>';
         return;
     }
     
@@ -2901,7 +3089,7 @@ window.renderAtRiskStudents = async function() {
         return a.studentId.localeCompare(b.studentId);
     });
     
-    tbody.innerHTML = "";
+    container.innerHTML = "";
     
     let teacherOptions = '<option value="">- เลือกครู -</option>';
     if (typeof users !== 'undefined') {
@@ -2915,99 +3103,114 @@ window.renderAtRiskStudents = async function() {
         let docType = "";
         let noticeCount = 1;
         
-        const badgeBaseStyle = "padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 13px; display: inline-block; margin-right: 4px;";
-        const absentHighStyle = badgeBaseStyle + " background-color: #fee2e2; color: #b91c1c;"; // red
-        const absentMedStyle = badgeBaseStyle + " background-color: #ffedd5; color: #c2410c;"; // orange
-        const absentLowStyle = badgeBaseStyle + " background-color: #fef9c3; color: #a16207;"; // yellow
+        const statBaseStyle = "display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: 500; background: white;";
         
-        const lateHighStyle = badgeBaseStyle + " background-color: #f3e8ff; color: #7e22ce;"; // purple
-        const lateMedStyle = badgeBaseStyle + " background-color: #e0f2fe; color: #0369a1;"; // blue
-        const lateLowStyle = badgeBaseStyle + " background-color: #f1f5f9; color: #475569;"; // slate
+        if (s.absent >= 9) statsText += `<div style="${statBaseStyle} border: 1px solid #fee2e2; color: #b91c1c;"><span>ขาด</span> <strong style="font-size: 16px;">${s.absent}</strong></div>`;
+        else if (s.absent >= 6) statsText += `<div style="${statBaseStyle} border: 1px solid #ffedd5; color: #c2410c;"><span>ขาด</span> <strong style="font-size: 16px;">${s.absent}</strong></div>`;
+        else if (s.absent >= 3) statsText += `<div style="${statBaseStyle} border: 1px solid #fef9c3; color: #a16207;"><span>ขาด</span> <strong style="font-size: 16px;">${s.absent}</strong></div>`;
         
-        if (s.absent >= 9) { statsText += `<span style="${absentHighStyle}">ขาด ${s.absent} วัน</span>`; docType = "ป.ค.9"; noticeCount = 3; }
-        else if (s.absent >= 6) { statsText += `<span style="${absentMedStyle}">ขาด ${s.absent} วัน</span>`; docType = "ป.ค.9"; noticeCount = 2; }
-        else if (s.absent >= 3) { statsText += `<span style="${absentLowStyle}">ขาด ${s.absent} วัน</span>`; docType = "ป.ค.9"; noticeCount = 1; }
-        
-        if (s.late >= 8) { statsText += `<span style="${lateHighStyle}">สาย ${s.late} ครั้ง</span>`; if(!docType) { docType = "ป.ค.8"; noticeCount = 3; } }
-        else if (s.late >= 5) { statsText += `<span style="${lateMedStyle}">สาย ${s.late} ครั้ง</span>`; if(!docType) { docType = "ป.ค.8"; noticeCount = 2; } }
-        else if (s.late >= 3) { statsText += `<span style="${lateLowStyle}">สาย ${s.late} ครั้ง</span>`; if(!docType) { docType = "ป.ค.8"; noticeCount = 1; } }
+        if (s.late >= 8) statsText += `<div style="${statBaseStyle} border: 1px solid #f3e8ff; color: #7e22ce;"><span>สาย</span> <strong style="font-size: 16px;">${s.late}</strong></div>`;
+        else if (s.late >= 5) statsText += `<div style="${statBaseStyle} border: 1px solid #e0f2fe; color: #0369a1;"><span>สาย</span> <strong style="font-size: 16px;">${s.late}</strong></div>`;
+        else if (s.late >= 3) statsText += `<div style="${statBaseStyle} border: 1px solid #f1f5f9; color: #475569;"><span>สาย</span> <strong style="font-size: 16px;">${s.late}</strong></div>`;
 
-        const fullDocType = `${docType}_ครั้งที่${noticeCount}`;
-        const storageKey = `${s.studentId}_${fullDocType}`;
+        let eligibleDocs = [];
+        if (s.absent >= 3) eligibleDocs.push({ type: "ป.ค.9", count: 1 });
+        if (s.absent >= 6) eligibleDocs.push({ type: "ป.ค.9", count: 2 });
+        if (s.absent >= 9) eligibleDocs.push({ type: "ป.ค.9", count: 3 });
+        
+        if (s.late >= 3) eligibleDocs.push({ type: "ป.ค.8", count: 1 });
+        if (s.late >= 5) eligibleDocs.push({ type: "ป.ค.8", count: 2 });
+        if (s.late >= 8) eligibleDocs.push({ type: "ป.ค.8", count: 3 });
 
-        // เช็คสถานะการเซ็น
-        const existingDoc = documentsData.find(d => d.studentId === s.studentId && d.documentType === fullDocType);
-        const isSigned = (existingDoc && existingDoc.signatureBase64) ? true : false;
+        let buttonsHtmlInner = '';
         
-        // ดึงค่าที่บันทึกไว้จาก cache ของ Google Sheets (ข้อมูลสดตอนโหลดเพจ)
-        let savedHr = "";
-        let savedSa = "";
-        
-        // ให้ได้คีย์แบบ: รหัส|เอกสาร|ครั้งที่1 (เช่น 4879|ป.ค.9|ครั้งที่1)
-        const backendKey = `${s.studentId}|${docType}|ครั้งที่${fullDocType.split('_ครั้งที่')[1] || '1'}`;
-        
-        if (atRiskTeachersCache && atRiskTeachersCache[backendKey]) {
-            savedHr = atRiskTeachersCache[backendKey].hr || "";
-            savedSa = atRiskTeachersCache[backendKey].sa || "";
-        }
-
-        // คำนวณสถานะปุ่ม HR
-        let hrBtnClass = "btn-secondary";
-        let hrBtnStyle = "width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;";
-        let hrBtnText = "รอดำเนินการ";
-        let hrIcon = "fa-user-plus";
-        if (savedHr) {
-            if (isSigned) {
-                hrBtnClass = "btn-success";
-                hrBtnText = "เสร็จแล้ว";
-                hrIcon = "fa-circle-check";
-            } else {
-                hrBtnClass = "";
-                hrBtnStyle += " background-color: #f59e0b; color: white; border: none;";
-                hrBtnText = "รอดำเนินการ";
-                hrIcon = "fa-user-check";
+        eligibleDocs.forEach(doc => {
+            const docType = doc.type;
+            const noticeCount = doc.count;
+            const fullDocType = `${docType}_ครั้งที่${noticeCount}`;
+            const backendKey = `${s.studentId}|${docType}|ครั้งที่${noticeCount}`;
+            
+            // เช็คสถานะผู้ปกครองเซ็น
+            const existingDoc = documentsData.find(d => d.studentId === s.studentId && d.documentType === fullDocType);
+            const isParentSigned = (existingDoc && existingDoc.signatureBase64) ? true : false;
+            
+            // เช็คสถานะครูลงชื่อ
+            let savedHr = "";
+            let savedSa = "";
+            if (atRiskTeachersCache && atRiskTeachersCache[backendKey]) {
+                savedHr = atRiskTeachersCache[backendKey].hr || "";
+                savedSa = atRiskTeachersCache[backendKey].sa || "";
             }
-        }
-
-        // คำนวณสถานะปุ่ม SA
-        let saBtnClass = "btn-secondary";
-        let saBtnStyle = "width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;";
-        let saBtnText = "รอดำเนินการ";
-        let saIcon = "fa-user-plus";
-        if (savedSa) {
-            if (isSigned) {
-                saBtnClass = "btn-success";
-                saBtnText = "เสร็จแล้ว";
-                saIcon = "fa-circle-check";
+            
+            // ลอจิกสีและข้อความ
+            let btnStyle = "flex: 1 1 auto; justify-content: center; white-space: nowrap; padding: 6px 14px; border-radius: 20px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; transition: transform 0.2s;";
+            let btnClass = "btn";
+            let btnText = "";
+            let icon = "";
+            
+            if (isParentSigned) {
+                btnStyle += " background-color: #3b82f6; color: white; border: none; box-shadow: 0 4px 10px rgba(59,130,246,0.3);";
+                btnText = `ครั้งที่ ${noticeCount}`;
+                icon = "fa-check-circle";
+            } else if (savedHr && savedSa) {
+                btnStyle += " background-color: #a855f7; color: white; border: none; box-shadow: 0 4px 10px rgba(168,85,247,0.3);";
+                btnText = `ครั้งที่ ${noticeCount}`;
+                icon = "fa-clock";
+            } else if (savedHr) {
+                btnStyle += " background-color: #facc15; color: #713f12; border: none; box-shadow: 0 4px 10px rgba(250,204,21,0.3);";
+                btnText = `ครั้งที่ ${noticeCount}`;
+                icon = "fa-user-shield";
+            } else if (savedSa) {
+                btnStyle += " background-color: #f97316; color: white; border: none; box-shadow: 0 4px 10px rgba(249,115,22,0.3);";
+                btnText = `ครั้งที่ ${noticeCount}`;
+                icon = "fa-user-pen";
             } else {
-                saBtnClass = "";
-                saBtnStyle += " background-color: #f59e0b; color: white; border: none;";
-                saBtnText = "รอดำเนินการ";
-                saIcon = "fa-user-check";
+                btnStyle += " background-color: white; color: #475569; border: 1px solid #cbd5e1;";
+                btnText = `ครั้งที่ ${noticeCount}`;
+                icon = "fa-file-signature";
             }
-        }
+            
+            buttonsHtmlInner += `<button class="${btnClass}" style="${btnStyle}" onclick="handleNoticeClick('${s.studentId}', '${s.fullName}', '${s.grade}/${s.room}', '${docType}', '${fullDocType}')">
+                <i class="fa-solid ${icon}"></i> ${btnText}
+            </button>`;
+        });
 
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-            <td>${statsText}</td>
-            <td>${s.grade}/${s.room} - ${s.studentId} - <strong>${s.fullName}</strong></td>
-            <td>
-                <button class="btn btn-sm btn-outline" style="white-space: nowrap;" onclick="openPreviewDirectly('${s.studentId}', '${s.fullName}', '${s.grade}/${s.room}', '${docType}', '${fullDocType}')">
-                    <i class="fa-solid fa-file-lines"></i> พรีวิว
-                </button>
-            </td>
-            <td>
-                <button class="btn btn-sm ${hrBtnClass}" onclick="openAtRiskActionModal('${s.studentId}', '${s.fullName}', '${s.grade}/${s.room}', '${docType}', '${fullDocType}', 'hr')" style="${hrBtnStyle}">
-                    <i class="fa-solid ${hrIcon}"></i> ${hrBtnText}
-                </button>
-            </td>
-            <td>
-                <button class="btn btn-sm ${saBtnClass}" onclick="openAtRiskActionModal('${s.studentId}', '${s.fullName}', '${s.grade}/${s.room}', '${docType}', '${fullDocType}', 'sa')" style="${saBtnStyle}">
-                    <i class="fa-solid ${saIcon}"></i> ${saBtnText}
-                </button>
-            </td>
+        const card = document.createElement("div");
+        card.className = "room-card";
+        card.style.marginBottom = "0";
+        card.style.cursor = "default";
+        card.style.background = "linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(255, 255, 255, 0.6) 100%)";
+        card.style.border = "1px solid rgba(239, 68, 68, 0.2)";
+        card.style.boxShadow = "0 4px 12px rgba(0,0,0,0.03)";
+        card.style.padding = "14px 20px";
+        
+        card.innerHTML = `
+            <div class="room-card-layout" style="flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center;">
+                
+                <div style="display: flex; flex-wrap: nowrap; gap: 8px; align-items: center; flex: 1 1 250px; overflow: hidden; min-width: 0;">
+                    <div class="room-card-info" style="flex: 0 0 auto; gap: 8px; margin-right: 0; align-items: center;">
+                        <div style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: rgba(239, 68, 68, 0.1); border-radius: 50%; color: #dc2626; font-size: 14px;">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <h3 class="room-card-title" style="min-width: 40px; font-size: 14px;">${s.grade}/${s.room}</h3>
+                        <div class="room-card-count desktop-only" style="min-width: 40px; font-size: 13px;">${s.studentId}</div>
+                    </div>
+                    
+                    <div style="font-weight: 700; font-size: 14px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto;">
+                        ${s.fullName}
+                    </div>
+                    
+                    <div class="room-stats-pills" style="margin-top: 0; width: max-content; display: inline-flex; flex: 0 0 auto; gap: 8px; justify-content: flex-start; background: rgba(255,255,255,0.5); padding: 2px 6px; border-radius: 20px;">
+                        ${statsText}
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; flex: 1 0 auto;">
+                    ${buttonsHtmlInner}
+                </div>
+            </div>
         `;
-        tbody.appendChild(tr);
+        container.appendChild(card);
     });
 };
 
@@ -3023,13 +3226,15 @@ window.openPreviewDirectly = function(studentId, fullName, gradeRoom, docType, f
     };
     
     const backendKey = currentSigningStudent.backendKey;
-    let saved = { hr: "", sa: "" };
+    let saved = { hr: "", sa: "", hrSign: "", saSign: "" };
     if (atRiskTeachersCache && atRiskTeachersCache[backendKey]) {
         saved = { ...atRiskTeachersCache[backendKey] };
     }
     
     currentSigningStudent.homeroomTeacher = saved.hr || '...........................................';
     currentSigningStudent.headOfStudentAffairs = saved.sa || '...........................................';
+    currentSigningStudent.hrSign = saved.hrSign;
+    currentSigningStudent.saSign = saved.saSign;
     
     const docToPrint = { ...currentSigningStudent, documentType: currentSigningStudent.fullDocType };
     document.getElementById("modal-at-risk-action").classList.remove("active");
@@ -3037,80 +3242,6 @@ window.openPreviewDirectly = function(studentId, fullName, gradeRoom, docType, f
 };
 
 
-window.openAtRiskActionModal = function(studentId, fullName, gradeRoom, docType, fullDocType, role) {
-    currentSigningStudent = { studentId, fullName, gradeRoom, docType, fullDocType };
-    currentActionRole = role;
-    
-    const roleName = role === 'hr' ? 'ครูที่ปรึกษา' : 'หัวหน้ากิจการนักเรียน';
-    document.getElementById("at-risk-action-title").innerText = `จัดการ${roleName}`;
-    document.getElementById("at-risk-action-subtitle").innerText = `ระบุรายชื่อผู้รับผิดชอบเพื่อพิมพ์ลงในเอกสาร ${docType}`;
-    
-    // แสดง/ซ่อน dropdown
-    if (role === 'hr') {
-        document.getElementById("group-action-hr").style.display = "block";
-        document.getElementById("group-action-sa").style.display = "none";
-    } else {
-        // ของ SA ให้โชว์ทั้งคู่
-        document.getElementById("group-action-hr").style.display = "block";
-        document.getElementById("group-action-sa").style.display = "block";
-    }
-    
-    let teacherOptions = '<option value="">- เลือกครู -</option>';
-    if (typeof users !== 'undefined') {
-        users.forEach(u => {
-            teacherOptions += `<option value="${u.name}">${u.name}</option>`;
-        });
-    }
-    
-    const hrSelect = document.getElementById("action-hr-select");
-    const saSelect = document.getElementById("action-sa-select");
-    hrSelect.innerHTML = teacherOptions;
-    saSelect.innerHTML = teacherOptions;
-    
-    const storageKey = `${studentId}_${fullDocType}`;
-    // ใช้ตัวคั่น | แทน _ เวลาบันทึกจริงเพื่อการจัดเก็บใน Google Sheets แต่ key กั่งเว็บอนุโลมให้เป็น _ หรือ | ก็ได้
-    // ขอปรับ storageKey ให้ตรงกับแบคเอนด์เลยคือ StudentId|DocType|NoticeCount
-    const backendKey = `${studentId}|${docType}|ครั้งที่${fullDocType.split('ครั้งที่')[1] || '1'}`;
-    currentSigningStudent.backendKey = backendKey;
-    
-    let savedHr = "";
-    let savedSa = "";
-    window.tempHrSign = "";
-    window.tempSaSign = "";
-    
-    if (atRiskTeachersCache && atRiskTeachersCache[backendKey]) {
-        savedHr = atRiskTeachersCache[backendKey].hr || "";
-        savedSa = atRiskTeachersCache[backendKey].sa || "";
-        window.tempHrSign = atRiskTeachersCache[backendKey].hrSign || "";
-        window.tempSaSign = atRiskTeachersCache[backendKey].saSign || "";
-    }
-    
-    if (savedHr) hrSelect.value = savedHr;
-    if (savedSa) saSelect.value = savedSa;
-    
-    // แสดงลายเซ็นถ้ามี
-    const hrPreview = document.getElementById("hr-signature-preview");
-    const hrContainer = document.getElementById("hr-signature-preview-container");
-    if (window.tempHrSign) {
-        hrPreview.src = window.tempHrSign;
-        hrContainer.style.display = "block";
-    } else {
-        hrContainer.style.display = "none";
-        hrPreview.src = "";
-    }
-    
-    const saPreview = document.getElementById("sa-signature-preview");
-    const saContainer = document.getElementById("sa-signature-preview-container");
-    if (window.tempSaSign) {
-        saPreview.src = window.tempSaSign;
-        saContainer.style.display = "block";
-    } else {
-        saContainer.style.display = "none";
-        saPreview.src = "";
-    }
-    
-    document.getElementById("modal-at-risk-action").classList.add("active");
-};
 
 window.closeAtRiskActionModal = function() {
     document.getElementById("modal-at-risk-action").classList.remove("active");
@@ -3128,15 +3259,10 @@ window.saveAtRiskTeachers = async function() {
         saved = { ...atRiskTeachersCache[backendKey] };
     }
     
-    if (currentActionRole === 'hr') {
-        saved.hr = hrSelect;
-        saved.hrSign = window.tempHrSign || saved.hrSign;
-    } else {
-        saved.hr = hrSelect;
-        saved.sa = saSelect;
-        saved.hrSign = window.tempHrSign || saved.hrSign;
-        saved.saSign = window.tempSaSign || saved.saSign;
-    }
+    saved.hr = hrSelect;
+    saved.sa = saSelect;
+    saved.hrSign = window.tempHrSign !== undefined ? window.tempHrSign : saved.hrSign;
+    saved.saSign = window.tempSaSign !== undefined ? window.tempSaSign : saved.saSign;
     
     // บันทึกลง Cache เพื่อให้ UI เปลี่ยนทันที
     if (!atRiskTeachersCache) atRiskTeachersCache = {};
@@ -3171,6 +3297,8 @@ window.saveAtRiskTeachers = async function() {
     } else {
         showToast("บันทึกข้อมูลเรียบร้อย (ออฟไลน์)", "success");
     }
+    
+    closeAtRiskActionModal();
 };
 
 window.previewAtRiskDocument = async function() {
@@ -3178,13 +3306,15 @@ window.previewAtRiskDocument = async function() {
     await saveAtRiskTeachers(); // รอให้บันทึกเสร็จก่อนพรีวิว
     
     const backendKey = currentSigningStudent.backendKey;
-    let saved = { hr: "", sa: "" };
+    let saved = { hr: "", sa: "", hrSign: "", saSign: "" };
     if (atRiskTeachersCache && atRiskTeachersCache[backendKey]) {
         saved = { ...atRiskTeachersCache[backendKey] };
     }
     
     currentSigningStudent.homeroomTeacher = saved.hr;
     currentSigningStudent.headOfStudentAffairs = saved.sa;
+    currentSigningStudent.hrSign = saved.hrSign;
+    currentSigningStudent.saSign = saved.saSign;
     
     // ตั้งค่ากลับไปใช้ documentType ธรรมดาสำหรับการพิมพ์ (ป.ค.8 ไม่ใช่ ป.ค.8_ครั้งที่1)
     // แต่ให้เอกสารรู้ว่านี่คือเอกสารที่ดึงมาจาก fullDocType ไหน หากมีการเซ็นจะบันทึกลง fullDocType
@@ -3322,6 +3452,22 @@ window.openSignatureFromPreview = function() {
     document.getElementById("modal-signature").classList.add("active");
 };
 
+window.openTeacherModalFromPreview = function() {
+    closeDocumentPreview();
+    const role = (loggedInUser && loggedInUser.role) ? loggedInUser.role : 
+                 (authenticatedAdminPin ? "ADMIN" : "ANY");
+    
+    openNoticeActionModal(
+        currentSigningStudent.studentId, 
+        currentSigningStudent.fullName, 
+        currentSigningStudent.gradeRoom, 
+        currentSigningStudent.docType, 
+        currentSigningStudent.fullDocType, 
+        role, 
+        currentSigningStudent.backendKey
+    );
+};
+
 window.currentSigningTeacherRole = null;
 
 window.openTeacherSignature = function(role) {
@@ -3343,6 +3489,15 @@ window.clearTeacherSignature = function(role) {
         document.getElementById("sa-signature-preview-container").style.display = "none";
         document.getElementById("sa-signature-preview").src = "";
     }
+};
+
+window.clearSignature = function() {
+    if (!signaturePadCanvas || !signaturePadCtx) return;
+    signaturePadCtx.clearRect(0, 0, signaturePadCanvas.width, signaturePadCanvas.height);
+};
+
+window.closeSignatureModal = function() {
+    document.getElementById("modal-signature").classList.remove("active");
 };
 
 window.saveSignature = function() {
