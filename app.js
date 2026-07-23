@@ -3591,11 +3591,20 @@ window.printDocument = function() {
     // ยัด div ใส่ body
     document.body.appendChild(printWrapper);
     
-    // สั่งปริ้นท์ (CSS จะซ่อนทุกอย่างยกเว้น .print-only-wrapper)
-    window.print();
+    // ซ่อน dock-container ชั่วคราวด้วย JS เพื่อป้องกันบั๊กเบราว์เซอร์มือถือบางรุ่น
+    const dock = document.querySelector('.dock-container');
+    const originalDockDisplay = dock ? dock.style.display : '';
+    if (dock) dock.style.display = 'none';
     
-    // เมื่อปริ้นท์เสร็จหรือยกเลิก ลบ div ชั่วคราวทิ้ง กลับสู่สถานะปกติ
-    document.body.removeChild(printWrapper);
+    // สั่งปริ้นท์ (CSS จะซ่อนทุกอย่างยกเว้น .print-only-wrapper)
+    // ใช้ setTimeout เพื่อให้เบราว์เซอร์ซ่อน dock ก่อนที่ dialog จะบล็อกการทำงาน
+    setTimeout(() => {
+        window.print();
+        
+        // เมื่อปริ้นท์เสร็จหรือยกเลิก ลบ div ชั่วคราวทิ้ง กลับสู่สถานะปกติ
+        document.body.removeChild(printWrapper);
+        if (dock) dock.style.display = originalDockDisplay;
+    }, 100);
 };
 
 function populateStatsRoomDropdown() {

@@ -54,8 +54,8 @@
             line-height: 1.8 !important; /* MS Word 1.5 spacing is roughly 1.8 in CSS */
             color: black !important;
             background: white !important;
-            /* ขอบบน 1cm, ขวา-ล่าง-ซ้าย 2.54cm ตามที่ผู้ใช้ต้องการ */
-            padding: 1cm 2.54cm 2.54cm 2.54cm;
+            /* ขอบบน 1cm, ล่าง 0.5cm, ซ้าย-ขวา 2.54cm เพื่อลดพื้นที่ด้านล่างไม่ให้ตกหน้า */
+            padding: 1cm 2.54cm 0.5cm 2.54cm;
             box-sizing: border-box;
         }
     </style>
@@ -115,7 +115,6 @@
         <!-- Start Menu Toggle (Mac Logo style / School Logo) -->
         <button id="start-menu-btn" class="dock-item start-dock-btn" title="เมนูหลัก">
             <img src="logo.png" alt="Logo">
-            <span class="start-btn-text">เมนู</span>
             <span class="active-dot"></span>
         </button>
         

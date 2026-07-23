@@ -270,8 +270,17 @@ function getPK9Template(studentInfo, signatureHtml, formattedDate) {
             <div>
                 <div style="text-align: center; font-weight: bold;">หนังสือตอบรับ</div>
                 เรื่อง รับทราบสถิติการขาดเรียน (ครั้งที่ ${noticeCountStr})<br>
-                <div style="text-align: justify;">
-                    <span style="display:inline-block; width:2.54cm;"></span>ข้าพเจ้า........................................ เป็นผู้ปกครองของ <span style="font-weight:bold;">${studentInfo.fullName}</span> นักเรียนชั้น <span style="font-weight:bold;">${gradeFormatted}</span> ได้รับทราบหนังสือฉบับนี้เรียบร้อยแล้ว ด้วยความขอบคุณยิ่ง ทั้งนี้ ข้าพเจ้าจะขอติดต่อกลับไปทางโรงเรียน (ครูที่ปรึกษา) เพื่อหารือแนวทางร่วมกัน
+                <div style="text-align: justify; margin-top: 5pt;">
+                    <span style="display:inline-block; width:2.54cm;"></span>ข้าพเจ้า<span style="display:inline-block; width: 5cm; border-bottom: 1px dotted #000; margin: 0 5px;"></span>เป็นผู้ปกครองของ <span style="font-weight:bold;">${studentInfo.fullName}</span> นักเรียนชั้น <span style="font-weight:bold;">${gradeFormatted}</span> ได้รับทราบหนังสือฉบับนี้เรียบร้อยแล้ว ยินดีให้ความร่วมมือกับทางโรงเรียน โดยจะตักเตือนและกวดขันให้นักเรียนในความปกครองได้ประพฤติปฏิบัติตามระเบียบของโรงเรียนทุกประการ
+                </div>
+                <div style="margin-top: 5pt;">
+                    <div style="display: flex; align-items: flex-end; margin-bottom: 8pt;">
+                        <span style="display:inline-block; width:2.54cm;"></span>
+                        <span style="line-height: 1.2;">ขอเรียนชี้แจงให้ทางโรงเรียนทราบเรื่องนักเรียนขาดเรียน ดังนี้</span>
+                        <span style="flex: 1; border-bottom: 1px dotted #000; margin-left: 5px;"></span>
+                    </div>
+                    <div style="border-bottom: 1px dotted #000; height: 18pt; width: 100%; margin-bottom: 8pt;"></div>
+                    <div style="border-bottom: 1px dotted #000; height: 18pt; width: 100%; margin-bottom: 8pt;"></div>
                 </div>
                 
                 <table width="100%" style="margin-top: 8pt;">
