@@ -39,7 +39,7 @@
             }
             
             /* ซ่อนสิ่งที่ไม่อยากให้ลงบน body */
-            #toast-container, .app-container, .fullscreen-overlay, .modal-overlay, .app-header, .dock-container {
+            #toast-container, .app-container, .fullscreen-overlay, .modal-overlay, .app-header, .mac-dock {
                 display: none !important;
             }
         }
@@ -112,9 +112,10 @@
         </button>
         <div class="dock-separator" id="mobile-back-separator" style="display: none;"></div>
         
-        <!-- Start Menu Toggle (Mac Logo style / School Logo) -->
+        <!-- Start Menu Toggle (Mac Logo style / School Logo + Menu text) -->
         <button id="start-menu-btn" class="dock-item start-dock-btn" title="เมนูหลัก">
             <img src="logo.png" alt="Logo">
+            <span class="start-btn-text">เมนู</span>
             <span class="active-dot"></span>
         </button>
         
@@ -583,11 +584,10 @@
             <!-- SECTION 5: ติดตามนักเรียน และ ออกเอกสารทัณฑ์บน (At-Risk Students) -->
             <section id="view-at-risk" class="content-view">
                 <div class="view-header" style="flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center;">
-                    <div style="display: flex; align-items: flex-start; gap: 15px;">
-                        <button onclick="switchView('home')" class="btn-back-to-home" style="margin-top: 5px; background: transparent; border: none; font-size: 22px; color: var(--color-absent); cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" title="กลับหน้าหลัก"><i class="fa-solid fa-arrow-left"></i></button>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <button onclick="switchView('home')" class="btn-back-to-home" style="background: transparent; border: none; font-size: 22px; color: var(--color-absent); cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" title="กลับหน้าหลัก"><i class="fa-solid fa-arrow-left"></i></button>
                         <div>
-                            <h1>รายการติดตามนักเรียน (ค้างดำเนินการ)</h1>
-                            <p class="subtitle">ระบบดึงข้อมูลนักเรียนที่มีสถิติมาสายหรือขาดเรียนเกินเกณฑ์ที่กำหนด</p>
+                            <h1 style="margin: 0;">รายการติดตาม นร</h1>
                         </div>
                     </div>
                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
@@ -872,21 +872,28 @@
 
     <!-- 5.5. หน้าต่างสำหรับเซ็นลายเซ็นอิเล็กทรอนิกส์ (E-Signature Pad) -->
     <div id="modal-signature" class="modal-overlay" style="z-index: 2300;">
-        <div class="modal-box" style="max-width: 500px; padding: 20px;">
-            <div class="modal-header">
-                <h2 id="signature-modal-title">เซ็นลายเซ็น</h2>
+        <div class="modal-box" style="max-width: 440px; padding: 20px 16px;">
+            <div class="modal-header" style="margin-bottom: 12px;">
+                <h2 id="signature-modal-title" style="font-size: 1.15rem; margin: 0;">เซ็นลายเซ็น</h2>
                 <button class="modal-close-btn close-modal-trigger" onclick="closeSignatureModal()"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body" style="text-align: center;">
-                <p style="margin-bottom: 10px; color: var(--text-muted); font-size: 14px;">กรุณาใช้นิ้วหรือเมาส์วาดลายเซ็นในกรอบด้านล่าง</p>
-                <div style="border: 2px dashed var(--border-color); border-radius: 8px; background: #fff; margin-bottom: 15px; position: relative;">
-                    <canvas id="signature-pad" width="400" height="200" style="width: 100%; max-width: 400px; touch-action: none; cursor: crosshair;"></canvas>
+                <p style="margin-bottom: 12px; color: var(--text-muted); font-size: 13px;">กรุณาใช้นิ้วหรือเมาส์วาดลายเซ็นในกรอบด้านล่าง</p>
+                <div style="border: 2px dashed #cbd5e1; border-radius: 12px; background: #fff; margin-bottom: 16px; position: relative; overflow: hidden; box-shadow: inset 0 2px 5px rgba(0,0,0,0.02);">
+                    <canvas id="signature-pad" width="600" height="300" style="width: 100%; height: 180px; touch-action: none; cursor: crosshair; display: block;"></canvas>
+                    <div style="position: absolute; bottom: 25px; left: 8%; right: 8%; border-bottom: 1px dashed #e2e8f0; pointer-events: none;"></div>
                 </div>
-                <div class="form-actions" style="justify-content: space-between; display: flex;">
-                    <button class="btn btn-secondary" onclick="clearSignature()"><i class="fa-solid fa-eraser"></i> ล้างลายเซ็น</button>
-                    <div>
-                        <button class="btn btn-secondary close-modal-trigger" onclick="closeSignatureModal()">ยกเลิก</button>
-                        <button class="btn btn-primary" onclick="saveSignature()"><i class="fa-solid fa-check"></i> ยืนยัน</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: nowrap;">
+                    <button type="button" class="btn btn-secondary" onclick="clearSignature()" style="white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 12px; font-size: 13px; border-radius: 10px; flex-shrink: 0;">
+                        <i class="fa-solid fa-eraser"></i> ล้าง
+                    </button>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
+                        <button type="button" class="btn btn-secondary close-modal-trigger" onclick="closeSignatureModal()" style="white-space: nowrap; padding: 9px 14px; font-size: 13px; border-radius: 10px;">
+                            ยกเลิก
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="saveSignature()" style="white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 16px; font-size: 13px; border-radius: 10px;">
+                            <i class="fa-solid fa-check"></i> ยืนยัน
+                        </button>
                     </div>
                 </div>
             </div>

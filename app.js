@@ -154,27 +154,34 @@ function setLoader(show) {
  */
 function processStudentData(student) {
     let fullName = student.fullName || "";
-    let prefix = "";
-    let firstName = "";
-    let lastName = "";
-    let gender = "1"; // ชาย = 1, หกิง = 2
+    let prefix = student.prefix || "";
+    let firstName = student.firstName || "";
+    let lastName = student.lastName || "";
+    let gender = student.gender ? String(student.gender) : "";
     
     fullName = fullName.replace(/\s+/g, ' ').trim();
     
-    const prefixes = ["ด.ช.", "ด.ก.", "เด็กชาย", "เด็กหกิง", "นาย", "นางสาว", "นาง", "น.ส."];
-    for (let p of prefixes) {
-        if (fullName.startsWith(p)) {
-            prefix = p;
-            let rest = fullName.substring(p.length).trim();
+    const prefixes = [
+        { p: "เด็กหญิง", g: "2" },
+        { p: "เด็กชาย", g: "1" },
+        { p: "นางสาว", g: "2" },
+        { p: "น.ส.", g: "2" },
+        { p: "ด.ญ.", g: "2" },
+        { p: "ด.ญ ", g: "2" },
+        { p: "ด.ช.", g: "1" },
+        { p: "ด.ช ", g: "1" },
+        { p: "นาย", g: "1" },
+        { p: "นาง", g: "2" }
+    ];
+    
+    for (let item of prefixes) {
+        if (fullName.startsWith(item.p)) {
+            prefix = item.p.trim();
+            gender = item.g;
+            let rest = fullName.substring(item.p.length).trim();
             let nameParts = rest.split(' ');
             firstName = nameParts[0] || "";
             lastName = nameParts.slice(1).join(' ') || "";
-            
-            if (p === "ด.ก." || p === "เด็กหกิง" || p === "นางสาว" || p === "นาง" || p === "น.ส.") {
-                gender = "2";
-            } else {
-                gender = "1";
-            }
             break;
         }
     }
@@ -183,6 +190,7 @@ function processStudentData(student) {
         let nameParts = fullName.split(' ');
         firstName = nameParts[0] || "";
         lastName = nameParts.slice(1).join(' ') || "";
+        if (!gender) gender = "1";
     }
     
     student.gender = gender;
@@ -1230,8 +1238,14 @@ function showPreviewSummary() {
         <span class="badge" style="background-color: #faf5ff; color: var(--color-cut);">โดด: ${summary.Cut}</span>
     `;
     
-    const maleList = attendanceRecords.filter(r => r.gender === "1");
-    const femaleList = attendanceRecords.filter(r => r.gender === "2");
+    const isFemale = (r) => {
+        if (r.gender === "2" || r.gender === 2) return true;
+        const name = r.fullName || "";
+        return name.startsWith("ด.ญ.") || name.startsWith("เด็กหญิง") || name.startsWith("นางสาว") || name.startsWith("น.ส.") || name.startsWith("นาง");
+    };
+    
+    const maleList = attendanceRecords.filter(r => !isFemale(r));
+    const femaleList = attendanceRecords.filter(r => isFemale(r));
     
     const renderGenderList = (list, containerId) => {
         const container = document.getElementById(containerId);
@@ -3098,7 +3112,7 @@ window.renderAtRiskStudents = async function() {
         });
     }
     
-    filteredList.forEach(s => {
+    filteredList.forEach((s, index) => {
         let statsText = "";
         let docType = "";
         let noticeCount = 1;
@@ -3189,8 +3203,8 @@ window.renderAtRiskStudents = async function() {
                 
                 <div style="display: flex; flex-wrap: nowrap; gap: 8px; align-items: center; flex: 1 1 250px; overflow: hidden; min-width: 0;">
                     <div class="room-card-info" style="flex: 0 0 auto; gap: 8px; margin-right: 0; align-items: center;">
-                        <div style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: rgba(239, 68, 68, 0.1); border-radius: 50%; color: #dc2626; font-size: 14px;">
-                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        <div style="display: flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; background: rgba(239, 68, 68, 0.12); border-radius: 50%; color: #dc2626; font-size: 13px; font-weight: 700;">
+                            ${index + 1}
                         </div>
                         <h3 class="room-card-title" style="min-width: 40px; font-size: 14px;">${s.grade}/${s.room}</h3>
                         <div class="room-card-count desktop-only" style="min-width: 40px; font-size: 13px;">${s.studentId}</div>
@@ -3332,6 +3346,22 @@ let signaturePadCtx = null;
 let isDrawingSignature = false;
 let currentSigningStudent = null;
 
+function getCanvasPoint(e) {
+    if (!signaturePadCanvas) return { x: 0, y: 0 };
+    const rect = signaturePadCanvas.getBoundingClientRect();
+    const clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
+    const clientY = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
+    
+    // คำนวณ scale factor ป้องกันปัญหานิ้วจิ้มไม่ตรงจุดบนหน้าจอมือถือ/แท็บเล็ต
+    const scaleX = rect.width > 0 ? (signaturePadCanvas.width / rect.width) : 1;
+    const scaleY = rect.height > 0 ? (signaturePadCanvas.height / rect.height) : 1;
+    
+    return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY
+    };
+}
+
 function initSignaturePad() {
     signaturePadCanvas = document.getElementById("signature-pad");
     if (!signaturePadCanvas) return;
@@ -3339,46 +3369,55 @@ function initSignaturePad() {
     signaturePadCtx = signaturePadCanvas.getContext("2d");
     signaturePadCtx.lineWidth = 3;
     signaturePadCtx.lineCap = "round";
+    signaturePadCtx.lineJoin = "round";
     signaturePadCtx.strokeStyle = "#000080"; // หมึกน้ำเงินเข้ม
+    
+    if (signaturePadCanvas.dataset.bound === 'true') return;
+    signaturePadCanvas.dataset.bound = 'true';
     
     // Mouse events
     signaturePadCanvas.addEventListener("mousedown", (e) => {
         isDrawingSignature = true;
-        const rect = signaturePadCanvas.getBoundingClientRect();
+        const pt = getCanvasPoint(e);
         signaturePadCtx.beginPath();
-        signaturePadCtx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+        signaturePadCtx.moveTo(pt.x, pt.y);
     });
     
     signaturePadCanvas.addEventListener("mousemove", (e) => {
         if (!isDrawingSignature) return;
-        const rect = signaturePadCanvas.getBoundingClientRect();
-        signaturePadCtx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+        const pt = getCanvasPoint(e);
+        signaturePadCtx.lineTo(pt.x, pt.y);
         signaturePadCtx.stroke();
     });
     
     signaturePadCanvas.addEventListener("mouseup", () => isDrawingSignature = false);
-    signaturePadCanvas.addEventListener("mouseout", () => isDrawingSignature = false);
+    signaturePadCanvas.addEventListener("mouseleave", () => isDrawingSignature = false);
     
     // Touch events for Mobile/Tablet
     signaturePadCanvas.addEventListener("touchstart", (e) => {
         e.preventDefault();
         isDrawingSignature = true;
-        const rect = signaturePadCanvas.getBoundingClientRect();
-        const touch = e.touches[0];
+        const pt = getCanvasPoint(e);
         signaturePadCtx.beginPath();
-        signaturePadCtx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
+        signaturePadCtx.moveTo(pt.x, pt.y);
     }, {passive: false});
     
     signaturePadCanvas.addEventListener("touchmove", (e) => {
         e.preventDefault();
         if (!isDrawingSignature) return;
-        const rect = signaturePadCanvas.getBoundingClientRect();
-        const touch = e.touches[0];
-        signaturePadCtx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
+        const pt = getCanvasPoint(e);
+        signaturePadCtx.lineTo(pt.x, pt.y);
         signaturePadCtx.stroke();
     }, {passive: false});
     
-    signaturePadCanvas.addEventListener("touchend", () => isDrawingSignature = false);
+    signaturePadCanvas.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        isDrawingSignature = false;
+    }, {passive: false});
+    signaturePadCanvas.addEventListener("touchcancel", (e) => {
+        e.preventDefault();
+        isDrawingSignature = false;
+    }, {passive: false});
 }
 
 window.openSignatureFor = function(studentId, fullName, gradeRoom, docType) {
@@ -3591,8 +3630,8 @@ window.printDocument = function() {
     // ยัด div ใส่ body
     document.body.appendChild(printWrapper);
     
-    // ซ่อน dock-container ชั่วคราวด้วย JS เพื่อป้องกันบั๊กเบราว์เซอร์มือถือบางรุ่น
-    const dock = document.querySelector('.dock-container');
+    // ซ่อน mac-dock ชั่วคราวด้วย JS เพื่อป้องกันบั๊กเบราว์เซอร์มือถือบางรุ่น
+    const dock = document.querySelector('.mac-dock');
     const originalDockDisplay = dock ? dock.style.display : '';
     if (dock) dock.style.display = 'none';
     
@@ -4128,13 +4167,25 @@ window.renderRoomSpecificStats = function() {
     const logs = allStatsData.logs;
     let summaryData = { Present: 0, Leave: 0, Absent: 0, Late: 0, Cut: 0, Total: 0 };
     let studentStats = {};
+    let cumulativeStudentStats = {};
     
     logs.forEach(log => {
         if (log.room === `${selectedRoom.grade}/${selectedRoom.room}`) {
+            let st = log.status;
+            let sid = log.studentId;
+            
+            if (!cumulativeStudentStats[sid]) {
+                cumulativeStudentStats[sid] = { Present: 0, Leave: 0, Absent: 0, Late: 0, Cut: 0, Total: 0 };
+            }
+            if (st === 'มา') cumulativeStudentStats[sid].Present++;
+            if (st === 'ลา') cumulativeStudentStats[sid].Leave++;
+            if (st === 'ขาด') cumulativeStudentStats[sid].Absent++;
+            if (st === 'สาย') cumulativeStudentStats[sid].Late++;
+            if (st === 'โดด') cumulativeStudentStats[sid].Cut++;
+            cumulativeStudentStats[sid].Total++;
+
             // Check month match
             if (log.date && log.date.startsWith(selectedMonth)) {
-                let st = log.status;
-                let sid = log.studentId;
                 if (!studentStats[sid]) {
                     studentStats[sid] = { Present: 0, Leave: 0, Absent: 0, Late: 0, Cut: 0, Total: 0 };
                 }
@@ -4156,8 +4207,8 @@ window.renderRoomSpecificStats = function() {
         const atRiskStudents = [];
         roomStudents.forEach(st => {
             let sid = st.studentId;
-            let a = studentStats[sid] ? studentStats[sid].Absent : 0;
-            let s = studentStats[sid] ? studentStats[sid].Late : 0;
+            let a = cumulativeStudentStats[sid] ? cumulativeStudentStats[sid].Absent : 0;
+            let s = cumulativeStudentStats[sid] ? cumulativeStudentStats[sid].Late : 0;
             if (a >= 3 || s >= 3) {
                 atRiskStudents.push({ ...st, absent: a, late: s });
             }
@@ -4173,8 +4224,9 @@ window.renderRoomSpecificStats = function() {
         } else {
             let pillsHtml = atRiskStudents.map(st => {
                 let badge = '';
-                if (st.absent >= 3) badge = `<span style="background: #fee2e2; color: #b91c1c; padding: 2px 6px; border-radius: 6px; font-size: 11px; margin-left: 5px; font-weight: bold;">ขาด ${st.absent}</span>`;
-                else if (st.late >= 3) badge = `<span style="background: #ffedd5; color: #c2410c; padding: 2px 6px; border-radius: 6px; font-size: 11px; margin-left: 5px; font-weight: bold;">สาย ${st.late}</span>`;
+                if (st.absent >= 3 && st.late >= 3) badge = `<span style="background: #fee2e2; color: #b91c1c; padding: 2px 6px; border-radius: 6px; font-size: 11px; margin-left: 5px; font-weight: bold;">ขาดสะสม ${st.absent} | สายสะสม ${st.late}</span>`;
+                else if (st.absent >= 3) badge = `<span style="background: #fee2e2; color: #b91c1c; padding: 2px 6px; border-radius: 6px; font-size: 11px; margin-left: 5px; font-weight: bold;">ขาดสะสม ${st.absent}</span>`;
+                else if (st.late >= 3) badge = `<span style="background: #ffedd5; color: #c2410c; padding: 2px 6px; border-radius: 6px; font-size: 11px; margin-left: 5px; font-weight: bold;">สายสะสม ${st.late}</span>`;
                 return `<div onclick="if(typeof jumpToTracking === 'function') jumpToTracking('${selectedRoom.grade}/${selectedRoom.room}');" style="background: white; border: 1px solid #e2e8f0; border-radius: 20px; padding: 6px 14px; font-size: 13px; display: inline-flex; align-items: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.04); transition: all 0.2s;">
                     <i class="fa-solid fa-user" style="color: #64748b; margin-right: 6px;"></i> ${st.fullName} ${badge}
                 </div>`;
@@ -4184,7 +4236,7 @@ window.renderRoomSpecificStats = function() {
                 <div style="width: 100%; background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(8px); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 16px; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.05);">
                     <div style="display: flex; align-items: center; margin-bottom: 12px; color: #b91c1c;">
                         <i class="fa-solid fa-triangle-exclamation" style="margin-right: 8px; font-size: 16px;"></i>
-                        <strong style="font-size: 15px;">นักเรียนที่ขาดหรือสายเกินเกณฑ์ (คลิกชื่อเพื่อติดตาม)</strong>
+                        <strong style="font-size: 15px;">นักเรียนที่ขาดหรือสายเกินเกณฑ์</strong>
                     </div>
                     <div style="display: flex; flex-wrap: wrap; gap: 8px;">
                         ${pillsHtml}
@@ -4209,7 +4261,9 @@ window.renderRoomSpecificStats = function() {
         let c = studentStats[sid] ? studentStats[sid].Cut : 0;
         let t = studentStats[sid] ? studentStats[sid].Total : 0;
         
-        let isAtRisk = (a >= 3 || s >= 3);
+        let cumA = cumulativeStudentStats[sid] ? cumulativeStudentStats[sid].Absent : 0;
+        let cumS = cumulativeStudentStats[sid] ? cumulativeStudentStats[sid].Late : 0;
+        let isAtRisk = (cumA >= 3 || cumS >= 3);
         let nameIcon = isAtRisk ? '<i class="fa-solid fa-triangle-exclamation" style="color: #ef4444; margin-right: 6px;"></i>' : '';
         
         let totalPresent = p + s + c;
@@ -4220,14 +4274,14 @@ window.renderRoomSpecificStats = function() {
         if (isAtRisk) {
             row.style.backgroundColor = '#fef2f2';
             row.style.cursor = 'pointer';
-            row.title = 'คลิกเพื่อติดตามนักเรียน';
+            row.title = 'คลิกเพื่อติดตามนักเรียน (ขาดสะสม ' + cumA + ' / สายสะสม ' + cumS + ')';
             row.onclick = () => { if(typeof jumpToTracking === 'function') jumpToTracking(`${selectedRoom.grade}/${selectedRoom.room}`); };
             
             let td1 = `<td class="txt-center" style="border-left: 4px solid #ef4444; vertical-align: middle;">${st.no}</td>`;
             row.innerHTML = `
                 ${td1}
                 <td style="padding: 10px 15px;">
-                    <div style="color: #b91c1c; font-weight: 500; margin-bottom: 6px;">${nameIcon}${st.fullName}</div>
+                    <div style="color: #b91c1c; font-weight: 500; margin-bottom: 6px;">${nameIcon}${st.fullName} <span style="font-size: 11px; font-weight: normal; color: #ef4444;">(สะสม: ข.${cumA} ส.${cumS})</span></div>
                     <div class="mobile-only-flex" style="gap: 12px; font-size: 12px; font-weight: 600;">
                         <span style="color:var(--color-present);">ม.${p}</span>
                         <span style="color:var(--color-leave);">ล.${l}</span>
