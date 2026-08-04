@@ -662,7 +662,7 @@ function calculateOverallStats() {
                 
                 itemData.text = `${label} <span style="background: #fee2e2; color: #b91c1c; padding: 2px 6px; border-radius: 6px; font-size: 11px; margin-left: 5px; font-weight: bold;">ขาด ${totalA} วัน</span> <span style="background: var(--color-primary); color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 5px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-file-signature"></i> จัดการเอกสาร</span>`;
                 itemData.action = () => {
-                    openAtRiskActionModal(s.studentId, s.fullName, `${s.grade}/${s.room}`, docType, fullDocType, 'hr');
+                    handleNoticeClick(s.studentId, s.fullName, `${s.grade}/${s.room}`, docType, fullDocType);
                 };
             }
             absentList.push(itemData);
@@ -676,7 +676,7 @@ function calculateOverallStats() {
                 
                 itemData.text = `${label} <span style="background: #ffedd5; color: #c2410c; padding: 2px 6px; border-radius: 6px; font-size: 11px; margin-left: 5px; font-weight: bold;">สาย ${totalL} ครั้ง</span> <span style="background: var(--color-primary); color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 5px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-file-signature"></i> จัดการเอกสาร</span>`;
                 itemData.action = () => {
-                    openAtRiskActionModal(s.studentId, s.fullName, `${s.grade}/${s.room}`, docType, fullDocType, 'hr');
+                    handleNoticeClick(s.studentId, s.fullName, `${s.grade}/${s.room}`, docType, fullDocType);
                 };
             }
             lateList.push(itemData);
@@ -3436,21 +3436,59 @@ window.openDocumentPreview = function(studentInfo) {
     const thaiMonths = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
     const formattedDate = `${today.getDate()} ${thaiMonths[today.getMonth()]} ${today.getFullYear() + 543}`;
     
-    // ดึงวันที่ขาดและสายจาก allStatsData ถ้ามี
+    // ตรวจสอบหมายเลขครั้งที่ (noticeCount)
+    let noticeCount = 1;
+    if (studentInfo.noticeCount) {
+        noticeCount = parseInt(studentInfo.noticeCount) || 1;
+    } else if (studentInfo.documentType && studentInfo.documentType.includes('ครั้งที่')) {
+        noticeCount = parseInt(studentInfo.documentType.split('ครั้งที่')[1]) || 1;
+    } else if (studentInfo.fullDocType && studentInfo.fullDocType.includes('ครั้งที่')) {
+        noticeCount = parseInt(studentInfo.fullDocType.split('ครั้งที่')[1]) || 1;
+    }
+    studentInfo.noticeCount = noticeCount;
+
+    // ดึงวันที่ขาดและสายจาก allStatsData เรียงลำดับจากวันแรกสุดไปหาวันล่าสุด (Ascending)
     if (allStatsData && allStatsData.logs) {
-        studentInfo.absentDates = allStatsData.logs
-            .filter(log => log.studentId === studentInfo.studentId && log.status === 'ขาด')
+        const studentLogs = allStatsData.logs
+            .filter(log => log.studentId === studentInfo.studentId)
+            .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        const allAbsentDates = studentLogs
+            .filter(log => log.status === 'ขาด')
             .map(log => {
                 const d = new Date(log.date);
                 return `${d.getDate()} ${thaiMonths[d.getMonth()]} ${d.getFullYear() + 543}`;
             });
             
-        studentInfo.lateDates = allStatsData.logs
-            .filter(log => log.studentId === studentInfo.studentId && log.status === 'สาย')
+        const allLateDates = studentLogs
+            .filter(log => log.status === 'สาย')
             .map(log => {
                 const d = new Date(log.date);
                 return `${d.getDate()} ${thaiMonths[d.getMonth()]} ${d.getFullYear() + 543}`;
             });
+
+        studentInfo.allAbsentDates = allAbsentDates;
+        studentInfo.allLateDates = allLateDates;
+
+        // แยกตามเกณฑ์ของโรงเรียน:
+        // ป.ค.8 (มาสาย):
+        // ครั้งที่ 1: สาย 3 ครั้ง -> แสดงวันที่สาย 3 วันแรก (วันที่ 1 ถึง 3)
+        // ครั้งที่ 2: สาย 5 ครั้ง -> แสดงวันที่สาย 5 วันแรก (วันที่ 1 ถึง 5)
+        // ครั้งที่ 3: สาย 8 ครั้งขึ้นไป -> แสดงวันที่สายครบทุกวัน
+        // ป.ค.9 (ขาดเรียน):
+        // ครั้งที่ 1: ขาด 3 วัน -> แสดงวันที่ขาด 3 วันแรก (วันที่ 1 ถึง 3)
+        // ครั้งที่ 2: ขาด 6 วัน -> แสดงวันที่ขาด 6 วันแรก (วันที่ 1 ถึง 6)
+        // ครั้งที่ 3: ขาด 9 วันขึ้นไป -> แสดงวันที่ขาดครบทุกวัน
+        if (noticeCount === 1) {
+            studentInfo.lateDates = allLateDates.slice(0, 3);
+            studentInfo.absentDates = allAbsentDates.slice(0, 3);
+        } else if (noticeCount === 2) {
+            studentInfo.lateDates = allLateDates.slice(0, 5);
+            studentInfo.absentDates = allAbsentDates.slice(0, 6);
+        } else {
+            studentInfo.lateDates = allLateDates;
+            studentInfo.absentDates = allAbsentDates;
+        }
     }
 
     const actualDocTypeForSave = studentInfo.documentType || studentInfo.docType;

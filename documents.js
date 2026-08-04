@@ -17,10 +17,15 @@ function generateDocumentHtml(studentInfo, signatureHtml, formattedDate) {
         text-align: justify;
     `;
 
-    // เลือกเนื้อหาตามประเภทของเอกสาร
+    // เลือกเนื้อหาตามประเภทของเอกสาร (ตัดส่วน _ครั้งที่... ออกหากมี เพื่อให้เข้าเคส ป.ค.8 / ป.ค.9 ได้อย่างถูกต้อง)
+    let baseDocType = studentInfo.docType || studentInfo.documentType || studentInfo.fullDocType || '';
+    if (baseDocType.includes('_')) {
+        baseDocType = baseDocType.split('_')[0];
+    }
+    
     let content = "";
     
-    switch (studentInfo.docType) {
+    switch (baseDocType) {
         case 'ป.ค.8':
             content = getPK8Template(studentInfo, signatureHtml, formattedDate);
             break;
@@ -49,7 +54,7 @@ function generateDocumentHtml(studentInfo, signatureHtml, formattedDate) {
             content = getPlaceholderTemplate("ป.ค.7", "แบบฟอร์ม...", studentInfo, signatureHtml, formattedDate);
             break;
         default:
-            content = getPlaceholderTemplate(studentInfo.docType, "เอกสารทั่วไป", studentInfo, signatureHtml, formattedDate);
+            content = getPlaceholderTemplate(baseDocType || studentInfo.docType, "เอกสารทั่วไป", studentInfo, signatureHtml, formattedDate);
             break;
     }
 
@@ -69,13 +74,21 @@ function generateDocumentHtml(studentInfo, signatureHtml, formattedDate) {
 function getPK8Template(studentInfo, signatureHtml, formattedDate) {
     const gradeFormatted = formatGrade(studentInfo.gradeRoom);
     
-    let noticeCountStr = '............';
-    if (studentInfo.lateDates) {
-        let count = studentInfo.lateDates.length;
-        if (count >= 9) noticeCountStr = '3';
-        else if (count >= 5) noticeCountStr = '2';
-        else if (count >= 3) noticeCountStr = '1';
+    // ดึงหมายเลขครั้งที่
+    let noticeCount = 1;
+    if (studentInfo.noticeCount) {
+        noticeCount = parseInt(studentInfo.noticeCount) || 1;
+    } else if (studentInfo.documentType && studentInfo.documentType.includes('ครั้งที่')) {
+        noticeCount = parseInt(studentInfo.documentType.split('ครั้งที่')[1]) || 1;
+    } else if (studentInfo.fullDocType && studentInfo.fullDocType.includes('ครั้งที่')) {
+        noticeCount = parseInt(studentInfo.fullDocType.split('ครั้งที่')[1]) || 1;
     }
+    
+    // วันที่ที่นำมาแสดง
+    const dates = (studentInfo.lateDates && studentInfo.lateDates.length > 0) ? studentInfo.lateDates : [];
+    // จำนวนครั้ง: ครั้งที่ 1 = 3 ครั้ง, ครั้งที่ 2 = 5 ครั้ง, ครั้งที่ 3 = วันที่ทั้งหมด
+    const countDisplay = dates.length > 0 ? dates.length : (noticeCount === 1 ? 3 : (noticeCount === 2 ? 5 : 8));
+    const datesString = dates.length > 0 ? dates.join(', วันที่ ') : '.......................................................................................................';
     
     return `
         <div style="position: relative;">
@@ -95,7 +108,7 @@ function getPK8Template(studentInfo, signatureHtml, formattedDate) {
             </div>
             <div style="height: 8pt;"></div>
             <div style="text-align: left;">
-                <span style="font-weight: bold;">เรื่อง&nbsp;&nbsp;แจ้งพฤติกรรมการมาเรียนสาย (ครั้งที่ ${noticeCountStr})</span>
+                <span style="font-weight: bold;">เรื่อง&nbsp;&nbsp;แจ้งพฤติกรรมการมาเรียนสาย (ครั้งที่ ${noticeCount})</span>
             </div>
             <div style="height: 8pt;"></div>
             <div style="text-align: left; font-weight: bold;">
@@ -103,7 +116,7 @@ function getPK8Template(studentInfo, signatureHtml, formattedDate) {
             </div>
             <div style="height: 8pt;"></div>
             <div style="text-align: justify;">
-                <span style="display:inline-block; width:2.54cm;"></span>เนื่องจาก <span style="font-weight:bold;">${studentInfo.fullName}</span> นักเรียนชั้น <span style="font-weight:bold;">${gradeFormatted}</span> ซึ่งอยู่ในความปกครองของท่าน มีสถิติการมาโรงเรียนสายกว่าเวลาที่โรงเรียนกำหนด (8.00น.) โดยไม่ได้แจ้งเหตุผลความจำเป็นให้ทางโรงเรียนทราบล่วงหน้า <span style="font-weight: bold;">จำนวน ${studentInfo.lateDates ? studentInfo.lateDates.length : '.............'} ครั้ง</span> ซึ่งมีรายละเอียดมาสายดังนี้ <span style="font-weight: bold;">วันที่ ${studentInfo.lateDates && studentInfo.lateDates.length > 0 ? studentInfo.lateDates.join(', วันที่ ') : '.......................................................................................................'}</span>
+                <span style="display:inline-block; width:2.54cm;"></span>เนื่องจาก <span style="font-weight:bold;">${studentInfo.fullName}</span> นักเรียนชั้น <span style="font-weight:bold;">${gradeFormatted}</span> ซึ่งอยู่ในความปกครองของท่าน มีสถิติการมาโรงเรียนสายกว่าเวลาที่โรงเรียนกำหนด (8.00น.) โดยไม่ได้แจ้งเหตุผลความจำเป็นให้ทางโรงเรียนทราบล่วงหน้า <span style="font-weight: bold;">จำนวน ${countDisplay} ครั้ง</span> ซึ่งมีรายละเอียดมาสายดังนี้ <span style="font-weight: bold;">วันที่ ${datesString}</span>
             </div>
             <div style="text-align: justify;">
                 <span style="display:inline-block; width:2.54cm;"></span>ดังนั้น ทางโรงเรียนจึงขอความร่วมมือจากท่านในการกำชับพฤติกรรมของนักเรียนให้มีวินัย และมีความรับผิดชอบ หากข้อมูลดังกล่าวไม่ถูกต้อง ขอความกรุณาติดต่อครูที่ปรึกษาโดยด่วน เพื่อร่วมกันหาแนวทางแก้ไขปัญหานี้ต่อไป
@@ -150,7 +163,7 @@ function getPK8Template(studentInfo, signatureHtml, formattedDate) {
             
             <div>
                 <div style="text-align: center; font-weight: bold;">หนังสือตอบรับ</div>
-                เรื่อง รับทราบการแจ้งพฤติกรรมการมาเรียนสาย (ครั้งที่ ${noticeCountStr})<br>
+                เรื่อง รับทราบการแจ้งพฤติกรรมการมาเรียนสาย (ครั้งที่ ${noticeCount})<br>
                 <div style="text-align: justify;">
                     <span style="display:inline-block; width:2.54cm;"></span>ข้าพเจ้า........................................ เป็นผู้ปกครองของ <span style="font-weight:bold;">${studentInfo.fullName}</span> นักเรียนชั้น <span style="font-weight:bold;">${gradeFormatted}</span> ได้รับหนังสือแจ้งพฤติกรรมการมาสายของโรงเรียนซับบอนวิทยาคมเรียบร้อยแล้ว ด้วยความขอบคุณยิ่ง ทั้งนี้ ข้าพเจ้าจะขอติดต่อกลับไปทางโรงเรียน (ครูที่ปรึกษา) เพื่อหารือแนวทางร่วมกัน
                 </div>
@@ -187,14 +200,22 @@ function getPK8Template(studentInfo, signatureHtml, formattedDate) {
 function getPK9Template(studentInfo, signatureHtml, formattedDate) {
     const gradeFormatted = formatGrade(studentInfo.gradeRoom);
     
-    let noticeCountStr = '............';
-    if (studentInfo.absentDates) {
-        let count = studentInfo.absentDates.length;
-        if (count >= 9) noticeCountStr = '3';
-        else if (count >= 6) noticeCountStr = '2';
-        else if (count >= 3) noticeCountStr = '1';
+    // ดึงหมายเลขครั้งที่
+    let noticeCount = 1;
+    if (studentInfo.noticeCount) {
+        noticeCount = parseInt(studentInfo.noticeCount) || 1;
+    } else if (studentInfo.documentType && studentInfo.documentType.includes('ครั้งที่')) {
+        noticeCount = parseInt(studentInfo.documentType.split('ครั้งที่')[1]) || 1;
+    } else if (studentInfo.fullDocType && studentInfo.fullDocType.includes('ครั้งที่')) {
+        noticeCount = parseInt(studentInfo.fullDocType.split('ครั้งที่')[1]) || 1;
     }
     
+    // วันที่ที่นำมาแสดง
+    const dates = (studentInfo.absentDates && studentInfo.absentDates.length > 0) ? studentInfo.absentDates : [];
+    // จำนวนครั้ง: ครั้งที่ 1 = 3 ครั้ง, ครั้งที่ 2 = 6 ครั้ง, ครั้งที่ 3 = วันที่ทั้งหมด
+    const countDisplay = dates.length > 0 ? dates.length : (noticeCount === 1 ? 3 : (noticeCount === 2 ? 6 : 9));
+    const datesString = dates.length > 0 ? dates.join(', วันที่ ') : '.......................................................................................................';
+
     return `
         <div style="position: relative;">
             <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%);">
@@ -213,7 +234,7 @@ function getPK9Template(studentInfo, signatureHtml, formattedDate) {
             </div>
             <div style="height: 8pt;"></div>
             <div style="text-align: left;">
-                <span style="font-weight: bold;">เรื่อง&nbsp;&nbsp;ติดตามนักเรียนขาดเรียน (ครั้งที่ ${noticeCountStr})</span>
+                <span style="font-weight: bold;">เรื่อง&nbsp;&nbsp;ติดตามนักเรียนขาดเรียน (ครั้งที่ ${noticeCount})</span>
             </div>
             <div style="height: 8pt;"></div>
             <div style="text-align: left; font-weight: bold;">
@@ -221,8 +242,8 @@ function getPK9Template(studentInfo, signatureHtml, formattedDate) {
             </div>
             <div style="height: 8pt;"></div>
             <div style="text-align: justify;">
-                <span style="display:inline-block; width:2.54cm;"></span>เนื่องจาก <span style="font-weight:bold;">${studentInfo.fullName}</span> นักเรียนชั้น <span style="font-weight:bold;">${gradeFormatted}</span> ซึ่งอยู่ในความปกครองของท่าน มีสถิติขาดการเรียนโดยไม่ได้แจ้งลาหรือระบุเหตุผลความจำเป็นให้ทางโรงเรียนทราบ <span style="font-weight: bold;">จำนวน ${studentInfo.absentDates ? studentInfo.absentDates.length : '.....'} ครั้ง</span> ดังนี้<br>
-                <span style="font-weight: bold;">วันที่ ${studentInfo.absentDates && studentInfo.absentDates.length > 0 ? studentInfo.absentDates.join(', วันที่ ') : '.......................................................................................................'}</span>
+                <span style="display:inline-block; width:2.54cm;"></span>เนื่องจาก <span style="font-weight:bold;">${studentInfo.fullName}</span> นักเรียนชั้น <span style="font-weight:bold;">${gradeFormatted}</span> ซึ่งอยู่ในความปกครองของท่าน มีสถิติขาดการเรียนโดยไม่ได้แจ้งลาหรือระบุเหตุผลความจำเป็นให้ทางโรงเรียนทราบ <span style="font-weight: bold;">จำนวน ${countDisplay} ครั้ง</span> ดังนี้<br>
+                <span style="font-weight: bold;">วันที่ ${datesString}</span>
             </div>
             <div style="text-align: justify;">
                 <span style="display:inline-block; width:2.54cm;"></span>ดังนั้น ทางโรงเรียนจึงขอความอนุเคราะห์จากท่านแจ้งสาเหตุให้ทางครูที่ปรึกษาทราบ เพื่อที่ทางโรงเรียนและผู้ปกครองจะได้ร่วมกันดูแล สนับสนุน และช่วยเหลือนักเรียนในด้านการเรียนและการปรับตัวได้อย่างมีประสิทธิภาพต่อไป
@@ -269,7 +290,7 @@ function getPK9Template(studentInfo, signatureHtml, formattedDate) {
             
             <div>
                 <div style="text-align: center; font-weight: bold;">หนังสือตอบรับ</div>
-                เรื่อง รับทราบสถิติการขาดเรียน (ครั้งที่ ${noticeCountStr})<br>
+                เรื่อง รับทราบสถิติการขาดเรียน (ครั้งที่ ${noticeCount})<br>
                 <div style="text-align: justify; margin-top: 5pt;">
                     <span style="display:inline-block; width:2.54cm;"></span>ข้าพเจ้า<span style="display:inline-block; width: 5cm; border-bottom: 1px dotted #000; margin: 0 5px;"></span>เป็นผู้ปกครองของ <span style="font-weight:bold;">${studentInfo.fullName}</span> นักเรียนชั้น <span style="font-weight:bold;">${gradeFormatted}</span> ได้รับทราบหนังสือฉบับนี้เรียบร้อยแล้ว ยินดีให้ความร่วมมือกับทางโรงเรียน โดยจะตักเตือนและกวดขันให้นักเรียนในความปกครองได้ประพฤติปฏิบัติตามระเบียบของโรงเรียนทุกประการ
                 </div>
