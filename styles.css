@@ -849,81 +849,82 @@ input, select, textarea, button {
 }
 
 .pill.active {
-    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: white;
-    transform: translateY(-3px);
-    box-shadow: 0 10px 20px rgba(79, 70, 229, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+    background: linear-gradient(135deg, #fb923c 0%, #f97316 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.5) !important;
+    color: white !important;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(249, 115, 22, 0.35), inset 0 2px 4px rgba(255, 255, 255, 0.4) !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
 .pill.active.checked-active {
-    background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
-    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+    background: linear-gradient(135deg, #fb923c 0%, #f97316 100%) !important;
+    box-shadow: 0 6px 16px rgba(249, 115, 22, 0.35), inset 0 2px 4px rgba(255, 255, 255, 0.4) !important;
 }
 
 .pill.active.unchecked-active {
-    background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
-    box-shadow: 0 6px 16px rgba(217, 119, 6, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+    background: linear-gradient(135deg, #fb923c 0%, #f97316 100%) !important;
+    box-shadow: 0 6px 16px rgba(249, 115, 22, 0.35), inset 0 2px 4px rgba(255, 255, 255, 0.4) !important;
 }
 
 /* Checked (Ocean Blue / Cyan) */
 .pill.status-checked {
-    background: rgba(8, 145, 178, 0.15);
-    border: 1px solid rgba(8, 145, 178, 0.3);
+    background: rgba(8, 145, 178, 0.12);
+    border: 1px solid rgba(8, 145, 178, 0.25);
     color: #0891b2;
 }
 .pill.status-checked:hover {
-    background: rgba(8, 145, 178, 0.25);
+    background: rgba(8, 145, 178, 0.22);
     color: #0e7490;
     transform: translateY(-1px);
-    box-shadow: 0 6px 12px rgba(8, 145, 178, 0.15), inset 0 2px 4px rgba(255, 255, 255, 0.5);
+    box-shadow: 0 4px 10px rgba(8, 145, 178, 0.15);
 }
 .pill.active.status-checked {
-    background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: white;
-    transform: translateY(-3px);
-    box-shadow: 0 10px 20px rgba(8, 145, 178, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+    background: linear-gradient(135deg, #fb923c 0%, #f97316 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.5) !important;
+    color: white !important;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(249, 115, 22, 0.35), inset 0 2px 4px rgba(255, 255, 255, 0.4) !important;
 }
 
 /* Unchecked (Dusty Rose / Pink) */
 .pill.status-unchecked {
-    background: rgba(225, 29, 72, 0.15);
-    border: 1px solid rgba(225, 29, 72, 0.3);
+    background: rgba(225, 29, 72, 0.12);
+    border: 1px solid rgba(225, 29, 72, 0.25);
     color: #e11d48;
 }
 .pill.status-unchecked:hover {
-    background: rgba(225, 29, 72, 0.25);
+    background: rgba(225, 29, 72, 0.22);
     color: #be123c;
     transform: translateY(-1px);
-    box-shadow: 0 6px 12px rgba(225, 29, 72, 0.15), inset 0 2px 4px rgba(255, 255, 255, 0.5);
+    box-shadow: 0 4px 10px rgba(225, 29, 72, 0.15);
 }
 .pill.active.status-unchecked {
-    background: linear-gradient(135deg, #fb7185 0%, #e11d48 100%);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: white;
-    transform: translateY(-3px);
-    box-shadow: 0 10px 20px rgba(225, 29, 72, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+    background: linear-gradient(135deg, #fb923c 0%, #f97316 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.5) !important;
+    color: white !important;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(249, 115, 22, 0.35), inset 0 2px 4px rgba(255, 255, 255, 0.4) !important;
 }
 
-/* All (Slate Gray) */
+/* All (Soft Neutral / Pastel Orange active) */
 .pill.status-all {
-    background: rgba(107, 114, 128, 0.15);
-    border: 1px solid rgba(107, 114, 128, 0.3);
-    color: #4b5563;
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    color: #64748b;
 }
 .pill.status-all:hover {
-    background: rgba(107, 114, 128, 0.25);
-    color: #374151;
+    background: rgba(255, 255, 255, 0.85);
+    color: #334155;
     transform: translateY(-1px);
-    box-shadow: 0 6px 12px rgba(107, 114, 128, 0.15), inset 0 2px 4px rgba(255, 255, 255, 0.5);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
 }
 .pill.active.status-all {
-    background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: white;
-    transform: translateY(-3px);
-    box-shadow: 0 10px 20px rgba(107, 114, 128, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+    background: linear-gradient(135deg, #fb923c 0%, #f97316 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.5) !important;
+    color: white !important;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(249, 115, 22, 0.35), inset 0 2px 4px rgba(255, 255, 255, 0.4) !important;
 }
 
 /* Rooms Grid */
@@ -3067,26 +3068,84 @@ table.at-risk-table {
 /* Styling for the 3 individual tab boxes on attendance check */
 .room-inner-tab-btn {
     border-radius: 12px !important;
-    padding: 12px !important;
-    background: rgba(255, 255, 255, 0.4) !important;
-    border: 1px solid rgba(255, 255, 255, 0.5) !important;
+    padding: 11px 8px !important;
+    background: rgba(255, 255, 255, 0.5) !important;
+    border: 1px solid rgba(255, 255, 255, 0.7) !important;
     color: var(--text-main) !important;
     font-weight: 600 !important;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.02) !important;
-    transition: all 0.2s ease !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.03) !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    cursor: pointer;
 }
 
 .room-inner-tab-btn:hover {
-    background: rgba(255, 255, 255, 0.6) !important;
+    background: rgba(255, 255, 255, 0.85) !important;
     transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06) !important;
 }
 
 .room-inner-tab-btn.active {
-    background: #A38182 !important;
-    box-shadow: 0 4px 12px rgba(163, 129, 130, 0.4) !important;
-    border: 1px solid #A38182 !important;
-    color: white !important;
+    background: linear-gradient(135deg, #fb923c 0%, #f97316 100%) !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35) !important;
+    border: 1px solid rgba(255, 255, 255, 0.6) !important;
+    color: #ffffff !important;
     text-shadow: 0 1px 2px rgba(0,0,0,0.15) !important;
+}
+
+/* At-Risk Tab Glowing Pulse & Notice Badge */
+@keyframes atRiskGlowPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5), 0 2px 6px rgba(239, 68, 68, 0.15);
+        border-color: rgba(239, 68, 68, 0.7);
+        background: rgba(254, 242, 242, 0.85) !important;
+    }
+    50% {
+        box-shadow: 0 0 14px 3px rgba(239, 68, 68, 0.6), 0 4px 10px rgba(239, 68, 68, 0.3);
+        border-color: #ef4444;
+        background: rgba(254, 226, 226, 0.95) !important;
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5), 0 2px 6px rgba(239, 68, 68, 0.15);
+        border-color: rgba(239, 68, 68, 0.7);
+        background: rgba(254, 242, 242, 0.85) !important;
+    }
+}
+
+.tab-at-risk-glow {
+    animation: atRiskGlowPulse 2s infinite ease-in-out !important;
+    border: 1.5px solid #ef4444 !important;
+    position: relative;
+}
+
+/* เมื่อเลือกแท็บสรุป (Active) ให้เป็นสีส้มพาสเทลสวยงามกลมกลืนตามธีม */
+.tab-at-risk-glow.active {
+    animation: none !important;
+    background: linear-gradient(135deg, #fb923c 0%, #f97316 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.6) !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35) !important;
+    color: #ffffff !important;
+}
+
+.badge-at-risk-pulse {
+    display: inline-block;
+    background: #ef4444;
+    color: #ffffff !important;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 1.5px 6px;
+    border-radius: 6px;
+    margin-left: 4px;
+    letter-spacing: -0.2px;
+    vertical-align: middle;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    white-space: nowrap;
+}
+
+/* เมื่อเลือกแท็บสรุป ปรับป้ายแจ้งเตือนให้เป็นสีขาวตัวหนังสือส้มเข้ม/แดง เพื่อให้อ่านง่ายและเข้ากับพื้นหลังสีส้มพาสเทล */
+.room-inner-tab-btn.active .badge-at-risk-pulse {
+    background: #ffffff !important;
+    color: #ea580c !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
 }
 
 /* ==================== SMARTPHONE / MOBILE LAYOUT FIXES ==================== */
