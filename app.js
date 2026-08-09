@@ -34,6 +34,7 @@ let currentCheckingDate = (function(){
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 })(); // วันที่กำลังดำเนินการเช็คชื่อเริ่มต้นเป็นวันปัจจุบัน
 let allStatsData = null; // โหลดสถิติทั้งหมดมาเก็บไว้ในแรมครั้งเดียวตอนเริ่มต้น
+let accumulatedStatsMap = {}; // สถิติสะสมสำเร็จรูปรายคนจากชีท Web_สถิติสะสม
 let documentsData = []; // ประวัติเอกสารและลายเซ็น
 let atRiskTeachersCache = {}; // ข้อมูลครูที่รับผิดชอบเอกสารและลายเซ็น
 
@@ -319,86 +320,171 @@ async function fetchJsonWithRetry(url, options = {}, maxRetries = 1, timeoutMs =
     throw lastError;
 }
 
+// Dynamic Script Loader (Lazy Loading Heavy Libraries)
+const loadedScripts = {};
+function loadScriptAsync(src) {
+    if (loadedScripts[src]) return loadedScripts[src];
+    loadedScripts[src] = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = src;
+        script.onload = () => resolve(true);
+        script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+        document.head.appendChild(script);
+    });
+    return loadedScripts[src];
+}
+
+async function ensureApexChartsLoaded() {
+    if (typeof ApexCharts !== "undefined") return true;
+    try {
+        await loadScriptAsync("https://cdn.jsdelivr.net/npm/apexcharts");
+        return true;
+    } catch (err) {
+        console.warn("Failed to load ApexCharts lazily:", err);
+        return false;
+    }
+}
+
+async function ensurePdfLibrariesLoaded() {
+    if (typeof html2canvas !== "undefined" && typeof jspdf !== "undefined") return true;
+    try {
+        await Promise.all([
+            loadScriptAsync("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"),
+            loadScriptAsync("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js")
+        ]);
+        return true;
+    } catch (err) {
+        console.warn("Failed to load PDF libraries lazily:", err);
+        return false;
+    }
+}
+
 /**
- * 1. โหลดข้อมูลเริ่มต้นทั้งหมด
+ * 1. โหลดข้อมูลเริ่มต้นทั้งหมด (มีระบบ LocalStorage Cache เปิดไว 0 วินาที)
  */
+function getInitCacheKey() {
+    return `sbwk_cache_init_${currentCheckingDate}`;
+}
+
+function parseAndApplyInitData(data) {
+    if (!data || !data.success) return false;
+    
+    let roomCounters = {};
+    students = (data.students || []).map((s) => {
+        let processed = processStudentData(s);
+        let roomKey = `${processed.grade}/${processed.room}`;
+        if (!roomCounters[roomKey]) roomCounters[roomKey] = 1;
+        processed.no = roomCounters[roomKey]++;
+        return processed;
+    });
+    holidays = data.holidays || [];
+    users = data.users || [];
+    todayLogs = data.todayLogs || {};
+    todayLogsDetails = data.todayLogsDetails || {};
+    for (let id in todayLogsDetails) {
+        todayLogsDetails[id] = translateAbbreviationToStatus(todayLogsDetails[id]);
+    }
+    if (data.accumulatedStats) accumulatedStatsMap = data.accumulatedStats;
+    if (data.documents) documentsData = data.documents;
+    if (data.atRiskTeachers) atRiskTeachersCache = data.atRiskTeachers;
+    isDeferredDataLoaded = true;
+    if (typeof populateTeacherDropdowns === 'function') populateTeacherDropdowns();
+    
+    updateHeaderDate();
+    checkTodayHoliday();
+    renderRooms();
+    calculateOverallStats();
+    return true;
+}
+
+function loadInitialDataFromLocalCache() {
+    try {
+        const raw = localStorage.getItem(getInitCacheKey());
+        if (!raw) return false;
+        const cachedData = JSON.parse(raw);
+        return parseAndApplyInitData(cachedData);
+    } catch (e) {
+        console.warn("Error reading local init cache:", e);
+        return false;
+    }
+}
+
 async function loadInitialData() {
-    setLoader(true);
+    // 1. ลองเปิดข้อมูลจาก Cache ท้องถิ่นทันที (0 วินาที)
+    const hasLocalCache = loadInitialDataFromLocalCache();
+    
+    if (hasLocalCache) {
+        setLoader(false); // ซ่อนหน้าหมุ่นทันทีเนื่องจากมีข้อมูลแล้ว
+    } else {
+        setLoader(true); // ถ้ายังไม่มีข้อมูลในเครื่อง ให้หมุนรอ
+    }
+    
+    // 2. ดึงข้อมูลล่าสุดจากเซิร์ฟเวอร์แบบเบื้องหลัง (Background Sync)
     try {
         if (config.scriptUrl) {
             try {
                 const data = await fetchJsonWithRetry(`${config.scriptUrl}?action=init&date=${currentCheckingDate}`, {}, 1, 25000);
                 
                 if (data && data.success) {
-                    let roomCounters = {};
-                    students = (data.students || []).map((s) => {
-                        let processed = processStudentData(s);
-                        let roomKey = `${processed.grade}/${processed.room}`;
-                        if (!roomCounters[roomKey]) roomCounters[roomKey] = 1;
-                        processed.no = roomCounters[roomKey]++;
-                        return processed;
-                    });
-                    holidays = data.holidays || [];
-                    users = data.users || [];
-                    todayLogs = data.todayLogs || {};
-                    todayLogsDetails = data.todayLogsDetails || {};
-                    for (let id in todayLogsDetails) {
-                        todayLogsDetails[id] = translateAbbreviationToStatus(todayLogsDetails[id]);
-                    }
+                    // เซฟข้อมูลเข้า LocalStorage ไว้ใช้รอบหน้า
+                    try {
+                        localStorage.setItem(getInitCacheKey(), JSON.stringify(data));
+                    } catch (storeErr) {}
                     
-                    if (students.length === 0) {
-                        showToast("ดึงข้อมูลเรียบร้อย แต่ไม่พบรายชื่อในหน้าชีทแรก", "error");
-                    } else {
-                        showToast(`โหลดรายชื่อสำหรับวันที่ ${currentCheckingDate} สำเร็จ ${students.length} คน`);
+                    parseAndApplyInitData(data);
+                    
+                    if (!hasLocalCache) {
+                        if (students.length === 0) {
+                            showToast("ดึงข้อมูลเรียบร้อย แต่ไม่พบรายชื่อในหน้าชีทแรก", "error");
+                        } else {
+                            showToast(`โหลดรายชื่อสำหรับวันที่ ${currentCheckingDate} สำเร็จ ${students.length} คน`);
+                        }
                     }
-                } else {
+                } else if (!hasLocalCache) {
                     showToast("ดึงสคริปต์ล้มเหลว: " + (data ? data.message : "ไม่ทราบสาเหตุ"), "error");
                     await loadStudentsFromCsvFallback();
                 }
             } catch (e) {
                 console.warn("Apps Script unreachable, falling back to direct sheet CSV...", e);
-                showToast("กำลังโหลดรายชื่อตรงจาก Google Sheet...", "info");
-                await loadStudentsFromCsvFallback();
+                if (!hasLocalCache) {
+                    showToast("กำลังโหลดรายชื่อตรงจาก Google Sheet...", "info");
+                    await loadStudentsFromCsvFallback();
+                }
             }
-        } else {
+        } else if (!hasLocalCache) {
             showToast("ไม่ได้ตั้งค่า Apps Script กำลังโหลดรายชื่อแบบดึงชีทตรง...", "error");
             await loadStudentsFromCsvFallback();
         }
-        
-        // เริ่มต้นแสดงผลหน้าแรก
-        updateHeaderDate();
-        checkTodayHoliday();
-        renderRooms();
-        calculateOverallStats();
     } catch (err) {
         console.error("Error during loadInitialData:", err);
     } finally {
         setLoader(false);
     }
     
-    // โหลดประวัติสถิติทั้งหมดและข้อมูลเบื้องหลังแบบสลับช่วงเวลา
+    // โหลดประวัติสถิติและข้อมูลเอกสารทั้งหมดเบื้องหลัง
     if (config.scriptUrl) {
         setTimeout(() => {
             if (!allStatsData) fetchStatsDataOnce();
-        }, 1200);
-        
+        }, 1000);
         setTimeout(() => {
-            fetchDeferredDataOnce();
-        }, 2500);
+            if (!isDeferredDataLoaded) fetchDeferredDataOnce();
+        }, 2000);
     }
 }
 
 let deferredDataPromise = null;
-async function fetchDeferredDataOnce() {
+async function fetchDeferredDataOnce(forceFresh = false) {
     if (!config.scriptUrl) return;
-    if (deferredDataPromise) return deferredDataPromise;
+    if (deferredDataPromise && !forceFresh) return deferredDataPromise;
     
     deferredDataPromise = (async () => {
         try {
-            const data = await fetchJsonWithRetry(`${config.scriptUrl}?action=getDeferredData`, {}, 0, 15000);
+            const cacheBuster = forceFresh ? `&t=${Date.now()}` : '';
+            const data = await fetchJsonWithRetry(`${config.scriptUrl}?action=getDeferredData${cacheBuster}`, {}, 0, 15000);
             if (data && data.success) {
                 documentsData = data.documents || [];
                 atRiskTeachersCache = data.atRiskTeachers || {};
+                exemptionsCache = data.exemptions || {};
                 isDeferredDataLoaded = true;
                 populateTeacherDropdowns();
             }
@@ -410,17 +496,20 @@ async function fetchDeferredDataOnce() {
     return deferredDataPromise;
 }
 
-async function fetchStatsDataOnce() {
+async function fetchStatsDataOnce(forceFresh = false) {
     if (!config.scriptUrl) return;
+    if (allStatsData && allStatsData.dates && !forceFresh) return;
     try {
-        const data = await fetchJsonWithRetry(`${config.scriptUrl}?action=getStats&month=ALL&room=ALL`, {}, 0, 15000);
-        if (data && data.success) {
-            allStatsData = data.stats;
-            if (allStatsData && allStatsData.logs) {
-                allStatsData.logs.forEach(log => {
+        const cacheBuster = forceFresh ? `&t=${Date.now()}` : '';
+        const data = await fetchJsonWithRetry(`${config.scriptUrl}?action=getStats&month=ALL&room=ALL${cacheBuster}`, {}, 0, 15000);
+        if (data && data.success && data.stats) {
+            const stats = data.stats;
+            if (stats.logs) {
+                stats.logs.forEach(log => {
                     log.status = translateAbbreviationToStatus(log.status);
                 });
             }
+            allStatsData = stats;
             if (typeof updateAtRiskNoticeInTab === 'function') updateAtRiskNoticeInTab();
             if (typeof calculateOverallStats === 'function') calculateOverallStats();
         }
@@ -1069,7 +1158,18 @@ function openAttendanceCheck(grade, room) {
         
         let atRiskNotice = '';
         let hasAtRisk = false;
-        if (typeof allStatsData !== 'undefined' && allStatsData && allStatsData.logs && typeof students !== 'undefined') {
+        let roomStudents = typeof students !== 'undefined' ? students.filter(s => s.grade === grade && s.room === room) : [];
+        
+        if (accumulatedStatsMap && Object.keys(accumulatedStatsMap).length > 0) {
+            for (let i = 0; i < roomStudents.length; i++) {
+                let sid = roomStudents[i].studentId;
+                let acc = accumulatedStatsMap[sid];
+                if (acc && (acc.absent >= 3 || acc.late >= 3)) {
+                    hasAtRisk = true;
+                    break;
+                }
+            }
+        } else if (typeof allStatsData !== 'undefined' && allStatsData && allStatsData.logs) {
             let sStats = {};
             allStatsData.logs.forEach(log => {
                 if (log.room === `${grade}/${room}`) {
@@ -1079,7 +1179,6 @@ function openAttendanceCheck(grade, room) {
                     if (log.status === 'สาย') sStats[sid].l++;
                 }
             });
-            let roomStudents = students.filter(s => s.grade === grade && s.room === room);
             for (let i = 0; i < roomStudents.length; i++) {
                 let sid = roomStudents[i].studentId;
                 if (sStats[sid] && (sStats[sid].a >= 3 || sStats[sid].l >= 3)) {
@@ -1087,9 +1186,9 @@ function openAttendanceCheck(grade, room) {
                     break;
                 }
             }
-            if (hasAtRisk) {
-                atRiskNotice = ` <span class="badge-at-risk-pulse">ติดตาม ⚠️</span>`;
-            }
+        }
+        if (hasAtRisk) {
+            atRiskNotice = ` <span class="badge-at-risk-pulse">ติดตาม ⚠️</span>`;
         }
         
         headerContainer.innerHTML = `
@@ -1541,8 +1640,9 @@ async function saveAttendanceToSheet(pinCode, teacherName) {
         else if (r.status === "สาย") summary.Late++;
         else if (r.status === "โดด") summary.Cut++;
         
-        // สำคัก: บันทึกสถานะรายบุคคลลง todayLogsDetails ทันทีเพื่อให้ค้างสถานะเวลาเปิดใหม่
+        // สำคัญ: บันทึกสถานะรายบุคคลลง todayLogsDetails ทันทีเพื่อให้ค้างสถานะเวลาเปิดใหม่
         todayLogsDetails[r.studentId] = r.status;
+        isAtRiskDataLoaded = false;
         
         // บวกสถานะเข้าสถิติย้อนหลังในแรมโดยตรง
         if (allStatsData) {
@@ -1615,30 +1715,23 @@ async function fetchAndRenderStats() {
         return;
     }
     
-    // โหลดประวัติทั้งหมดมาไว้ในแรมหากยังไม่มี
-    if (!allStatsData) {
+    // โหลดประวัติทั้งหมดมาไว้ในแรมหากยังไม่มี หรือหากข้อมูลโครงสร้างสถิติล่าสุดยังไม่ครบ
+    if (!allStatsData || !allStatsData.dates || !allStatsData.availableMonths) {
         setLoader(true);
         try {
-            const res = await fetch(`${config.scriptUrl}?action=getStats&month=ALL&room=ALL`);
-            const data = await res.json();
-            if (data.success) {
-                allStatsData = data.stats;
-                if (allStatsData && allStatsData.logs) {
-                    allStatsData.logs.forEach(log => {
-                        log.status = translateAbbreviationToStatus(log.status);
-                    });
-                }
-            } else {
-                showToast("ดึงสถิติไม่สำเร็จ: " + data.message, "error");
-                setLoader(false);
-                return;
-            }
+            await fetchStatsDataOnce(true);
         } catch (e) {
             showToast("ข้อผิดพลาดในการเชื่อมต่อดึงสถิติ", "error");
             setLoader(false);
             return;
         }
         setLoader(false);
+    }
+    
+    if (!allStatsData || !allStatsData.dates) {
+        const chartContainer = document.getElementById("school-trend-chart");
+        if (chartContainer) chartContainer.innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-muted);">ไม่มีข้อมูลสถิติประวัติการมาเรียน</div>';
+        return;
     }
     
     const selectedMonth = document.getElementById("stats-month-select").value;
@@ -1679,9 +1772,13 @@ async function fetchAndRenderStats() {
 }
 
 let schoolTrendChart = null;
-function renderSchoolTrendChart(logs, datesList) {
+async function renderSchoolTrendChart(logs, datesList) {
     const chartEl = document.getElementById("stats-school-chart");
     if (!chartEl) return;
+    
+    if (typeof ApexCharts === "undefined") {
+        await ensureApexChartsLoaded();
+    }
     
     if (datesList.length === 0) {
         chartEl.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding-top: 100px;">ไม่พบข้อมูลสถิติในช่วงเวลาที่เลือก</div>';
@@ -2752,11 +2849,26 @@ function processNoticeClick(studentId, fullName, gradeRoom, docType, fullDocType
     
     let savedHr = "";
     let savedSa = "";
+    let savedParentName = "";
     let savedDocDate = "";
+    let savedReason = "";
+    let savedHrSign = "";
+    let savedSaSign = "";
+    let savedParentSign = "";
+    
     if (atRiskTeachersCache && atRiskTeachersCache[backendKey]) {
-        savedHr = atRiskTeachersCache[backendKey].hr || "";
-        savedSa = atRiskTeachersCache[backendKey].sa || "";
-        savedDocDate = atRiskTeachersCache[backendKey].docDate || "";
+        const item = atRiskTeachersCache[backendKey];
+        savedHr = item.hr || "";
+        savedSa = item.sa || "";
+        savedParentName = item.parentName || "";
+        if (typeof isReasonTextStr === 'function' && isReasonTextStr(savedParentName)) {
+            savedParentName = "";
+        }
+        savedDocDate = item.docDate || "";
+        savedReason = item.reason || "";
+        savedHrSign = item.hrSign || "";
+        savedSaSign = item.saSign || "";
+        savedParentSign = item.parentSign || item.signatureBase64 || "";
     }
     
     // ข้ามไปพรีวิวทันที ถ้ามีชื่อครูที่ปรึกษาแล้ว
@@ -2771,8 +2883,12 @@ function processNoticeClick(studentId, fullName, gradeRoom, docType, fullDocType
             backendKey: backendKey,
             homeroomTeacher: savedHr,
             headOfStudentAffairs: savedSa,
-            hrSign: atRiskTeachersCache[backendKey] ? (atRiskTeachersCache[backendKey].hrSign || "") : "",
-            saSign: atRiskTeachersCache[backendKey] ? (atRiskTeachersCache[backendKey].saSign || "") : "",
+            parentName: savedParentName,
+            reason: savedReason,
+            hrSign: savedHrSign,
+            saSign: savedSaSign,
+            parentSign: savedParentSign,
+            signatureBase64: savedParentSign,
             docDate: savedDocDate
         };
         openDocumentPreview(currentSigningStudent);
@@ -2862,16 +2978,43 @@ window.openNoticeActionModal = function(studentId, fullName, gradeRoom, docType,
     
     let savedHr = "";
     let savedSa = "";
+    let savedParentName = "";
     let savedDocDate = "";
+    let savedReason = "";
     window.tempHrSign = "";
     window.tempSaSign = "";
+    window.tempParentSign = "";
     
     if (atRiskTeachersCache && atRiskTeachersCache[backendKey]) {
         savedHr = atRiskTeachersCache[backendKey].hr || "";
         savedSa = atRiskTeachersCache[backendKey].sa || "";
+        savedParentName = atRiskTeachersCache[backendKey].parentName || "";
         window.tempHrSign = atRiskTeachersCache[backendKey].hrSign || "";
         window.tempSaSign = atRiskTeachersCache[backendKey].saSign || "";
+        window.tempParentSign = atRiskTeachersCache[backendKey].parentSign || atRiskTeachersCache[backendKey].signatureBase64 || "";
         savedDocDate = atRiskTeachersCache[backendKey].docDate || "";
+        savedReason = atRiskTeachersCache[backendKey].reason || "";
+    }
+    
+function isReasonTextStr(s) {
+    if (!s) return false;
+    const str = String(s).trim();
+    const keywords = ["แจ้งว่า", "ลาออก", "ตื่นสาย", "ป่วย", "ลากิจ", "ฝนตก", "เนื่องจาก", "เพราะ", "ติดธุระ", "ย้าย", "ไม่มา", "ขาดเรียน", "รับรองแพทย์", "อุบัติเหตุ", "ไปต่างจังหวัด", "ธุระ"];
+    return keywords.some(kw => str.includes(kw));
+}
+
+    const parentNameInput = document.getElementById("action-parent-name-input");
+    if (parentNameInput) {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(savedParentName) || /^\d{8}$/.test(savedParentName) || isReasonTextStr(savedParentName)) {
+            parentNameInput.value = "";
+        } else {
+            parentNameInput.value = savedParentName;
+        }
+    }
+    
+    const reasonInput = document.getElementById("action-reason-input");
+    if (reasonInput) {
+        reasonInput.value = savedReason;
     }
     
     // ตั้งค่าช่องวันที่: ถ้ามีวันที่เคยบันทึกไว้ให้ใช้วันที่นั้น ถ้าไม่มีให้ใช้วันนี้ (YYYY-MM-DD)
@@ -2919,6 +3062,16 @@ window.openNoticeActionModal = function(studentId, fullName, gradeRoom, docType,
     } else {
         saContainer.style.display = "none";
         saPreview.src = "";
+    }
+    
+    const parentPreview = document.getElementById("parent-signature-preview");
+    const parentContainer = document.getElementById("parent-signature-preview-container");
+    if (window.tempParentSign) {
+        parentPreview.src = window.tempParentSign;
+        parentContainer.style.display = "block";
+    } else {
+        parentContainer.style.display = "none";
+        parentPreview.src = "";
     }
     
     if (!window.tempHrSign && hrSelect.value) handleTeacherSelectChange('hr');
@@ -3023,9 +3176,28 @@ function switchView(viewName) {
     } else if (viewName === "at-risk") {
         document.getElementById("menu-at-risk").classList.add("active");
         document.getElementById("view-at-risk").classList.add("active");
+        
+        // รีเซ็ตตัวกรองห้องและประเภทกลับเป็นแสดงทั้งหมด (ALL) เมื่อเข้าสู่หน้าติดตาม นร
+        const roomFilterSelect = document.getElementById('at-risk-room-filter');
+        if (roomFilterSelect && !window.preserveTrackingRoomFilter) {
+            roomFilterSelect.value = "ALL";
+        }
+        const statusFilterSelect = document.getElementById('at-risk-filter');
+        if (statusFilterSelect && !window.preserveTrackingRoomFilter) {
+            statusFilterSelect.value = "all";
+        }
+        window.preserveTrackingRoomFilter = false;
+        
         renderAtRiskStudents();
     } else if (viewName === "attendance-check") {
         document.getElementById("view-attendance-check").classList.add("active");
+    }
+    
+    // เปิด/ปิด FAB ผ่อนผันเฉพาะเมื่อเปิดหน้าติดตาม นร
+    const fabExemption = document.getElementById("fab-exemption");
+    if (fabExemption) {
+        if (viewName === "at-risk") fabExemption.style.display = "inline-flex";
+        else fabExemption.style.display = "none";
     }
 }
 
@@ -3048,6 +3220,8 @@ window.toggleSubMenu = function(headerElement) {
     }
 };
 
+let isAtRiskDataLoaded = false;
+
 /**
  * ดึงและแสดงข้อมูลนักเรียนกลุ่มเสี่ยง
  */
@@ -3057,57 +3231,48 @@ window.renderAtRiskStudents = async function() {
     
     if (!container) return; // Add null check
     
-    container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);"><div class="empty-state" style="color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin" style="font-size: 30px; margin-bottom: 10px;"></i><p>กำลังโหลดและคำนวณข้อมูล...</p></div></div>';
-    
-    if (!config.scriptUrl) {
-        container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; background: white; border-radius: 12px;">โปรดตั้งค่าลิงก์ Apps Script ก่อน</div>';
-        return;
-    }
-    
-    // 1. โหลดข้อมูลสถิติทั้งหมดถ้ายังไม่มี
-    if (!allStatsData) {
-        try {
-            const res = await fetch(`${config.scriptUrl}?action=getStats&month=ALL&room=ALL`);
-            const data = await res.json();
-            if (data.success) {
-                allStatsData = data.stats;
-                if (allStatsData && allStatsData.logs) {
-                    allStatsData.logs.forEach(log => {
-                        log.status = translateAbbreviationToStatus(log.status);
-                    });
-                }
-                if (typeof updateAtRiskNoticeInTab === 'function') updateAtRiskNoticeInTab();
-            } else {
-                container.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; padding: 40px; background: white; border-radius: 12px;">ดึงข้อมูลไม่สำเร็จ: ${data.message}</div>`;
-                return;
-            }
-        } catch (e) {
-            container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; background: white; border-radius: 12px;">เกิดข้อผิดพลาดในการโหลดข้อมูลสถิติ</div>';
+    // ดึงข้อมูลสถิติล่าสุดสดๆ จากเซิร์ฟเวอร์เฉพาะในการเปิดเข้าหน้าติดตาม นร ครั้งแรก
+    if (!isAtRiskDataLoaded || !allStatsData || !students || students.length === 0) {
+        container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);"><div class="empty-state" style="color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin" style="font-size: 30px; margin-bottom: 10px; color: var(--color-primary);"></i><p>กำลังดึงข้อมูลสถิติล่าสุดจากเซิร์ฟเวอร์...</p></div></div>';
+        
+        if (!config.scriptUrl) {
+            container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; background: white; border-radius: 12px;">โปรดตั้งค่าลิงก์ Apps Script ก่อน</div>';
             return;
         }
-    }
-    
-    // รอข้อมูล At-Risk / Documents จาก Deferred Load
-    if (deferredDataPromise) {
-        await deferredDataPromise;
-    } else if (!isDeferredDataLoaded) {
-        await fetchDeferredDataOnce();
+        
+        try {
+            await Promise.all([
+                fetchStatsDataOnce(false),
+                fetchDeferredDataOnce(false)
+            ]);
+            if (students && students.length > 0 && allStatsData) {
+                isAtRiskDataLoaded = true;
+            }
+        } catch (e) {
+            console.warn("Error fetching fresh at-risk data:", e);
+        }
     }
     
     // 2. คำนวณสถิติ
     const countsMap = {};
     students.forEach(s => {
+        const acc = accumulatedStatsMap[s.studentId] || {};
         countsMap[s.studentId] = {
             studentId: s.studentId,
             fullName: s.fullName,
             grade: s.grade,
             room: s.room,
-            absent: 0,
-            late: 0
+            absent: acc.absent !== undefined ? acc.absent : 0,
+            late: acc.late !== undefined ? acc.late : 0
         };
     });
     
-    if (allStatsData && allStatsData.logs) {
+    // ถ้ามีข้อมูลประวัติรายละเอียด allStatsData ให้ใช้สถิติตามรายการบันทึกจริงเพื่อความตรงกัน 100% กับหน้าสถิติ
+    if (allStatsData && allStatsData.logs && allStatsData.logs.length > 0) {
+        students.forEach(s => {
+            countsMap[s.studentId].absent = 0;
+            countsMap[s.studentId].late = 0;
+        });
         allStatsData.logs.forEach(log => {
             if (countsMap[log.studentId]) {
                 if (log.status === "ขาด") countsMap[log.studentId].absent++;
@@ -3168,7 +3333,11 @@ window.renderAtRiskStudents = async function() {
         filteredList = filteredList.filter(s => `${s.grade}/${s.room}` === roomFilterValue);
     }
     
-    if (filterValue === 'absent') {
+    if (filterValue === 'active') {
+        filteredList = filteredList.filter(s => !exemptionsCache || !exemptionsCache[s.studentId]);
+    } else if (filterValue === 'exempted') {
+        filteredList = filteredList.filter(s => exemptionsCache && exemptionsCache[s.studentId]);
+    } else if (filterValue === 'absent') {
         filteredList = filteredList.filter(s => s.absent >= 3);
     } else if (filterValue === 'late') {
         filteredList = filteredList.filter(s => s.late >= 3);
@@ -3196,15 +3365,13 @@ window.renderAtRiskStudents = async function() {
         let docType = "";
         let noticeCount = 1;
         
-        const statBaseStyle = "display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: 500; background: white;";
+        if (s.absent >= 9) statsText += `<div class="at-risk-stat-badge" style="border: 1px solid #fee2e2; color: #b91c1c;"><span>ขาด</span> <strong>${s.absent}</strong></div>`;
+        else if (s.absent >= 6) statsText += `<div class="at-risk-stat-badge" style="border: 1px solid #ffedd5; color: #c2410c;"><span>ขาด</span> <strong>${s.absent}</strong></div>`;
+        else if (s.absent >= 3) statsText += `<div class="at-risk-stat-badge" style="border: 1px solid #fef9c3; color: #a16207;"><span>ขาด</span> <strong>${s.absent}</strong></div>`;
         
-        if (s.absent >= 9) statsText += `<div style="${statBaseStyle} border: 1px solid #fee2e2; color: #b91c1c;"><span>ขาด</span> <strong style="font-size: 16px;">${s.absent}</strong></div>`;
-        else if (s.absent >= 6) statsText += `<div style="${statBaseStyle} border: 1px solid #ffedd5; color: #c2410c;"><span>ขาด</span> <strong style="font-size: 16px;">${s.absent}</strong></div>`;
-        else if (s.absent >= 3) statsText += `<div style="${statBaseStyle} border: 1px solid #fef9c3; color: #a16207;"><span>ขาด</span> <strong style="font-size: 16px;">${s.absent}</strong></div>`;
-        
-        if (s.late >= 8) statsText += `<div style="${statBaseStyle} border: 1px solid #f3e8ff; color: #7e22ce;"><span>สาย</span> <strong style="font-size: 16px;">${s.late}</strong></div>`;
-        else if (s.late >= 5) statsText += `<div style="${statBaseStyle} border: 1px solid #e0f2fe; color: #0369a1;"><span>สาย</span> <strong style="font-size: 16px;">${s.late}</strong></div>`;
-        else if (s.late >= 3) statsText += `<div style="${statBaseStyle} border: 1px solid #f1f5f9; color: #475569;"><span>สาย</span> <strong style="font-size: 16px;">${s.late}</strong></div>`;
+        if (s.late >= 8) statsText += `<div class="at-risk-stat-badge" style="border: 1px solid #f3e8ff; color: #7e22ce;"><span>สาย</span> <strong>${s.late}</strong></div>`;
+        else if (s.late >= 5) statsText += `<div class="at-risk-stat-badge" style="border: 1px solid #e0f2fe; color: #0369a1;"><span>สาย</span> <strong>${s.late}</strong></div>`;
+        else if (s.late >= 3) statsText += `<div class="at-risk-stat-badge" style="border: 1px solid #f1f5f9; color: #475569;"><span>สาย</span> <strong>${s.late}</strong></div>`;
 
         let eligibleDocs = [];
         if (s.absent >= 3) eligibleDocs.push({ type: "ป.ค.9", count: 1 });
@@ -3235,32 +3402,32 @@ window.renderAtRiskStudents = async function() {
                 savedSa = atRiskTeachersCache[backendKey].sa || "";
             }
             
-            // ลอจิกสีและข้อความ
-            let btnStyle = "flex: 1 1 auto; justify-content: center; white-space: nowrap; padding: 6px 14px; border-radius: 20px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; transition: transform 0.2s;";
-            let btnClass = "btn";
-            let btnText = "";
-            let icon = "";
+            // ลอจิกสีแบบพาสเทลเรียงตามสถานะการเซ็น
+            let btnStyle = "";
+            let btnClass = "btn at-risk-pill-btn";
+            const docPrefix = docType === "ป.ค.9" ? "ป.ค.9" : "ป.ค.8";
+            let btnText = `${docPrefix} (${noticeCount})`;
+            let icon = docType === "ป.ค.9" ? "fa-user-slash" : "fa-clock";
             
             if (isParentSigned) {
-                btnStyle += " background-color: #3b82f6; color: white; border: none; box-shadow: 0 4px 10px rgba(59,130,246,0.3);";
-                btnText = `ครั้งที่ ${noticeCount}`;
-                icon = "fa-check-circle";
+                // 3. ผปค เซ็นแล้ว -> ฟ้าพาสเทล (Pastel Blue)
+                btnStyle += " background-color: #bae6fd; color: #0369a1; border: 1px solid #7dd3fc; box-shadow: 0 2px 6px rgba(56,189,248,0.25);";
+                icon = "fa-circle-check";
             } else if (savedHr && savedSa) {
-                btnStyle += " background-color: #a855f7; color: white; border: none; box-shadow: 0 4px 10px rgba(168,85,247,0.3);";
-                btnText = `ครั้งที่ ${noticeCount}`;
-                icon = "fa-clock";
-            } else if (savedHr) {
-                btnStyle += " background-color: #facc15; color: #713f12; border: none; box-shadow: 0 4px 10px rgba(250,204,21,0.3);";
-                btnText = `ครั้งที่ ${noticeCount}`;
-                icon = "fa-user-shield";
-            } else if (savedSa) {
-                btnStyle += " background-color: #f97316; color: white; border: none; box-shadow: 0 4px 10px rgba(249,115,22,0.3);";
-                btnText = `ครั้งที่ ${noticeCount}`;
-                icon = "fa-user-pen";
+                // 2. ครูเซ็นครบสองคน -> เขียวพาสเทล (Pastel Green)
+                btnStyle += " background-color: #bbf7d0; color: #15803d; border: 1px solid #86efac; box-shadow: 0 2px 6px rgba(74,222,128,0.25);";
+                icon = "fa-user-check";
+            } else if (savedHr || savedSa) {
+                // 1. ครูหรือกิจการคนใดคนหนึ่งเซ็น -> ม่วงพาสเทล (Pastel Purple)
+                btnStyle += " background-color: #e9d5ff; color: #6b21a8; border: 1px solid #d8b4fe; box-shadow: 0 2px 6px rgba(192,132,252,0.25);";
+                icon = savedHr ? "fa-user-shield" : "fa-pen-fancy";
             } else {
-                btnStyle += " background-color: white; color: #475569; border: 1px solid #cbd5e1;";
-                btnText = `ครั้งที่ ${noticeCount}`;
-                icon = "fa-file-signature";
+                // ยังไม่เซ็น -> แดงพาสเทล (ขาด) / ส้มพาสเทล (สาย)
+                if (docType === "ป.ค.9") {
+                    btnStyle += " background-color: #ffe4e6; color: #9f1239; border: 1px solid #fecdd3;";
+                } else {
+                    btnStyle += " background-color: #ffedd5; color: #c2410c; border: 1px solid #fed7aa;";
+                }
             }
             
             buttonsHtmlInner += `<button class="${btnClass}" style="${btnStyle}" onclick="handleNoticeClick('${s.studentId}', '${s.fullName}', '${s.grade}/${s.room}', '${docType}', '${fullDocType}')">
@@ -3268,38 +3435,60 @@ window.renderAtRiskStudents = async function() {
             </button>`;
         });
 
+        const ex = (exemptionsCache && exemptionsCache[s.studentId]) ? exemptionsCache[s.studentId] : null;
+        let actionsHtml = "";
+        if (ex) {
+            actionsHtml = `<div onclick="openExemptionDetailModal('${s.studentId}')" style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#d1fae5';" onmouseout="this.style.background='#ecfdf5';" title="คลิกเพื่อดูรายละเอียดและประวัติเอกสารย้อนหลัง">
+                <span style="display: flex; align-items: center; gap: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0;">
+                    <i class="fa-solid fa-user-shield" style="font-size: 14px; flex-shrink: 0;"></i>
+                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong>ผ่อนผัน (${ex.type || 'ทั้งหมด'}):</strong> ${ex.reason || 'ผ่อนผันการติดตาม'}</span>
+                </span>
+                <span style="font-size: 11px; font-weight: 600; flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; background: rgba(4, 120, 87, 0.12); color: #047857; padding: 3px 10px; border-radius: 12px; margin-left: 8px;">
+                    <i class="fa-solid fa-circle-info"></i> รายละเอียด
+                </span>
+            </div>`;
+        } else {
+            actionsHtml = buttonsHtmlInner;
+        }
+
         const card = document.createElement("div");
         card.className = "room-card";
         card.style.marginBottom = "0";
         card.style.cursor = "default";
-        card.style.background = "linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(255, 255, 255, 0.6) 100%)";
-        card.style.border = "1px solid rgba(239, 68, 68, 0.2)";
+        if (ex) {
+            card.style.background = "linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(255, 255, 255, 0.8) 100%)";
+            card.style.border = "1px solid rgba(16, 185, 129, 0.3)";
+        } else {
+            card.style.background = "linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(255, 255, 255, 0.6) 100%)";
+            card.style.border = "1px solid rgba(239, 68, 68, 0.2)";
+        }
         card.style.boxShadow = "0 4px 12px rgba(0,0,0,0.03)";
-        card.style.padding = "14px 20px";
+        card.style.padding = "10px 14px";
         
         card.innerHTML = `
-            <div class="room-card-layout" style="flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center;">
+            <div class="at-risk-card-layout">
                 
-                <div style="display: flex; flex-wrap: nowrap; gap: 8px; align-items: center; flex: 1 1 250px; overflow: hidden; min-width: 0;">
-                    <div class="room-card-info" style="flex: 0 0 auto; gap: 8px; margin-right: 0; align-items: center;">
-                        <div style="display: flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; background: rgba(239, 68, 68, 0.12); border-radius: 50%; color: #dc2626; font-size: 13px; font-weight: 700;">
+                <!-- แถว 1: ข้อมูลนักเรียน และ ป้ายสรุปขาด/สาย -->
+                <div class="at-risk-card-top">
+                    <div style="display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; overflow: hidden;">
+                        <div style="display: flex; align-items: center; justify-content: center; min-width: 26px; height: 26px; background: ${ex ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.12)'}; border-radius: 50%; color: ${ex ? '#047857' : '#dc2626'}; font-size: 12px; font-weight: 700; flex-shrink: 0;">
                             ${index + 1}
                         </div>
-                        <h3 class="room-card-title" style="min-width: 40px; font-size: 14px;">${s.grade}/${s.room}</h3>
-                        <div class="room-card-count desktop-only" style="min-width: 40px; font-size: 13px;">${s.studentId}</div>
+                        <h3 class="room-card-title" style="margin: 0; white-space: nowrap; flex-shrink: 0;">${s.grade}/${s.room}</h3>
+                        <div class="room-card-count desktop-only" style="color: var(--text-muted); flex-shrink: 0;">${s.studentId}</div>
+                        <div class="at-risk-student-name">
+                            ${s.fullName}
+                        </div>
                     </div>
                     
-                    <div style="font-weight: 700; font-size: 14px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto;">
-                        ${s.fullName}
-                    </div>
-                    
-                    <div class="room-stats-pills" style="margin-top: 0; width: max-content; display: inline-flex; flex: 0 0 auto; gap: 8px; justify-content: flex-start; background: rgba(255,255,255,0.5); padding: 2px 6px; border-radius: 20px;">
+                    <div style="display: inline-flex; flex: 0 0 auto; gap: 6px; justify-content: flex-end; align-items: center;">
                         ${statsText}
                     </div>
                 </div>
                 
-                <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; flex: 1 0 auto;">
-                    ${buttonsHtmlInner}
+                <!-- แถว 2: ปุ่มเอกสาร (ขยายเต็ม 100% ความกว้างการ์ด) -->
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: space-between; align-items: center; width: 100%;">
+                    ${actionsHtml}
                 </div>
             </div>
         `;
@@ -3308,7 +3497,7 @@ window.renderAtRiskStudents = async function() {
 };
 
 let currentActionRole = 'hr'; // 'hr' or 'sa'
-window.openPreviewDirectly = function(studentId, fullName, gradeRoom, docType, fullDocType) {
+window.openPreviewDirectly = async function(studentId, fullName, gradeRoom, docType, fullDocType) {
     currentSigningStudent = {
         studentId: studentId,
         fullName: fullName,
@@ -3331,7 +3520,7 @@ window.openPreviewDirectly = function(studentId, fullName, gradeRoom, docType, f
     
     const docToPrint = { ...currentSigningStudent, documentType: currentSigningStudent.fullDocType };
     document.getElementById("modal-at-risk-action").classList.remove("active");
-    openDocumentPreview(docToPrint);
+    await openDocumentPreview(docToPrint);
 };
 
 
@@ -3345,19 +3534,28 @@ window.saveAtRiskTeachers = async function() {
     
     const hrSelect = document.getElementById("action-hr-select").value;
     const saSelect = document.getElementById("action-sa-select").value;
+    const parentNameInput = document.getElementById("action-parent-name-input");
+    const parentNameVal = parentNameInput ? parentNameInput.value.trim() : "";
+    const reasonInput = document.getElementById("action-reason-input");
+    const reasonVal = reasonInput ? reasonInput.value.trim() : "";
     const docDateInput = document.getElementById("action-doc-date");
     const docDateVal = docDateInput && docDateInput.value ? docDateInput.value : "";
     const backendKey = currentSigningStudent.backendKey;
     
-    let saved = { hr: "", sa: "", hrSign: "", saSign: "", docDate: "" };
+    let saved = { hr: "", sa: "", hrSign: "", saSign: "", parentName: "", parentSign: "", docDate: "", reason: "" };
     if (atRiskTeachersCache && atRiskTeachersCache[backendKey]) {
         saved = { ...atRiskTeachersCache[backendKey] };
     }
     
     saved.hr = hrSelect;
     saved.sa = saSelect;
+    saved.parentName = parentNameVal;
+    saved.reason = reasonVal;
     saved.hrSign = window.tempHrSign !== undefined ? window.tempHrSign : saved.hrSign;
     saved.saSign = window.tempSaSign !== undefined ? window.tempSaSign : saved.saSign;
+    saved.parentSign = window.tempParentSign !== undefined ? window.tempParentSign : (saved.parentSign || saved.signatureBase64 || "");
+    saved.signatureBase64 = saved.parentSign;
+    
     if (docDateVal) {
         saved.docDate = docDateVal;
     }
@@ -3377,16 +3575,23 @@ window.saveAtRiskTeachers = async function() {
                 body: JSON.stringify({
                     action: "saveAtRiskTeachers",
                     key: backendKey,
+                    studentId: currentSigningStudent.studentId,
+                    studentName: currentSigningStudent.fullName,
+                    gradeRoom: currentSigningStudent.gradeRoom,
+                    docType: currentSigningStudent.docType,
                     hr: saved.hr,
                     sa: saved.sa,
                     hrSign: saved.hrSign,
                     saSign: saved.saSign,
-                    docDate: saved.docDate || ""
+                    parentName: saved.parentName,
+                    parentSign: saved.parentSign,
+                    docDate: saved.docDate || "",
+                    reason: saved.reason || ""
                 })
             });
             const result = await res.json();
             if (result.success) {
-                showToast("บันทึกชื่อกละลายเซ็นลงกานข้อมูลเรียบร้อย", "success");
+                showToast("บันทึกข้อมูลลงฐานข้อมูลเรียบร้อย", "success");
             } else {
                 showToast("เกิดข้อผิดพลาด: " + result.message, "error");
             }
@@ -3405,23 +3610,25 @@ window.previewAtRiskDocument = async function() {
     await saveAtRiskTeachers(); // รอให้บันทึกเสร็จก่อนพรีวิว
     
     const backendKey = currentSigningStudent.backendKey;
-    let saved = { hr: "", sa: "", hrSign: "", saSign: "", docDate: "" };
+    let saved = { hr: "", sa: "", hrSign: "", saSign: "", parentName: "", parentSign: "", docDate: "", reason: "" };
     if (atRiskTeachersCache && atRiskTeachersCache[backendKey]) {
         saved = { ...atRiskTeachersCache[backendKey] };
     }
     
     currentSigningStudent.homeroomTeacher = saved.hr;
     currentSigningStudent.headOfStudentAffairs = saved.sa;
+    currentSigningStudent.parentName = saved.parentName;
+    currentSigningStudent.reason = saved.reason || "";
     currentSigningStudent.hrSign = saved.hrSign;
     currentSigningStudent.saSign = saved.saSign;
+    currentSigningStudent.parentSign = saved.parentSign;
+    currentSigningStudent.signatureBase64 = saved.parentSign;
     currentSigningStudent.docDate = saved.docDate || "";
     
-    // ตั้งค่ากลับไปใช้ documentType ธรรมดาสำหรับการพิมพ์ (ป.ค.8 ไม่ใช่ ป.ค.8_ครั้งที่1)
-    // แต่ให้เอกสารรู้ว่านี่คือเอกสารที่ดึงมาจาก fullDocType ไหน หากมีการเซ็นจะบันทึกลง fullDocType
     const docToPrint = { ...currentSigningStudent, documentType: currentSigningStudent.fullDocType };
     
     closeAtRiskActionModal();
-    openDocumentPreview(docToPrint);
+    await openDocumentPreview(docToPrint);
 };
 
 /* =========================================================
@@ -3517,7 +3724,19 @@ window.openSignatureFor = function(studentId, fullName, gradeRoom, docType) {
     openDocumentPreview(currentSigningStudent);
 };
 
-window.openDocumentPreview = function(studentInfo) {
+window.openDocumentPreview = async function(studentInfo) {
+    // ถ้ายังไม่มีสถิติรายละเอียดประวัติวันขาด/สาย ให้หมุนโหลดสั้นๆ เพื่อดึงวันที่ย้อนหลังมาแสดง
+    if (!allStatsData && config.scriptUrl) {
+        setLoader(true);
+        try {
+            await fetchStatsDataOnce();
+        } catch (e) {
+            console.warn("Could not fetch stats data for document:", e);
+        } finally {
+            setLoader(false);
+        }
+    }
+
     const thaiMonths = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
     
     // คำนวณวันที่ออกหนังสือ:
@@ -3561,25 +3780,52 @@ window.openDocumentPreview = function(studentInfo) {
     }
     studentInfo.noticeCount = noticeCount;
 
+function formatThaiDateString(dateInput) {
+    if (!dateInput) return "";
+    const thaiMonths = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+    
+    let str = String(dateInput).trim();
+    let y, m, d;
+    
+    if (str.includes('-')) {
+        const parts = str.split('-');
+        if (parts.length === 3) {
+            y = parseInt(parts[0], 10);
+            m = parseInt(parts[1], 10) - 1;
+            d = parseInt(parts[2], 10);
+        }
+    } else if (str.length === 8 && !isNaN(str)) {
+        y = parseInt(str.substring(0, 4), 10);
+        m = parseInt(str.substring(4, 6), 10) - 1;
+        d = parseInt(str.substring(6, 8), 10);
+    } else {
+        const dt = new Date(str);
+        if (!isNaN(dt.getTime())) {
+            y = dt.getFullYear();
+            m = dt.getMonth();
+            d = dt.getDate();
+        }
+    }
+    
+    if (y && m !== undefined && !isNaN(m) && d && thaiMonths[m]) {
+        return `${d} ${thaiMonths[m]} ${y + 543}`;
+    }
+    return str;
+}
+
     // ดึงวันที่ขาดและสายจาก allStatsData เรียงลำดับจากวันแรกสุดไปหาวันล่าสุด (Ascending)
     if (allStatsData && allStatsData.logs) {
         const studentLogs = allStatsData.logs
             .filter(log => log.studentId === studentInfo.studentId)
-            .sort((a, b) => new Date(a.date) - new Date(b.date));
+            .sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
         const allAbsentDates = studentLogs
             .filter(log => log.status === 'ขาด')
-            .map(log => {
-                const d = new Date(log.date);
-                return `${d.getDate()} ${thaiMonths[d.getMonth()]} ${d.getFullYear() + 543}`;
-            });
+            .map(log => formatThaiDateString(log.date));
             
         const allLateDates = studentLogs
             .filter(log => log.status === 'สาย')
-            .map(log => {
-                const d = new Date(log.date);
-                return `${d.getDate()} ${thaiMonths[d.getMonth()]} ${d.getFullYear() + 543}`;
-            });
+            .map(log => formatThaiDateString(log.date));
 
         studentInfo.allAbsentDates = allAbsentDates;
         studentInfo.allLateDates = allLateDates;
@@ -3607,32 +3853,34 @@ window.openDocumentPreview = function(studentInfo) {
 
     const actualDocTypeForSave = studentInfo.documentType || studentInfo.docType;
 
-    // ตรวจสอบว่าเคยเซ็นไว้แล้วหรือไม่
-    const existingDoc = documentsData.find(d => d.studentId === studentInfo.studentId && d.documentType === actualDocTypeForSave);
-    let signatureHtml = "";
+    // เคลียร์ปุ่มบันทึกแยก และแสดงปุ่ม เซ็น/แก้ไข เสมอทุกกรณี
+    const btnOpenSig = document.getElementById("btn-open-signature");
+    if (btnOpenSig) btnOpenSig.style.display = "inline-flex";
     
-    if (existingDoc && existingDoc.signatureBase64) {
-        signatureHtml = `<img src="${existingDoc.signatureBase64}" style="max-height: 80px;" alt="ลายเซ็นผู้ปกครอง"><br>`;
-        document.getElementById("btn-open-signature").style.display = "none";
-        document.getElementById("btn-save-signature").style.display = "none";
+    const btnSaveSig = document.getElementById("btn-save-signature");
+    if (btnSaveSig) btnSaveSig.style.display = "none";
+
+    let signatureHtml = "";
+    if (studentInfo.parentSign || studentInfo.signatureBase64) {
+        signatureHtml = `<img src="${studentInfo.parentSign || studentInfo.signatureBase64}" style="max-height: 80px;" alt="ลายเซ็นผู้ปกครอง"><br>`;
     } else {
-        if (studentInfo.tempSignature) {
-            signatureHtml = `<img src="${studentInfo.tempSignature}" style="max-height: 80px;" alt="ลายเซ็นผู้ปกครอง"><br>`;
-        } else {
-            signatureHtml = `<div style="height: 80px;"></div>`;
-        }
-        document.getElementById("btn-open-signature").style.display = "inline-block";
-        document.getElementById("btn-save-signature").style.display = studentInfo.tempSignature ? "inline-block" : "none";
+        signatureHtml = `<div style="height: 80px;"></div>`;
     }
     
     // เรียกใช้งานเทมเพลตจาก documents.js
     const htmlContent = generateDocumentHtml(studentInfo, signatureHtml, formattedDate);
+    
+    const dock = document.querySelector('.mac-dock');
+    if (dock) dock.style.zIndex = '100';
     
     document.getElementById("document-print-area").innerHTML = htmlContent;
     document.getElementById("modal-document-preview").classList.add("active");
 };
 
 window.closeDocumentPreview = function() {
+    const dock = document.querySelector('.mac-dock');
+    if (dock) dock.style.zIndex = '';
+    
     document.getElementById("modal-document-preview").classList.remove("active");
 };
 
@@ -3663,7 +3911,10 @@ window.currentSigningTeacherRole = null;
 
 window.openTeacherSignature = function(role) {
     window.currentSigningTeacherRole = role;
-    const roleName = role === 'hr' ? 'ครูที่ปรึกษา' : 'หัวหน้ากิจการนักเรียน';
+    let roleName = 'ครูที่ปรึกษา';
+    if (role === 'sa') roleName = 'หัวหน้ากิจการนักเรียน';
+    else if (role === 'parent') roleName = 'ผู้ปกครองนักเรียน';
+    
     document.getElementById("signature-modal-title").innerText = `เซ็นชื่อ: ${roleName}`;
     if (!signaturePadCanvas) initSignaturePad();
     clearSignature();
@@ -3675,10 +3926,14 @@ window.clearTeacherSignature = function(role) {
         window.tempHrSign = "";
         document.getElementById("hr-signature-preview-container").style.display = "none";
         document.getElementById("hr-signature-preview").src = "";
-    } else {
+    } else if (role === 'sa') {
         window.tempSaSign = "";
         document.getElementById("sa-signature-preview-container").style.display = "none";
         document.getElementById("sa-signature-preview").src = "";
+    } else if (role === 'parent') {
+        window.tempParentSign = "";
+        document.getElementById("parent-signature-preview-container").style.display = "none";
+        document.getElementById("parent-signature-preview").src = "";
     }
 };
 
@@ -3707,15 +3962,19 @@ window.saveSignature = function() {
     closeSignatureModal();
     
     if (window.currentSigningTeacherRole) {
-        // เซ็นสำหรับครูในหน้า modal-at-risk-action
+        // เซ็นในหน้า modal-at-risk-action (ครูที่ปรึกษา / หัวหน้ากิจการ / ผู้ปกครอง)
         if (window.currentSigningTeacherRole === 'hr') {
             window.tempHrSign = signatureBase64;
             document.getElementById("hr-signature-preview").src = signatureBase64;
             document.getElementById("hr-signature-preview-container").style.display = "block";
-        } else {
+        } else if (window.currentSigningTeacherRole === 'sa') {
             window.tempSaSign = signatureBase64;
             document.getElementById("sa-signature-preview").src = signatureBase64;
             document.getElementById("sa-signature-preview-container").style.display = "block";
+        } else if (window.currentSigningTeacherRole === 'parent') {
+            window.tempParentSign = signatureBase64;
+            document.getElementById("parent-signature-preview").src = signatureBase64;
+            document.getElementById("parent-signature-preview-container").style.display = "block";
         }
         window.currentSigningTeacherRole = null;
     } else if (currentSigningStudent) {
@@ -4149,9 +4408,75 @@ document.addEventListener("DOMContentLoaded", () => {
         if (scAdmin) scAdmin.onclick = triggerAdminFlow;
     }
     
-    document.getElementById("btn-add-holiday").onclick = () => {
-        addHoliday();
-    };
+    const btnRebuildStats = document.getElementById("btn-rebuild-stats");
+    if (btnRebuildStats) {
+        btnRebuildStats.onclick = () => {
+            requestLogin("ADMIN", async (pinCode) => {
+                setLoader(true);
+                if (!config.scriptUrl) {
+                    showToast("ไม่สามารถทำได้เนื่องจากไม่ได้ตั้งค่า Apps Script", "error");
+                    setLoader(false);
+                    return;
+                }
+                try {
+                    const res = await fetch(config.scriptUrl, {
+                        method: "POST",
+                        body: JSON.stringify({
+                            action: "rebuildStats",
+                            pin: pinCode
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        showToast("คำนวณและซิงค์สถิติสะสมย้อนหลังเรียบร้อยแล้ว");
+                        await loadInitialData();
+                    } else {
+                        showToast("ซิงค์สถิติไม่สำเร็จ: " + data.message, "error");
+                    }
+                } catch (err) {
+                    showToast("เกิดข้อผิดพลาดในการเชื่อมต่อ", "error");
+                } finally {
+                    setLoader(false);
+                }
+            });
+        };
+    }
+    
+    const btnCleanDuplicates = document.getElementById("btn-clean-duplicates");
+    if (btnCleanDuplicates) {
+        btnCleanDuplicates.onclick = () => {
+            requestLogin("ADMIN", async (pinCode) => {
+                setLoader(true);
+                if (!config.scriptUrl) {
+                    showToast("ไม่สามารถทำได้เนื่องจากไม่ได้ตั้งค่า Apps Script", "error");
+                    setLoader(false);
+                    return;
+                }
+                try {
+                    const res = await fetch(config.scriptUrl, {
+                        method: "POST",
+                        body: JSON.stringify({
+                            action: "cleanDuplicates",
+                            pin: pinCode
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        const s = data.summary || {};
+                        const msg = s.removed !== undefined ? `ปรับปรุงชีทสำเร็จ! ลบประวัติซ้ำออก ${s.removed} แถว (คงเหลือ ${s.after} แถว)` : "ปรับปรุงลบประวัติซ้ำซ้อนสำเร็จแล้ว";
+                        showToast(msg);
+                        await loadInitialData();
+                    } else {
+                        showToast("ปรับปรุงไม่สำเร็จ: " + data.message, "error");
+                    }
+                } catch (err) {
+                    showToast("เกิดข้อผิดพลาดในการเชื่อมต่อ", "error");
+                } finally {
+                    setLoader(false);
+                }
+            });
+        };
+    }
     
     document.getElementById("btn-clear-attendance").onclick = () => {
         document.getElementById("modal-confirm-clear").classList.add("active");
@@ -4606,3 +4931,349 @@ function renderRoomSpecificSchedule() {
     
     table.innerHTML = headerHtml + bodyHtml;
 }
+
+window.jumpToTracking = function(roomKey) {
+    window.preserveTrackingRoomFilter = true;
+    switchView("at-risk");
+    const roomFilterSelect = document.getElementById('at-risk-room-filter');
+    if (roomFilterSelect) {
+        roomFilterSelect.value = roomKey;
+        renderAtRiskStudents();
+    }
+};
+
+/* =========================================================
+ * 14. ระบบผ่อนผันนักเรียนกลุ่มเสี่ยง (Exemption System)
+ * ========================================================= */
+window.openExemptionModal = function(targetStudentId) {
+    let currentRole = null;
+    if (authenticatedAdminPin) {
+        currentRole = "ADMIN";
+    } else if (loggedInUser) {
+        currentRole = loggedInUser.role;
+    }
+    
+    if (currentRole) {
+        openExemptionModalInner(targetStudentId);
+    } else {
+        requestLogin("ANY", (pin, name, role) => {
+            openExemptionModalInner(targetStudentId);
+        });
+    }
+};
+
+function openExemptionModalInner(targetStudentId) {
+    const studentSelect = document.getElementById("exemption-student-select");
+    const reasonInput = document.getElementById("exemption-reason-input");
+    if (reasonInput) reasonInput.value = "";
+    
+    if (studentSelect) {
+        let optionsHtml = '<option value="">-- เลือกรายชื่อนักเรียน --</option>';
+        if (students && students.length > 0) {
+            const atRiskStudents = students.filter(s => {
+                const acc = (accumulatedStatsMap && accumulatedStatsMap[s.studentId]) ? accumulatedStatsMap[s.studentId] : {};
+                let absent = acc.absent || 0;
+                let late = acc.late || 0;
+                if (allStatsData && allStatsData.logs) {
+                    absent = 0; late = 0;
+                    allStatsData.logs.forEach(log => {
+                        if (log.studentId === s.studentId) {
+                            if (log.status === "ขาด") absent++;
+                            if (log.status === "สาย") late++;
+                        }
+                    });
+                }
+                return absent >= 3 || late >= 3;
+            }).sort((a, b) => {
+                const rA = `${a.grade}/${a.room}`;
+                const rB = `${b.grade}/${b.room}`;
+                if (rA !== rB) return rA.localeCompare(rB, 'th', { numeric: true });
+                return a.studentId.localeCompare(b.studentId);
+            });
+
+            optionsHtml += atRiskStudents.map(st => `<option value="${st.studentId}">${st.grade}/${st.room} - ${st.fullName}</option>`).join("");
+        }
+        studentSelect.innerHTML = optionsHtml;
+        if (targetStudentId) studentSelect.value = targetStudentId;
+    }
+    
+    renderActiveExemptionsInModal();
+    document.getElementById("modal-exemption").classList.add("active");
+}
+
+function renderActiveExemptionsInModal() {
+    const listContainer = document.getElementById("exemption-list-modal-container");
+    const countBadge = document.getElementById("exemption-count-badge");
+    if (!listContainer) return;
+    
+    listContainer.innerHTML = "";
+    const activeKeys = Object.keys(exemptionsCache || {});
+    if (countBadge) countBadge.innerText = `${activeKeys.length} รายการ`;
+    
+    if (activeKeys.length === 0) {
+        listContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 15px; font-size: 13px;">ยังไม่มีรายการนักเรียนที่ได้รับการผ่อนผัน</div>';
+        return;
+    }
+    
+    activeKeys.forEach(stId => {
+        const item = exemptionsCache[stId];
+        const studentObj = students.find(s => s.studentId === stId) || {};
+        const stName = studentObj.fullName || item.studentName || stId;
+        const stRoom = studentObj.grade ? `${studentObj.grade}/${studentObj.room}` : (item.gradeRoom || '');
+        
+        const row = document.createElement("div");
+        row.style.cssText = "display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px;";
+        row.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 2px; overflow: hidden; min-width: 0; flex: 1; padding-right: 8px;">
+                <div style="font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${stRoom} ${stName}</div>
+                <div style="font-size: 11px; color: #047857; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    <i class="fa-solid fa-user-shield"></i> <strong>ผ่อนผัน (${item.type || 'ทั้งหมด'}):</strong> ${item.reason || '-'}
+                </div>
+            </div>
+            <button onclick="deleteExemptionRecord('${stId}')" class="btn btn-sm btn-danger" style="background: #ef4444; border: none; color: #fff; font-size: 11px; padding: 4px 10px; border-radius: 6px; flex-shrink: 0; font-weight: 600; cursor: pointer;" title="ยกเลิกการผ่อนผัน">
+                <i class="fa-solid fa-trash-can"></i> ลบ
+            </button>
+        `;
+        listContainer.appendChild(row);
+    });
+}
+
+window.closeExemptionModal = function() {
+    document.getElementById("modal-exemption").classList.remove("active");
+};
+
+window.saveExemptionRecord = async function() {
+    const studentSelect = document.getElementById("exemption-student-select");
+    const typeSelect = document.getElementById("exemption-type-select");
+    const reasonInput = document.getElementById("exemption-reason-input");
+    
+    if (!studentSelect || !studentSelect.value) {
+        showToast("กรุณาเลือกนักเรียนที่ต้องการผ่อนผัน", "error");
+        return;
+    }
+    
+    const studentId = studentSelect.value;
+    const type = typeSelect ? typeSelect.value : "ทั้งหมด";
+    const reason = reasonInput ? reasonInput.value.trim() : "";
+    
+    executeSaveExemption(studentId, type, reason);
+};
+
+async function executeSaveExemption(studentId, type, reason) {
+    const studentObj = students.find(s => s.studentId === studentId) || {};
+    const studentName = studentObj.fullName || "";
+    const gradeRoom = studentObj.grade ? `${studentObj.grade}/${studentObj.room}` : "";
+    
+    setLoader(true);
+    try {
+        const res = await fetch(config.scriptUrl, {
+            method: "POST",
+            body: JSON.stringify({
+                action: "saveExemption",
+                studentId: studentId,
+                studentName: studentName,
+                gradeRoom: gradeRoom,
+                type: type,
+                reason: reason
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast("บันทึกข้อมูลการผ่อนผันเรียบร้อยแล้ว!", "success");
+            if (!exemptionsCache) exemptionsCache = {};
+            exemptionsCache[studentId] = { studentId, type, reason, date: new Date().toISOString().split('T')[0] };
+            renderActiveExemptionsInModal();
+            renderAtRiskStudents();
+        } else {
+            showToast("เกิดข้อผิดพลาด: " + data.message, "error");
+        }
+    } catch (err) {
+        showToast("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์", "error");
+    } finally {
+        setLoader(false);
+    }
+}
+
+window.deleteExemptionRecord = async function(studentId) {
+    if (!confirm("คุณต้องการยกเลิกรายการผ่อนผันของนักเรียนคนนี้ใช่หรือไม่?")) return;
+    
+    let currentRole = null;
+    if (authenticatedAdminPin) {
+        currentRole = "ADMIN";
+    } else if (loggedInUser) {
+        currentRole = loggedInUser.role;
+    }
+    
+    if (currentRole) {
+        executeDeleteExemption(studentId);
+    } else {
+        requestLogin("ANY", (pin, name, role) => {
+            executeDeleteExemption(studentId);
+        });
+    }
+};
+
+async function executeDeleteExemption(studentId) {
+    setLoader(true);
+    try {
+        const res = await fetch(config.scriptUrl, {
+            method: "POST",
+            body: JSON.stringify({
+                action: "deleteExemption",
+                studentId: studentId
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast("ยกเลิกการผ่อนผันเรียบร้อยแล้ว", "success");
+            if (exemptionsCache) delete exemptionsCache[studentId];
+            renderActiveExemptionsInModal();
+            renderAtRiskStudents();
+        } else {
+            showToast("เกิดข้อผิดพลาด: " + data.message, "error");
+        }
+    } catch (err) {
+        showToast("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์", "error");
+    } finally {
+        setLoader(false);
+    }
+}
+
+function formatThaiShortDate(dateStr) {
+    if (!dateStr) return "-";
+    const thMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+    let str = String(dateStr).trim();
+    let y, m, d;
+    
+    if (str.includes('-')) {
+        const parts = str.split('-');
+        if (parts.length === 3) {
+            y = parseInt(parts[0], 10);
+            m = parseInt(parts[1], 10) - 1;
+            d = parseInt(parts[2], 10);
+        }
+    } else if (str.length === 8 && !isNaN(str)) {
+        y = parseInt(str.substring(0, 4), 10);
+        m = parseInt(str.substring(4, 6), 10) - 1;
+        d = parseInt(str.substring(6, 8), 10);
+    }
+    
+    if (y && m >= 0 && m < 12 && d) {
+        const yearBE = y > 2400 ? y : y + 543;
+        return `${d} ${thMonths[m]} ${yearBE}`;
+    }
+    return dateStr;
+}
+
+window.openExemptionDetailModal = function(studentId) {
+    const body = document.getElementById("exemption-detail-body");
+    const modal = document.getElementById("modal-exemption-detail");
+    if (!body || !modal) return;
+    
+    try {
+        const ex = (exemptionsCache && exemptionsCache[studentId]) ? exemptionsCache[studentId] : {};
+        const studentObj = students.find(s => s.studentId === studentId) || {};
+        const fullName = studentObj.fullName || ex.studentName || studentId;
+        const gradeRoom = studentObj.grade ? `${studentObj.grade}/${studentObj.room}` : (ex.gradeRoom || '-');
+        
+        const issuedDocs = [];
+        Object.keys(atRiskTeachersCache || {}).forEach(backendKey => {
+            if (backendKey.startsWith(`${studentId}|`)) {
+                const parts = backendKey.split('|');
+                const docType = parts[1] || '';
+                const countStr = parts[2] || '';
+                const item = atRiskTeachersCache[backendKey];
+                if (item && (item.hr || item.sa || item.parentName || item.reason || item.docDate)) {
+                    issuedDocs.push({
+                        backendKey: backendKey,
+                        docType: docType,
+                        countStr: countStr,
+                        fullDocType: `${docType}_${countStr}`,
+                        item: item
+                    });
+                }
+            }
+        });
+        
+        let docsListHtml = '';
+        if (issuedDocs.length === 0) {
+            docsListHtml = `
+                <div style="text-align: center; color: var(--text-muted); padding: 16px; background: #f8fafc; border-radius: 8px; font-size: 13px; border: 1px dashed #cbd5e1;">
+                    <i class="fa-solid fa-folder-open" style="font-size: 22px; display: block; margin-bottom: 6px; color: #94a3b8;"></i>
+                    ยังไม่มีประวัติการออกเอกสารติดตามย้อนหลัง (ผ่อนผันการติดตามก่อนออกเอกสาร)
+                </div>
+            `;
+        } else {
+            docsListHtml = issuedDocs.map((doc) => {
+                const item = doc.item;
+                const docDateText = item.docDate ? formatThaiShortDate(item.docDate) : '-';
+                
+                const safeStudentId = String(studentId).replace(/'/g, "\\'");
+                const safeFullName = String(fullName).replace(/'/g, "\\'");
+                const safeGradeRoom = String(gradeRoom).replace(/'/g, "\\'");
+                const safeDocType = String(doc.docType).replace(/'/g, "\\'");
+                const safeFullDocType = String(doc.fullDocType).replace(/'/g, "\\'");
+                
+                return `
+                    <div style="display: flex; flex-direction: row; align-items: center; justify-content: space-between; padding: 10px 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; gap: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); flex-wrap: wrap;">
+                        <div style="display: flex; flex-direction: column; gap: 2px; flex: 1 1 130px; min-width: 0;">
+                            <div style="font-weight: 700; color: #1e293b; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-file-contract" style="color: #3b82f6; flex-shrink: 0;"></i>
+                                <span>เอกสาร ${doc.docType} (${doc.countStr})</span>
+                            </div>
+                            <div style="font-size: 11.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                <i class="fa-regular fa-calendar-check" style="color: #10b981;"></i> วันที่ออก: ${docDateText}
+                            </div>
+                        </div>
+                        <button class="btn btn-outline" onclick="closeExemptionDetailModal(); openPreviewDirectly('${safeStudentId}', '${safeFullName}', '${safeGradeRoom}', '${safeDocType}', '${safeFullDocType}');" style="height: 34px; padding: 0 10px; border-radius: 8px; font-size: 12px; font-weight: 600; flex: 0 0 auto; color: #2563eb; border-color: #bfdbfe; background: #eff6ff; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; white-space: nowrap;">
+                            <i class="fa-solid fa-eye"></i> เปิดดูเอกสาร
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        const dateDisplay = ex.date ? formatThaiShortDate(ex.date) : '';
+        
+        body.innerHTML = `
+            <!-- การ์ดสรุปข้อมูลผ่อนผัน -->
+            <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 1px solid #6ee7b7; border-radius: 12px; padding: 14px; margin-bottom: 16px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                    <div style="width: 34px; height: 34px; background: #047857; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; flex-shrink: 0;">
+                        <i class="fa-solid fa-user-check"></i>
+                    </div>
+                    <div>
+                        <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: #065f46;">${gradeRoom} ${fullName}</h4>
+                        <span style="font-size: 11px; color: #047857;">รหัสนักเรียน: ${studentId}</span>
+                    </div>
+                </div>
+                
+                <div style="background: rgba(255, 255, 255, 0.75); border-radius: 8px; padding: 10px; margin-top: 8px; font-size: 12px; display: flex; flex-direction: column; gap: 4px; color: #064e3b;">
+                    <div><strong>ประเภทการผ่อนผัน:</strong> ผ่อนผัน${ex.type || 'ทั้งหมด'}</div>
+                    <div><strong>เหตุผลการผ่อนผัน:</strong> ${ex.reason || 'ผ่านการอนุมัติผ่อนผันการติดตามเรียบร้อยแล้ว'}</div>
+                    ${dateDisplay ? `<div><strong>วันที่บันทึกผ่อนผัน:</strong> ${dateDisplay}</div>` : ''}
+                </div>
+            </div>
+            
+            <!-- รายการเอกสารย้อนหลัง -->
+            <div>
+                <div style="font-weight: 700; color: #1e293b; font-size: 13px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-clock-rotate-left" style="color: #6366f1;"></i> ประวัติเอกสารติดตามที่เคยออก (${issuedDocs.length} ฉบับ)
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; padding-right: 4px;">
+                    ${docsListHtml}
+                </div>
+            </div>
+        `;
+        
+        modal.classList.add("active");
+    } catch (err) {
+        console.error("openExemptionDetailModal error:", err);
+        showToast("เกิดข้อผิดพลาดในการดึงข้อมูลผ่อนผัน", "error");
+    }
+};
+
+window.closeExemptionDetailModal = function() {
+    const modal = document.getElementById("modal-exemption-detail");
+    if (modal) modal.classList.remove("active");
+};

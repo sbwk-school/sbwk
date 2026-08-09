@@ -6,10 +6,10 @@
 
 const GLOBAL_CONFIG = {
     // 1. ลิงก์ Apps Script (ลงท้ายด้วย /exec)
-    scriptUrl: "https://script.google.com/macros/s/AKfycbxQW8KyjjsI9Vx8lH2Y5lxlTLtj6eriNZoSPLk4XaYRGdPr138MgoWZPqPWrO7vXLrX/exec",
+    scriptUrl: "https://script.google.com/macros/s/AKfycbwthYSx_Zu-VxYBzVmIFy5n-n4gOV_n1qxki2W05z-f-YJnS8rbXhAmhCk3oc7Jol0Inw/exec",
     
     // 2. ลิงก์ Google Sheet (เอาไว้เป็นข้อมูลอ้างอิง)
-    sheetUrl: "https://docs.google.com/spreadsheets/d/1caozfZoNBlgZPmvUMnggb7DuRgoB4IsPSslt7XgYPTk/edit?usp=sharing",
+    sheetUrl: "https://docs.google.com/spreadsheets/d/1PjvNo573Xz8YuNfekjU7IUYkZWGehFoBlSYparpltjo/edit?usp=sharing",
 
     // 3. ข้อมูลพื้นฐานของโรงเรียน (ปรับเปลี่ยนตามปีการศึกษา/ภาคเรียนจริง)
     schoolName: "โรงเรียนซับบอนวิทยาคม",

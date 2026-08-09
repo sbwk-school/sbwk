@@ -167,25 +167,32 @@ function getPK8Template(studentInfo, signatureHtml, formattedDate) {
                 <div style="text-align: center; font-weight: bold;">หนังสือตอบรับ</div>
                 เรื่อง รับทราบการแจ้งพฤติกรรมการมาเรียนสาย (ครั้งที่ ${noticeCount})<br>
                 <div style="text-align: justify;">
-                    <span style="display:inline-block; width:2.54cm;"></span>ข้าพเจ้า........................................ เป็นผู้ปกครองของ <span style="font-weight:bold;">${studentInfo.fullName}</span> นักเรียนชั้น <span style="font-weight:bold;">${gradeFormatted}</span> ได้รับหนังสือแจ้งพฤติกรรมการมาสายของโรงเรียนซับบอนวิทยาคมเรียบร้อยแล้ว ด้วยความขอบคุณยิ่ง ทั้งนี้ ข้าพเจ้าจะขอติดต่อกลับไปทางโรงเรียน (ครูที่ปรึกษา) เพื่อหารือแนวทางร่วมกัน
+                    <span style="display:inline-block; width:2.54cm;"></span>ข้าพเจ้า <span style="font-weight:bold;">${studentInfo.parentName || '........................................'}</span> เป็นผู้ปกครองของ <span style="font-weight:bold;">${studentInfo.fullName}</span> นักเรียนชั้น <span style="font-weight:bold;">${gradeFormatted}</span> ได้รับหนังสือแจ้งพฤติกรรมการมาสายของโรงเรียนซับบอนวิทยาคมเรียบร้อยแล้ว ด้วยความขอบคุณยิ่ง ทั้งนี้ ข้าพเจ้าจะขอติดต่อกลับไปทางโรงเรียน (ครูที่ปรึกษา) เพื่อหารือแนวทางร่วมกัน
+                </div>
+                
+                <div style="margin-top: 5pt;">
+                    <div style="text-align: justify; line-height: 22pt;">
+                        <span style="display:inline-block; width:2.54cm;"></span>ขอเรียนชี้แจงให้ทางโรงเรียนทราบเรื่องนักเรียนมาสาย ดังนี้ <span style="font-weight: bold; color: #800000; border-bottom: 1px dotted #000; padding-bottom: 2px;">${studentInfo.reason || ''}</span>
+                    </div>
+                    ${!studentInfo.reason ? `
+                    <div style="border-bottom: 1px dotted #000; height: 22pt; width: 100%;"></div>
+                    ` : ''}
                 </div>
                 
                 <table width="100%" style="margin-top: 8pt;">
                     <tr>
                         <td width="40%"></td>
                         <td width="60%" style="text-align: center;">
-                            ${signatureHtml}
                             <div style="display: inline-block; text-align: left;">
                                 <div style="display: flex; align-items: flex-start; margin-bottom: 5px;">
                                     <div style="white-space: nowrap;">ลงชื่อ</div>
                                     <div style="text-align: center; margin: 0 5px;">
-                                        <div>...........................................</div>
-                                        <div>(...........................................)</div>
+                                        <div style="height: 35px; display: flex; align-items: flex-end; justify-content: center;">
+                                            ${(studentInfo.parentSign || studentInfo.signatureBase64) ? `<img src="${studentInfo.parentSign || studentInfo.signatureBase64}" style="max-height: 45px;">` : '...........................................'}
+                                        </div>
+                                        <div>(${studentInfo.parentName || '...........................................'})</div>
                                     </div>
                                     <div style="white-space: nowrap;">ผู้ปกครอง</div>
-                                </div>
-                                <div style="text-align: center; margin-top: 5px;">
-                                    ........../........../..........
                                 </div>
                             </div>
                         </td>
@@ -294,29 +301,30 @@ function getPK9Template(studentInfo, signatureHtml, formattedDate) {
                 <div style="text-align: center; font-weight: bold;">หนังสือตอบรับ</div>
                 เรื่อง รับทราบสถิติการขาดเรียน (ครั้งที่ ${noticeCount})<br>
                 <div style="text-align: justify; margin-top: 5pt;">
-                    <span style="display:inline-block; width:2.54cm;"></span>ข้าพเจ้า<span style="display:inline-block; width: 5cm; border-bottom: 1px dotted #000; margin: 0 5px;"></span>เป็นผู้ปกครองของ <span style="font-weight:bold;">${studentInfo.fullName}</span> นักเรียนชั้น <span style="font-weight:bold;">${gradeFormatted}</span> ได้รับทราบหนังสือฉบับนี้เรียบร้อยแล้ว ยินดีให้ความร่วมมือกับทางโรงเรียน โดยจะตักเตือนและกวดขันให้นักเรียนในความปกครองได้ประพฤติปฏิบัติตามระเบียบของโรงเรียนทุกประการ
+                    <span style="display:inline-block; width:2.54cm;"></span>ข้าพเจ้า <span style="font-weight:bold;">${studentInfo.parentName || '........................................'}</span> เป็นผู้ปกครองของ <span style="font-weight:bold;">${studentInfo.fullName}</span> นักเรียนชั้น <span style="font-weight:bold;">${gradeFormatted}</span> ได้รับทราบหนังสือฉบับนี้เรียบร้อยแล้ว ยินดีให้ความร่วมมือกับทางโรงเรียน โดยจะตักเตือนและกวดขันให้นักเรียนในความปกครองได้ประพฤติปฏิบัติตามระเบียบของโรงเรียนทุกประการ
                 </div>
                 <div style="margin-top: 5pt;">
-                    <div style="display: flex; align-items: flex-end; margin-bottom: 8pt;">
-                        <span style="display:inline-block; width:2.54cm;"></span>
-                        <span style="line-height: 1.2;">ขอเรียนชี้แจงให้ทางโรงเรียนทราบเรื่องนักเรียนขาดเรียน ดังนี้</span>
-                        <span style="flex: 1; border-bottom: 1px dotted #000; margin-left: 5px;"></span>
+                    <div style="text-align: justify; line-height: 22pt;">
+                        <span style="display:inline-block; width:2.54cm;"></span>ขอเรียนชี้แจงให้ทางโรงเรียนทราบเรื่องนักเรียนขาดเรียน ดังนี้ <span style="font-weight: bold; color: #800000; border-bottom: 1px dotted #000; padding-bottom: 2px;">${studentInfo.reason || ''}</span>
                     </div>
-                    <div style="border-bottom: 1px dotted #000; height: 18pt; width: 100%; margin-bottom: 8pt;"></div>
-                    <div style="border-bottom: 1px dotted #000; height: 18pt; width: 100%; margin-bottom: 8pt;"></div>
+                    ${!studentInfo.reason ? `
+                    <div style="border-bottom: 1px dotted #000; height: 22pt; width: 100%;"></div>
+                    <div style="border-bottom: 1px dotted #000; height: 22pt; width: 100%;"></div>
+                    ` : ''}
                 </div>
                 
                 <table width="100%" style="margin-top: 8pt;">
                     <tr>
                         <td width="40%"></td>
                         <td width="60%" style="text-align: center;">
-                            ${signatureHtml}
                             <div style="display: inline-block; text-align: left;">
                                 <div style="display: flex; align-items: flex-start; margin-bottom: 5px;">
                                     <div style="white-space: nowrap;">ลงชื่อ</div>
                                     <div style="text-align: center; margin: 0 5px;">
-                                        <div>...........................................</div>
-                                        <div>(...........................................)</div>
+                                        <div style="height: 35px; display: flex; align-items: flex-end; justify-content: center;">
+                                            ${(studentInfo.parentSign || studentInfo.signatureBase64) ? `<img src="${studentInfo.parentSign || studentInfo.signatureBase64}" style="max-height: 45px;">` : '...........................................'}
+                                        </div>
+                                        <div>(${studentInfo.parentName || '...........................................'})</div>
                                     </div>
                                     <div style="white-space: nowrap;">ผู้ปกครอง</div>
                                 </div>

@@ -8,6 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://script.google.com">
     
     <!-- Google Fonts (Outfit & Sarabun) -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -17,11 +19,9 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     
     <!-- Custom Style Sheet -->
-    <link rel="stylesheet" href="styles.css?v=update67">
+    <link rel="stylesheet" href="styles.css?v=update68">
 
-    <!-- Deferred JS Libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Essential JS Libraries -->
     <script src="https://kit.fontawesome.com/60907d6a5f.js" crossorigin="anonymous" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts" defer></script>
     
@@ -591,22 +591,27 @@
 
             <!-- SECTION 5: ติดตามนักเรียน และ ออกเอกสารทัณฑ์บน (At-Risk Students) -->
             <section id="view-at-risk" class="content-view">
-                <div class="view-header" style="flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center;">
-                    <div style="display: flex; align-items: center; gap: 15px;">
-                        <button onclick="switchView('home')" class="btn-back-to-home" style="background: transparent; border: none; font-size: 22px; color: var(--color-absent); cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" title="กลับหน้าหลัก"><i class="fa-solid fa-arrow-left"></i></button>
-                        <div>
-                            <h1 style="margin: 0;">รายการติดตาม นร</h1>
-                        </div>
+                <div class="view-header" style="display: flex; flex-direction: column; gap: 10px; align-items: flex-start; justify-content: flex-start; margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <button onclick="switchView('home')" class="btn-back-to-home" style="background: transparent; border: none; font-size: 20px; color: var(--color-absent); cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" title="กลับหน้าหลัก"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 style="margin: 0; font-size: 1.5rem; font-weight: 700;">รายการติดตาม นร</h1>
                     </div>
-                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                        <select id="at-risk-room-filter" class="form-control" onchange="if(typeof renderAtRiskStudents === 'function') renderAtRiskStudents();" style="min-width: 120px;">
+                    
+                    <!-- แถบเครื่องมือควบคุม (Header Controls 1-Row Equal Width Soft-Green Bar) -->
+                    <div style="display: flex; flex-direction: row; flex-wrap: nowrap; gap: 8px; align-items: center; justify-content: space-between; width: 100%;">
+                        <select id="at-risk-room-filter" class="form-control" onchange="if(typeof renderAtRiskStudents === 'function') renderAtRiskStudents();" style="height: 38px; padding: 0 10px; border-radius: 20px; font-size: 13px; border: 1px solid #cbd5e1; background-color: #fff; cursor: pointer; flex: 1; min-width: 0; text-align: center;">
                             <option value="ALL">ทุกห้อง</option>
                         </select>
-                        <select id="at-risk-filter" class="form-control" onchange="if(typeof renderAtRiskStudents === 'function') renderAtRiskStudents();" style="min-width: 180px;">
-                            <option value="all">แสดงทั้งหมด</option>
-                            <option value="absent">เฉพาะขาดเรียน</option>
-                            <option value="late">เฉพาะมาสาย</option>
+                        <select id="at-risk-filter" class="form-control" onchange="if(typeof renderAtRiskStudents === 'function') renderAtRiskStudents();" style="height: 38px; padding: 0 10px; border-radius: 20px; font-size: 13px; border: 1px solid #cbd5e1; background-color: #fff; cursor: pointer; flex: 1; min-width: 0; text-align: center;">
+                            <option value="all">ทั้งหมด</option>
+                            <option value="active" selected>ค้างติดตาม</option>
+                            <option value="absent">ขาดเรียน</option>
+                            <option value="late">มาสาย</option>
+                            <option value="exempted">ผ่อนผัน</option>
                         </select>
+                        <button class="btn" id="btn-open-exemption" onclick="openExemptionModal()" style="height: 38px; padding: 0 10px; border-radius: 20px; background: #d1fae5; color: #047857; border: 1px solid #6ee7b7; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.15); cursor: pointer; flex: 1; min-width: 0; white-space: nowrap; transition: all 0.2s;" onmouseover="this.style.background='#a7f3d0';" onmouseout="this.style.background='#d1fae5';">
+                            <i class="fa-solid fa-user-shield"></i> + ผ่อนผัน
+                        </button>
                     </div>
                 </div>
                 
@@ -773,10 +778,22 @@
                 
                 <!-- แท็บ 3: จัดการระบบ -->
                 <div id="admin-content-maintenance" class="admin-tab-content">
-                    <h4 style="margin-top: 10px; margin-bottom: 10px; color: var(--color-danger);">ล้างข้อมูลเพื่อเริ่มเทอมใหม่</h4>
+                    <h4 style="margin-top: 10px; margin-bottom: 10px; color: var(--color-primary);"><i class="fa-solid fa-arrows-rotate"></i> ซิงค์สถิติสะสมย้อนหลัง</h4>
+                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">คำนวณยอดรวม มา, ลา, ขาด, สาย ย้อนหลังใหม่ทั้งหมดจากชีทหลักเพื่ออัปเดตชีทสะสมและชีทขาดลาให้อัตโนมัติ (ใช้เมื่อปรับแก้ประวัติเก่าในชีท)</p>
+                    <button class="btn btn-outline" id="btn-rebuild-stats" style="margin-bottom: 15px; border-color: var(--color-primary); color: var(--color-primary);">
+                        <i class="fa-solid fa-arrows-rotate"></i> คำนวณสถิติสะสมย้อนหลังทั้งหมด
+                    </button>
+                    
+                    <h4 style="margin-top: 15px; margin-bottom: 10px; color: #d97706;"><i class="fa-solid fa-broom"></i> ปรับปรุงและลบประวัติซ้ำซ้อนในชีทหลัก</h4>
+                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">คัดลบแถวบันทึกซ้ำซ้อนในวันเดียวกันออกโดยเก็บเฉพาะบันทึกครั้งล่าสุด และเขียนจัดระเบียบใหม่ทันทีโดยไม่เหลือช่องว่าง</p>
+                    <button class="btn btn-outline" id="btn-clean-duplicates" style="margin-bottom: 25px; border-color: #d97706; color: #d97706;">
+                        <i class="fa-solid fa-broom"></i> ปรับปรุงลบประวัติซ้ำในชีทหลัก
+                    </button>
+                    
+                    <h4 style="margin-top: 15px; margin-bottom: 10px; color: var(--color-danger);"><i class="fa-solid fa-triangle-exclamation"></i> ล้างข้อมูลเพื่อเริ่มเทอมใหม่</h4>
                     <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">การล้างข้อมูลนี้จะลบ **บันทึกเวลาเรียน** ทั้งหมดในชีทออก โดยจะเหลือไว้เพียงแถวหัวข้อตาราง เพื่อให้พร้อมใช้งานสำหรับเทอมใหม่ (ข้อมูลรายชื่อนักเรียน ครู และวันหยุดจะไม่ถูกลบ)</p>
                     
-                    <button class="btn btn-danger" id="btn-clear-attendance" style="background-color: var(--color-danger); border: none; margin-top: 10px;">
+                    <button class="btn btn-danger" id="btn-clear-attendance" style="background-color: var(--color-danger); border: none; margin-top: 5px;">
                         <i class="fa-solid fa-trash-can"></i> ล้างประวัติเวลาเรียนทั้งหมด
                     </button>
                 </div>
@@ -1004,7 +1021,7 @@
     </div>
 
     <!-- 8. Modal Document Preview -->
-    <div id="modal-document-preview" class="modal-overlay">
+    <div id="modal-document-preview" class="modal-overlay" style="z-index: 9990;">
         <div class="modal-box" style="max-width: 800px; padding: 0; background: #f3f4f6; overflow: hidden; display: flex; flex-direction: column; max-height: 85dvh; margin: 20px 10px;">
             <div class="modal-header" style="background: #fff; padding: 15px 20px; border-bottom: 1px solid #e5e7eb;">
                 <h3 id="preview-modal-title" style="margin: 0; font-size: 1.25rem;">ตัวอย่างเอกสาร</h3>
@@ -1074,7 +1091,7 @@
                     </div>
                 </div>
                 
-                <div class="form-group" style="margin-bottom: 25px;" id="group-action-sa">
+                <div class="form-group" style="margin-bottom: 15px;" id="group-action-sa">
                     <label>หัวหน้ากิจการนักเรียน</label>
                     <div style="display: flex; gap: 10px;">
                         <select id="action-sa-select" class="form-control" style="flex: 1;" onchange="handleTeacherSelectChange('sa')">
@@ -1092,11 +1109,107 @@
                     </div>
                 </div>
                 
+                <div class="form-group" style="margin-bottom: 15px;" id="group-action-parent">
+                    <label>ผู้ปกครองนักเรียน</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="action-parent-name-input" class="form-control" style="flex: 1;" placeholder="พิมพ์ชื่อ-นามสกุล ผู้ปกครอง">
+                        <button class="btn btn-outline" onclick="openTeacherSignature('parent')" style="padding: 0 15px;">
+                            <i class="fa-solid fa-pen-nib"></i> เซ็น
+                        </button>
+                    </div>
+                    <div id="parent-signature-preview-container" style="display: none; margin-top: 10px; border: 1px dashed #ccc; padding: 10px; border-radius: 8px; text-align: center; position: relative;">
+                        <img id="parent-signature-preview" src="" style="max-height: 60px;" alt="ลายเซ็นผู้ปกครอง">
+                        <button class="btn btn-sm btn-danger" onclick="clearTeacherSignature('parent')" style="position: absolute; top: -10px; right: -10px; border-radius: 50%; width: 25px; height: 25px; padding: 0;">
+                            <i class="fa-solid fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 25px;" id="group-action-reason">
+                    <label style="font-weight: 500; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-comment-dots" style="color: var(--primary);"></i> เหตุผล / หมายเหตุ (ถ้ามี)
+                    </label>
+                    <input type="text" id="action-reason-input" class="form-control" style="width: 100%;" placeholder="เช่น ตื่นสายเนื่องจากฝนตกหนัก / ลาป่วยมีใบรับรองแพทย์">
+                </div>
+                
                 <div class="form-actions" style="justify-content: center; display: flex; gap: 10px;">
                     <button class="btn btn-primary" onclick="previewAtRiskDocument()" style="flex: 1;">
                         <i class="fa-solid fa-floppy-disk"></i> บันทึก
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal สำหรับผ่อนผันนักเรียน -->
+    <div id="modal-exemption" class="modal-overlay" style="z-index: 2300;">
+        <div class="modal-box" style="max-width: 500px; padding: 25px; border-radius: 16px;">
+            <div class="modal-header">
+                <h3 style="margin: 0; display: flex; align-items: center; gap: 8px; color: #047857; font-size: 1.15rem;">
+                    <i class="fa-solid fa-user-shield"></i> ระบบผ่อนผันนักเรียนกลุ่มเสี่ยง
+                </h3>
+                <button class="modal-close-btn" onclick="closeExemptionModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" style="padding-top: 15px;">
+                <!-- Form เพิ่มผ่อนผัน -->
+                <div style="background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
+                    <div style="font-weight: 700; color: #0f172a; margin-bottom: 12px; font-size: 14px; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-plus-circle" style="color: #10b981;"></i> เพิ่มการผ่อนผันนักเรียน
+                    </div>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label style="font-weight: 600; margin-bottom: 4px; display: block; font-size: 13px;">เลือกนักเรียนกลุ่มเสี่ยง</label>
+                        <select id="exemption-student-select" class="form-control" style="width: 100%; font-size: 13px;">
+                            <!-- Options generated by JS -->
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label style="font-weight: 600; margin-bottom: 4px; display: block; font-size: 13px;">ประเภทการผ่อนผัน</label>
+                        <select id="exemption-type-select" class="form-control" style="width: 100%; font-size: 13px;">
+                            <option value="สาย">ผ่อนผันการมาสาย (ป.ค. 8)</option>
+                            <option value="ขาด">ผ่อนผันการขาดเรียน (ป.ค. 9)</option>
+                            <option value="ทั้งหมด" selected>ผ่อนผันทั้งหมด (ขาดและสาย)</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label style="font-weight: 600; margin-bottom: 4px; display: block; font-size: 13px;">หมายเหตุ / เหตุผลการผ่อนผัน</label>
+                        <input type="text" id="exemption-reason-input" class="form-control" style="width: 100%; font-size: 13px;" placeholder="เช่น ผ่านการเยี่ยมบ้านแล้ว: ช่วยผู้ปกครองขายของ / ดูแลผู้ป่วย">
+                    </div>
+                    <div class="form-actions" style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button class="btn btn-secondary" onclick="closeExemptionModal()" style="font-size: 13px;">ยกเลิก</button>
+                        <button class="btn btn-success" onclick="saveExemptionRecord()" style="background: #10b981; border: none; color: white; font-weight: 600; padding: 8px 18px; font-size: 13px;">
+                            <i class="fa-solid fa-floppy-disk"></i> บันทึกผ่อนผัน
+                        </button>
+                    </div>
+                </div>
+
+                <!-- รายการผ่อนผันปัจจุบัน -->
+                <div style="border-top: 1px solid #e2e8f0; padding-top: 15px;">
+                    <div style="font-weight: 700; color: #0f172a; margin-bottom: 10px; font-size: 14px; display: flex; align-items: center; justify-content: space-between;">
+                        <span><i class="fa-solid fa-list-check" style="color: #3b82f6;"></i> รายการผ่อนผันปัจจุบัน</span>
+                        <span id="exemption-count-badge" class="badge" style="background: #e0f2fe; color: #0369a1; font-size: 11px; padding: 2px 8px; border-radius: 10px;">0 รายการ</span>
+                    </div>
+                    <div id="exemption-list-modal-container" style="max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+                        <!-- JS injected list of active exemptions -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal แสดงรายละเอียดผ่อนผันและประวัติเอกสารย้อนหลัง -->
+    <div id="modal-exemption-detail" class="modal-overlay" style="z-index: 2350;">
+        <div class="modal-box" style="max-width: 520px; padding: 24px; border-radius: 16px;">
+            <div class="modal-header" style="border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 16px;">
+                <h3 style="margin: 0; display: flex; align-items: center; gap: 8px; color: #047857; font-size: 1.15rem;">
+                    <i class="fa-solid fa-user-shield"></i> รายละเอียดผ่อนผัน & ประวัติเอกสาร
+                </h3>
+                <button class="modal-close-btn" onclick="closeExemptionDetailModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" id="exemption-detail-body" style="padding-top: 0;">
+                <!-- JS Inject Content -->
+            </div>
+            <div class="modal-footer" style="margin-top: 16px; text-align: right; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+                <button class="btn btn-secondary" onclick="closeExemptionDetailModal()" style="padding: 6px 18px; font-weight: 600;">ปิดหน้าต่าง</button>
             </div>
         </div>
     </div>
@@ -1110,7 +1223,11 @@
             </div>
             <div id="summary-folder-list"></div>
         </div>
-    </div>
+    <!-- Floating Action Button (FAB) สำหรับผ่อนผันนักเรียน (ล่างขวา) -->
+    <button id="fab-exemption" onclick="openExemptionModal()" style="display: none; position: fixed; bottom: 28px; right: 25px; z-index: 9000; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 12px 22px; border-radius: 30px; font-weight: 600; font-size: 14px; box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4); cursor: pointer; align-items: center; gap: 8px; transition: all 0.25s ease;" onmouseover="this.style.transform='translateY(-3px) scale(1.03)';" onmouseout="this.style.transform='none';" title="ผ่อนผันนักเรียน">
+        <i class="fa-solid fa-user-shield" style="font-size: 16px;"></i>
+        <span>ผ่อนผัน นร.</span>
+    </button>
 
     <!-- Flatpickr JS & Thai Locale -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
