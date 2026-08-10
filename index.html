@@ -410,12 +410,6 @@
                 <!-- TAB 2: ROOM STATS -->
                 <div id="room-tab-stats" class="room-tab-content" style="display:none;">
                     <div class="card p-0" style="margin-top: 15px;">
-                        <div style="padding: 15px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; gap: 8px;">
-                            <h2 style="margin: 0; font-size: 15px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><i class="fa-solid fa-chart-pie"></i> สรุปเวลาเรียนประจำห้อง</h2>
-                            <span class="badge" style="background: rgba(59, 130, 246, 0.1); color: var(--color-primary); border: 1px solid rgba(59, 130, 246, 0.2); padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
-                                <i class="fa-solid fa-calendar-check"></i> สะสมทั้งภาคเรียน
-                            </span>
-                        </div>
                         
                         <!-- Summary Boxes Container -->
                         <div class="room-stats-pills" id="room-tab-stats-summary" style="padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; background: rgba(255,255,255,0.5);">
@@ -804,51 +798,65 @@
 
     <!-- 4. หน้าจอพรีวิวแบบแยกชาย-หญิง หลังบันทึกเช็คชื่อเสร็จ -->
     <div id="modal-preview-summary" class="modal-overlay">
-        <div class="modal-box preview-modal-box">
-            <div class="modal-header" style="border-bottom: none; padding-bottom: 0;">
+        <div class="modal-box preview-modal-box" style="max-width: 680px; width: 95vw; max-height: 90vh; display: flex; flex-direction: column; padding: 0; overflow: hidden; border-radius: 16px;">
+            <div class="modal-header" style="border-bottom: 1px solid #e2e8f0; padding: 12px 16px;">
+                <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-file-image" style="color: #3b82f6;"></i> สรุปบันทึกเวลาเรียน
+                </h3>
                 <button class="modal-close-btn close-modal-trigger"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div class="modal-body" style="padding: 0; overflow: auto; position: relative;">
+            <div class="modal-body" id="preview-modal-body-wrapper" style="padding: 12px; overflow-x: hidden; overflow-y: auto; text-align: center; flex: 1; background: #f8fafc; display: flex; justify-content: center; align-items: flex-start;">
                 
-                <!-- The area to be captured or viewed -->
-                <div id="preview-capture-area" style="padding: 12px; background: white; margin: 0 auto;">
-                    <div class="preview-meta">
-                        <img src="logo.png" alt="Logo" style="width: 56px; height: 56px; object-fit: contain; margin-bottom: 0px;">
-                        <h3 style="font-size: 18px; margin: 0 0 6px 0;" id="preview-school-name">โรงเรียนซับบอนวิทยาคม</h3>
-                        <p style="font-size: 14px; margin: 0 0 4px 0; color: var(--text-main); font-weight: 600; white-space: nowrap;">
-                            บันทึกเวลาเรียน<span id="preview-room-title" style="padding-left: 4px; padding-right: 4px; font-weight: 700; display: inline; font-size: inherit; color: var(--primary-color);">ชั้น ม.1 ห้อง 1</span>
-                            <span id="preview-date-text" style="font-size: 14px; font-weight: 500; color: var(--text-muted); display: inline;">ประจำวันที่ -</span>
-                        </p>
-                        <p style="font-size: 12px; margin: 0; color: var(--text-muted); font-weight: 500;">
-                            <span id="preview-semester">ภาคเรียนที่ -</span> | <span id="preview-academic-year">ปีการศึกษา -</span>
-                        </p>
-                    </div>
+                <!-- Scaling Container Wrapper -->
+                <div id="preview-scale-wrapper" style="width: 640px; margin: 0 auto; transition: transform 0.2s ease; transform-origin: top center;">
+                    
+                    <!-- The area to be captured or viewed -->
+                    <div id="preview-capture-area" style="padding: 14px; background: white; margin: 0 auto; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); width: 640px; box-sizing: border-box;">
+                        <div class="preview-meta">
+                            <img src="logo.png" alt="Logo" style="width: 56px; height: 56px; object-fit: contain; margin-bottom: 0px;">
+                            <h3 style="font-size: 18px; margin: 0 0 6px 0;" id="preview-school-name">โรงเรียนซับบอนวิทยาคม</h3>
+                            <p style="font-size: 14px; margin: 0 0 4px 0; color: var(--text-main); font-weight: 600; white-space: nowrap;">
+                                บันทึกเวลาเรียน<span id="preview-room-title" style="padding-left: 4px; padding-right: 4px; font-weight: 700; display: inline; font-size: inherit; color: var(--primary-color);">ชั้น ม.1 ห้อง 1</span>
+                                <span id="preview-date-text" style="font-size: 14px; font-weight: 500; color: var(--text-muted); display: inline;">ประจำวันที่ -</span>
+                            </p>
+                            <p style="font-size: 12px; margin: 0; color: var(--text-muted); font-weight: 500;">
+                                <span id="preview-semester">ภาคเรียนที่ -</span> | <span id="preview-academic-year">ปีการศึกษา -</span>
+                            </p>
+                        </div>
 
-                    <!-- บล็อกสรุปสถิติด่วน -->
-                    <div class="preview-stats-summary" id="preview-stats-counters">
-                        <!-- ยอดรวมสถานะด่วน -->
-                    </div>
+                        <!-- บล็อกสรุปสถิติด่วน -->
+                        <div class="preview-stats-summary" id="preview-stats-counters">
+                            <!-- ยอดรวมสถานะด่วน -->
+                        </div>
 
-                    <!-- การแบ่งคอลัมน์ ชาย (ซ้าย) / หญิง (ขวา) -->
-                    <div class="gender-columns">
-                        <!-- คอลัมน์ชาย -->
-                        <div class="gender-column">
-                            <div class="column-title male-title"><i class="fa-solid fa-mars"></i> นักเรียนชาย</div>
-                            <div class="preview-students-list" id="preview-male-list">
-                                <!-- รายชื่อนักเรียนชายดึงจาก JS -->
+                        <!-- การแบ่งคอลัมน์ ชาย (ซ้าย) / หญิง (ขวา) -->
+                        <div class="gender-columns">
+                            <!-- คอลัมน์ชาย -->
+                            <div class="gender-column">
+                                <div class="column-title male-title"><i class="fa-solid fa-mars"></i> นักเรียนชาย</div>
+                                <div class="preview-students-list" id="preview-male-list">
+                                    <!-- รายชื่อนักเรียนชายดึงจาก JS -->
+                                </div>
+                            </div>
+                            
+                            <!-- คอลัมน์หญิง -->
+                            <div class="gender-column">
+                                <div class="column-title female-title"><i class="fa-solid fa-venus"></i> นักเรียนหญิง</div>
+                                <div class="preview-students-list" id="preview-female-list">
+                                    <!-- รายชื่อนักเรียนหญิงดึงจาก JS -->
+                                </div>
                             </div>
                         </div>
-                        
-                        <!-- คอลัมน์หญิง -->
-                        <div class="gender-column">
-                            <div class="column-title female-title"><i class="fa-solid fa-venus"></i> นักเรียนหญิง</div>
-                            <div class="preview-students-list" id="preview-female-list">
-                                <!-- รายชื่อนักเรียนหญิงดึงจาก JS -->
-                            </div>
-                        </div>
                     </div>
+
                 </div>
 
+            </div>
+            <div class="modal-footer" style="padding: 10px 16px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; align-items: center; background: #fff;">
+                <button class="btn btn-primary" onclick="downloadSummaryPreviewImage()" style="padding: 9px 24px; font-weight: 700; font-size: 14px; background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; border: none; border-radius: 10px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3); display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; width: 100%;">
+                    <i class="fa-solid fa-camera" style="font-size: 16px;"></i>
+                    <span>บันทึกรูปภาพ</span>
+                </button>
             </div>
         </div>
     </div>
@@ -1022,16 +1030,17 @@
 
     <!-- 8. Modal Document Preview -->
     <div id="modal-document-preview" class="modal-overlay" style="z-index: 9990;">
-        <div class="modal-box" style="max-width: 800px; padding: 0; background: #f3f4f6; overflow: hidden; display: flex; flex-direction: column; max-height: 85dvh; margin: 20px 10px;">
+        <div class="modal-box" style="max-width: 820px; padding: 0; background: #f3f4f6; overflow: hidden; display: flex; flex-direction: column; height: 95vh; max-height: 95vh; margin: 0 auto;">
             <div class="modal-header" style="background: #fff; padding: 15px 20px; border-bottom: 1px solid #e5e7eb;">
                 <h3 id="preview-modal-title" style="margin: 0; font-size: 1.25rem;">ตัวอย่างเอกสาร</h3>
                 <button class="modal-close-btn" onclick="closeDocumentPreview()"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
-            <div class="modal-body" style="padding: 20px 0; text-align: center; overflow: auto; flex: 1; background: #f8fafc;">
-                <div style="display: inline-block; padding: 10px; min-width: max-content;">
+            <div class="modal-body" id="doc-preview-modal-body-wrapper" style="padding: 16px 8px; text-align: left; overflow-x: hidden; overflow-y: auto; flex: 1; background: #f8fafc; display: block;">
+                <!-- Scaling Container Wrapper -->
+                <div id="doc-preview-scale-wrapper" style="width: 794px; margin: 0 auto; transition: transform 0.2s ease; transform-origin: top left;">
                     <!-- A4 Paper Container with Standard Thai Official Margins (Left/Right: 2.54cm, Top: 0.8cm, Bottom: 0.5cm) -->
-                    <div id="document-print-area" style="background: white; padding: 0.8cm 2.54cm 0.5cm 2.54cm; margin: 0 auto; width: 210mm; min-height: 297mm; box-sizing: border-box; box-shadow: 0 4px 15px rgba(0,0,0,0.08); text-align: left; position: relative; color: #000; font-family: 'Sarabun', sans-serif;">
+                    <div id="document-print-area" style="background: white; padding: 0.8cm 2.54cm 0.5cm 2.54cm; margin: 0 auto; width: 794px; min-height: 297mm; box-sizing: border-box; box-shadow: 0 4px 15px rgba(0,0,0,0.08); text-align: left; position: relative; color: #000; font-family: 'Sarabun', sans-serif;">
                         <!-- Content will be injected here -->
                     </div>
                 </div>
@@ -1223,6 +1232,7 @@
             </div>
             <div id="summary-folder-list"></div>
         </div>
+    </div>
     <!-- Floating Action Button (FAB) สำหรับผ่อนผันนักเรียน (ล่างขวา) -->
     <button id="fab-exemption" onclick="openExemptionModal()" style="display: none; position: fixed; bottom: 28px; right: 25px; z-index: 9000; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 12px 22px; border-radius: 30px; font-weight: 600; font-size: 14px; box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4); cursor: pointer; align-items: center; gap: 8px; transition: all 0.25s ease;" onmouseover="this.style.transform='translateY(-3px) scale(1.03)';" onmouseout="this.style.transform='none';" title="ผ่อนผันนักเรียน">
         <i class="fa-solid fa-user-shield" style="font-size: 16px;"></i>

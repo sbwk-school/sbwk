@@ -3458,3 +3458,28 @@ table.at-risk-table {
         font-size: 12px;
     }
 }
+
+/* ==================== PREVIEW MODAL TOP ALIGNED RESPONSIVE ==================== */
+#modal-preview-summary, #modal-document-preview {
+    z-index: 10000 !important;
+    align-items: flex-start !important;
+    padding-top: 6px !important;
+}
+
+#modal-preview-summary .preview-modal-box {
+    max-width: 680px;
+    width: 95vw !important;
+    height: 94vh !important;
+    max-height: 94vh !important;
+    margin-top: 0 !important;
+    border-radius: 16px !important;
+}
+
+#modal-document-preview .modal-box {
+    max-width: 820px;
+    width: 96vw !important;
+    height: 95vh !important;
+    max-height: 95vh !important;
+    margin-top: 0 !important;
+    border-radius: 16px !important;
+}

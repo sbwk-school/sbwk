@@ -461,14 +461,18 @@ async function loadInitialData() {
         setLoader(false);
     }
     
-    // โหลดประวัติสถิติและข้อมูลเอกสารทั้งหมดเบื้องหลัง
+    // โหลดประวัติสถิติและข้อมูลเอกสารทั้งหมดเบื้องหลังทันที
     if (config.scriptUrl) {
         setTimeout(() => {
-            if (!allStatsData) fetchStatsDataOnce();
-        }, 1000);
-        setTimeout(() => {
-            if (!isDeferredDataLoaded) fetchDeferredDataOnce();
-        }, 2000);
+            Promise.all([
+                fetchStatsDataOnce(false),
+                fetchDeferredDataOnce(false)
+            ]).then(() => {
+                if (students && students.length > 0 && allStatsData) {
+                    isAtRiskDataLoaded = true;
+                }
+            }).catch(e => console.warn("Background prefetch warning:", e));
+        }, 500);
     }
 }
 
@@ -1426,41 +1430,179 @@ function showPreviewSummary() {
     renderGenderList(femaleList, "preview-female-list");
     
     document.getElementById("modal-preview-summary").classList.add("active");
-    
-    // Convert to Image and trigger auto-download in background
-    setTimeout(() => {
-        if (captureArea && typeof html2canvas !== "undefined") {
-            setLoader(true);
-            html2canvas(captureArea, { 
-                scale: 2, 
-                backgroundColor: "#ffffff",
-                useCORS: true,
-                allowTaint: true
-            }).then(canvas => {
-                setLoader(false);
-                try {
-                    const imgData = canvas.toDataURL("image/png");
-                    
-                    // Auto Download
-                    const a = document.createElement("a");
-                    a.href = imgData;
-                    const safeDate = currentCheckingDate || new Date().toISOString().slice(0,10);
-                    a.download = `สรุปเช็คชื่อ_ม${grade}-${room}_${safeDate}.png`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                } catch (err) {
-                    console.error("Canvas Export Error:", err);
-                    showToast("ไม่สามารถดาวน์โหลดรูปอัตโนมัติได้ (อาจติดปักหาเปิดจากไฟล์คอมพิวเตอร์โดยตรง กรุณานำขึ้นโฮสติ้งจริง)", "error");
-                }
-                
-                // Clear any wheel zoom listeners since we auto-fit to screen now
-                captureArea.parentElement.onwheel = null;
-                
-            }).catch(() => setLoader(false));
-        }
-    }, 400);
+    autoFitPreviewSummaryToScreen();
 }
+
+window.autoFitPreviewSummaryToScreen = function() {
+    const scaleWrapper = document.getElementById("preview-scale-wrapper");
+    const modalBody = document.getElementById("preview-modal-body-wrapper");
+    if (!scaleWrapper || !modalBody) return;
+    
+    scaleWrapper.style.transform = 'none';
+    scaleWrapper.style.transformOrigin = 'top center';
+    scaleWrapper.style.marginBottom = '0px';
+    
+    setTimeout(() => {
+        const availableWidth = modalBody.clientWidth - 24;
+        const nativeWidth = 640;
+        
+        if (availableWidth > 0 && availableWidth < nativeWidth) {
+            const scale = availableWidth / nativeWidth;
+            scaleWrapper.style.transform = `scale(${scale})`;
+            const naturalHeight = scaleWrapper.offsetHeight;
+            const scaledHeight = naturalHeight * scale;
+            const diff = naturalHeight - scaledHeight;
+            scaleWrapper.style.marginBottom = `-${diff}px`;
+        } else {
+            scaleWrapper.style.transform = 'none';
+            scaleWrapper.style.marginBottom = '0px';
+        }
+    }, 60);
+};
+
+window.autoFitDocumentPreviewToScreen = function() {
+    const scaleWrapper = document.getElementById("doc-preview-scale-wrapper");
+    const modalBody = document.getElementById("doc-preview-modal-body-wrapper");
+    if (!scaleWrapper || !modalBody) return;
+    
+    scaleWrapper.style.transform = 'none';
+    scaleWrapper.style.marginBottom = '0px';
+    
+    setTimeout(() => {
+        const availableWidth = modalBody.clientWidth - 16;
+        const nativeWidth = 794; // Width of A4 document in pixels (~210mm)
+        
+        if (availableWidth > 0 && availableWidth < nativeWidth) {
+            const scale = availableWidth / nativeWidth;
+            scaleWrapper.style.transformOrigin = 'top left';
+            scaleWrapper.style.margin = '0';
+            scaleWrapper.style.transform = `scale(${scale})`;
+            const naturalHeight = scaleWrapper.offsetHeight;
+            const scaledHeight = naturalHeight * scale;
+            const diff = naturalHeight - scaledHeight;
+            scaleWrapper.style.marginBottom = `-${diff}px`;
+        } else {
+            scaleWrapper.style.transformOrigin = 'top center';
+            scaleWrapper.style.margin = '0 auto';
+            scaleWrapper.style.transform = 'none';
+            scaleWrapper.style.marginBottom = '0px';
+        }
+    }, 50);
+};
+
+// Automatic Observer for document modal activation
+document.addEventListener("DOMContentLoaded", () => {
+    const docModal = document.getElementById("modal-document-preview");
+    if (docModal) {
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.attributeName === "class" && docModal.classList.contains("active")) {
+                    autoFitDocumentPreviewToScreen();
+                }
+            });
+        });
+        observer.observe(docModal, { attributes: true, attributeFilter: ["class"] });
+    }
+});
+
+window.addEventListener('resize', () => {
+    const modal = document.getElementById("modal-preview-summary");
+    if (modal && modal.classList.contains("active")) {
+        autoFitPreviewSummaryToScreen();
+    }
+    const docModal = document.getElementById("modal-document-preview");
+    if (docModal && docModal.classList.contains("active")) {
+        autoFitDocumentPreviewToScreen();
+    }
+});
+
+window.downloadSummaryPreviewImage = async function() {
+    const captureArea = document.getElementById("preview-capture-area");
+    const scaleWrapper = document.getElementById("preview-scale-wrapper");
+    if (!captureArea) return;
+    
+    try {
+        await ensurePdfLibrariesLoaded();
+        setLoader(true);
+        
+        const prevTransform = scaleWrapper ? scaleWrapper.style.transform : '';
+        const prevMargin = scaleWrapper ? scaleWrapper.style.marginBottom : '';
+        if (scaleWrapper) {
+            scaleWrapper.style.transform = 'none';
+            scaleWrapper.style.marginBottom = '0px';
+        }
+        
+        setTimeout(() => {
+            if (typeof html2canvas !== "undefined") {
+                html2canvas(captureArea, { 
+                    scale: 2, 
+                    backgroundColor: "#ffffff",
+                    useCORS: true,
+                    allowTaint: true
+                }).then(canvas => {
+                    setLoader(false);
+                    if (scaleWrapper) {
+                        scaleWrapper.style.transform = prevTransform;
+                        scaleWrapper.style.marginBottom = prevMargin;
+                    }
+                    try {
+                        const imgData = canvas.toDataURL("image/png");
+                        const grade = selectedRoom ? selectedRoom.grade : '';
+                        const room = selectedRoom ? selectedRoom.room : '';
+                        const safeDate = currentCheckingDate || new Date().toISOString().slice(0,10);
+                        
+                        const a = document.createElement("a");
+                        a.href = imgData;
+                        a.download = `สรุปเช็คชื่อ_ม${grade}-${room}_${safeDate}.png`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        showToast("บันทึกรูปภาพสรุปเรียบร้อยแล้ว 📸", "success");
+
+                        // ปิดหน้าต่างพรีวิวอัตโนมัติทันที
+                        const modal = document.getElementById("modal-preview-summary");
+                        if (modal) modal.classList.remove("active");
+
+                    } catch (err) {
+                        console.error("Canvas Export Error:", err);
+                        showToast("ไม่สามารถดาวน์โหลดรูปได้ (กรุณาใช้งานผ่านเว็บโฮสติ้งจริง)", "error");
+
+                        // ปิดหน้าต่างพรีวิวอัตโนมัติ
+                        const modal = document.getElementById("modal-preview-summary");
+                        if (modal) modal.classList.remove("active");
+                    }
+                }).catch(err => {
+                    setLoader(false);
+                    if (scaleWrapper) {
+                        scaleWrapper.style.transform = prevTransform;
+                        scaleWrapper.style.marginBottom = prevMargin;
+                    }
+                    console.error("html2canvas error:", err);
+                    showToast("เกิดข้อผิดพลาดในการแปลงรูปภาพ", "error");
+
+                    const modal = document.getElementById("modal-preview-summary");
+                    if (modal) modal.classList.remove("active");
+                });
+            } else {
+                setLoader(false);
+                if (scaleWrapper) {
+                    scaleWrapper.style.transform = prevTransform;
+                    scaleWrapper.style.marginBottom = prevMargin;
+                }
+                showToast("ไม่พบไลบรารีแปลงรูปภาพ html2canvas", "error");
+
+                const modal = document.getElementById("modal-preview-summary");
+                if (modal) modal.classList.remove("active");
+            }
+        }, 100);
+    } catch (e) {
+        setLoader(false);
+        showToast("เกิดข้อผิดพลาดในการโหลดระบบสร้างรูปภาพ", "error");
+
+        const modal = document.getElementById("modal-preview-summary");
+        if (modal) modal.classList.remove("active");
+    }
+};
 
 /**
  * 5. แป้นป้อนรหัสผ่าน PIN 4 หลัก (Keypad)
@@ -3231,8 +3373,12 @@ window.renderAtRiskStudents = async function() {
     
     if (!container) return; // Add null check
     
-    // ดึงข้อมูลสถิติล่าสุดสดๆ จากเซิร์ฟเวอร์เฉพาะในการเปิดเข้าหน้าติดตาม นร ครั้งแรก
-    if (!isAtRiskDataLoaded || !allStatsData || !students || students.length === 0) {
+    if (students && students.length > 0 && allStatsData) {
+        isAtRiskDataLoaded = true;
+    }
+    
+    // ดึงข้อมูลสถิติล่าสุดสดๆ จากเซิร์ฟเวอร์เฉพาะกรณีที่ยังไม่มีข้อมูลในแรม
+    if (!isAtRiskDataLoaded && (!allStatsData || !students || students.length === 0)) {
         container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);"><div class="empty-state" style="color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin" style="font-size: 30px; margin-bottom: 10px; color: var(--color-primary);"></i><p>กำลังดึงข้อมูลสถิติล่าสุดจากเซิร์ฟเวอร์...</p></div></div>';
         
         if (!config.scriptUrl) {
@@ -3262,21 +3408,24 @@ window.renderAtRiskStudents = async function() {
             fullName: s.fullName,
             grade: s.grade,
             room: s.room,
-            absent: acc.absent !== undefined ? acc.absent : 0,
-            late: acc.late !== undefined ? acc.late : 0
+            absent: acc.absent !== undefined ? acc.absent : (acc.Absent || 0),
+            late: acc.late !== undefined ? acc.late : (acc.Late || 0)
         };
     });
     
-    // ถ้ามีข้อมูลประวัติรายละเอียด allStatsData ให้ใช้สถิติตามรายการบันทึกจริงเพื่อความตรงกัน 100% กับหน้าสถิติ
+    // ถ้ามีข้อมูลประวัติรายละเอียด allStatsData ให้อัปเดตจำนวนขาด/สายเพิ่มเติม (ไม่ล้างค่าสะสมเดิม)
     if (allStatsData && allStatsData.logs && allStatsData.logs.length > 0) {
-        students.forEach(s => {
-            countsMap[s.studentId].absent = 0;
-            countsMap[s.studentId].late = 0;
-        });
+        const logCounts = {};
         allStatsData.logs.forEach(log => {
-            if (countsMap[log.studentId]) {
-                if (log.status === "ขาด") countsMap[log.studentId].absent++;
-                if (log.status === "สาย") countsMap[log.studentId].late++;
+            if (!logCounts[log.studentId]) logCounts[log.studentId] = { absent: 0, late: 0 };
+            if (log.status === "ขาด") logCounts[log.studentId].absent++;
+            if (log.status === "สาย") logCounts[log.studentId].late++;
+        });
+        
+        students.forEach(s => {
+            if (logCounts[s.studentId]) {
+                countsMap[s.studentId].absent = Math.max(countsMap[s.studentId].absent, logCounts[s.studentId].absent);
+                countsMap[s.studentId].late = Math.max(countsMap[s.studentId].late, logCounts[s.studentId].late);
             }
         });
     }
@@ -3306,27 +3455,35 @@ window.renderAtRiskStudents = async function() {
     const filterValue = document.getElementById('at-risk-filter') ? document.getElementById('at-risk-filter').value : 'all';
     const roomFilterSelect = document.getElementById('at-risk-room-filter');
     
-    // Populate room filter if it's the first time
-    if (roomFilterSelect && !roomFilterSelect.getAttribute('data-populated')) {
-        roomFilterSelect.setAttribute('data-populated', 'true');
-        const currentValue = roomFilterSelect.value;
-        
-        while (roomFilterSelect.options.length > 1) {
-            roomFilterSelect.remove(1);
+    // Populate room filter options if needed
+    if (roomFilterSelect) {
+        const savedValue = roomFilterSelect.value;
+        if (!roomFilterSelect.getAttribute('data-populated') || roomFilterSelect.options.length <= 1) {
+            roomFilterSelect.setAttribute('data-populated', 'true');
+            
+            while (roomFilterSelect.options.length > 1) {
+                roomFilterSelect.remove(1);
+            }
+            
+            // Build room list from all students in system for full completeness
+            const allSchoolRooms = (students && students.length > 0) ? 
+                [...new Set(students.map(s => `${s.grade}/${s.room}`))].sort((a, b) => a.localeCompare(b, 'th', { numeric: true })) :
+                [...new Set(atRiskList.map(s => `${s.grade}/${s.room}`))].sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
+                
+            allSchoolRooms.forEach(room => {
+                const opt = document.createElement('option');
+                opt.value = room;
+                opt.text = 'ชั้น ' + room;
+                roomFilterSelect.appendChild(opt);
+            });
+            
+            if (savedValue && Array.from(roomFilterSelect.options).some(o => o.value === savedValue)) {
+                roomFilterSelect.value = savedValue;
+            }
         }
-        
-        const uniqueRooms = [...new Set(atRiskList.map(s => `${s.grade}/${s.room}`))].sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
-        uniqueRooms.forEach(room => {
-            const opt = document.createElement('option');
-            opt.value = room;
-            opt.text = 'ชั้น ' + room;
-            roomFilterSelect.appendChild(opt);
-        });
-        
-        roomFilterSelect.value = currentValue;
     }
     
-    const roomFilterValue = roomFilterSelect ? roomFilterSelect.value : 'ALL';
+    const roomFilterValue = (roomFilterSelect && roomFilterSelect.value) ? roomFilterSelect.value : 'ALL';
     
     let filteredList = atRiskList;
     if (roomFilterValue !== 'ALL') {
@@ -3352,6 +3509,19 @@ window.renderAtRiskStudents = async function() {
     });
     
     container.innerHTML = "";
+    
+    if (filteredList.length === 0) {
+        container.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center; padding: 45px 20px; background: white; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); border: 1px dashed #cbd5e1;">
+                <div class="empty-state" style="color: var(--text-muted);">
+                    <i class="fa-solid fa-circle-check" style="font-size: 38px; color: #10b981; margin-bottom: 10px;"></i>
+                    <p style="margin: 0; font-weight: 700; font-size: 15px; color: #1e293b;">ไม่พบรายการนักเรียนตามเงื่อนไขที่เลือก</p>
+                    <span style="font-size: 13px; color: #64748b;">(ลองปรับเปลี่ยนตัวเลือกห้องเรียน หรือตัวกรองสถานะด้านบน)</span>
+                </div>
+            </div>
+        `;
+        return;
+    }
     
     let teacherOptions = '<option value="">- เลือกครู -</option>';
     if (typeof users !== 'undefined') {
@@ -4031,6 +4201,7 @@ window.exportDocumentToPdf = async function() {
     if (!currentSigningStudent) return;
     
     const element = document.getElementById("document-print-area");
+    const scaleWrapper = document.getElementById("doc-preview-scale-wrapper");
     if (!element) {
         if (typeof showToast === 'function') showToast("ไม่พบข้อมูลเอกสาร", "error");
         return;
@@ -4049,6 +4220,10 @@ window.exportDocumentToPdf = async function() {
     }
     
     try {
+        if (typeof ensurePdfLibrariesLoaded === 'function') {
+            await ensurePdfLibrariesLoaded();
+        }
+        
         if (!window.html2canvas) {
             throw new Error("html2canvas ไม่พร้อมใช้งาน");
         }
@@ -4056,6 +4231,18 @@ window.exportDocumentToPdf = async function() {
         const jsPdfLib = window.jspdf ? window.jspdf.jsPDF : window.jsPDF;
         if (!jsPdfLib) {
             throw new Error("jsPDF ไม่พร้อมใช้งาน");
+        }
+        
+        // Reset scale wrapper ชั่วคราวเพื่อให้ html2canvas จับภาพขนาดเต็ม A4 คมชัดสูง
+        const prevTransform = scaleWrapper ? scaleWrapper.style.transform : '';
+        const prevMargin = scaleWrapper ? scaleWrapper.style.margin : '';
+        const prevMarginBottom = scaleWrapper ? scaleWrapper.style.marginBottom : '';
+        const prevTransformOrigin = scaleWrapper ? scaleWrapper.style.transformOrigin : '';
+        
+        if (scaleWrapper) {
+            scaleWrapper.style.transform = 'none';
+            scaleWrapper.style.margin = '0 auto';
+            scaleWrapper.style.marginBottom = '0px';
         }
         
         // รอรูปภาพทั้งหมดโหลดเสร็จสมบูรณ์ก่อน
@@ -4069,6 +4256,9 @@ window.exportDocumentToPdf = async function() {
         });
         await Promise.all(imgPromises);
 
+        // รอเล็กน้อยให้ DOM render รูปแบบไม่ scale
+        await new Promise(r => setTimeout(r, 100));
+
         const canvas = await window.html2canvas(element, {
             scale: 2, // 2x scale คมชัดสูงมากสำหรับเอกสารราชการ
             useCORS: true,
@@ -4076,6 +4266,16 @@ window.exportDocumentToPdf = async function() {
             logging: false,
             backgroundColor: '#ffffff'
         });
+        
+        // คืนค่า scale wrapper กลับเป็นแบบ Auto-Fit สำหรับมือถือ
+        if (typeof autoFitDocumentPreviewToScreen === 'function') {
+            autoFitDocumentPreviewToScreen();
+        } else if (scaleWrapper) {
+            scaleWrapper.style.transform = prevTransform;
+            scaleWrapper.style.margin = prevMargin;
+            scaleWrapper.style.marginBottom = prevMarginBottom;
+            scaleWrapper.style.transformOrigin = prevTransformOrigin;
+        }
         
         const imgData = canvas.toDataURL('image/jpeg', 0.95);
         
@@ -4098,10 +4298,13 @@ window.exportDocumentToPdf = async function() {
         pdf.save(fileName);
         
         if (typeof showToast === 'function') {
-            showToast("บันทึกไฟล์ PDF เรียบร้อยแล้ว", "success");
+            showToast("บันทึกไฟล์ PDF เรียบร้อยแล้ว 📄", "success");
         }
     } catch (err) {
         console.error("Error exporting PDF:", err);
+        if (typeof autoFitDocumentPreviewToScreen === 'function') {
+            autoFitDocumentPreviewToScreen();
+        }
         if (typeof showToast === 'function') {
             showToast("เกิดข้อผิดพลาด: " + (err.message || "กรุณาลองใหม่อีกครั้ง"), "error");
         }
@@ -4933,13 +5136,30 @@ function renderRoomSpecificSchedule() {
 }
 
 window.jumpToTracking = function(roomKey) {
-    window.preserveTrackingRoomFilter = true;
     switchView("at-risk");
-    const roomFilterSelect = document.getElementById('at-risk-room-filter');
-    if (roomFilterSelect) {
-        roomFilterSelect.value = roomKey;
-        renderAtRiskStudents();
-    }
+    
+    setTimeout(() => {
+        const roomFilterSelect = document.getElementById('at-risk-room-filter');
+        const filterSelect = document.getElementById('at-risk-filter');
+        
+        if (filterSelect) {
+            filterSelect.value = 'all'; // Default secondary filter to 'all' so no student is hidden by status
+        }
+        
+        if (roomFilterSelect) {
+            // Ensure options are populated from all school rooms
+            if (!roomFilterSelect.getAttribute('data-populated') || roomFilterSelect.options.length <= 1) {
+                renderAtRiskStudents();
+            }
+            
+            if (roomKey && Array.from(roomFilterSelect.options).some(o => o.value === roomKey)) {
+                roomFilterSelect.value = roomKey;
+            } else {
+                roomFilterSelect.value = 'ALL';
+            }
+            renderAtRiskStudents();
+        }
+    }, 50);
 };
 
 /* =========================================================
