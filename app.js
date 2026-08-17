@@ -37,6 +37,7 @@ let allStatsData = null; // โหลดสถิติทั้งหมดม�
 let accumulatedStatsMap = {}; // สถิติสะสมสำเร็จรูปรายคนจากชีท Web_สถิติสะสม
 let documentsData = []; // ประวัติเอกสารและลายเซ็น
 let atRiskTeachersCache = {}; // ข้อมูลครูที่รับผิดชอบเอกสารและลายเซ็น
+let signaturePad = null; // ออบเจกต์ลายเซ็นอิเล็กทรอนิกส์
 
 // ตัวแปรควบคุมการเช็คชื่อของห้องที่เลือก
 let selectedRoom = null; // { grade, room }
@@ -1734,7 +1735,11 @@ window.requestLogin = function(roleRequired = "ANY", callback = null) {
         if (isAuthorized) {
             if (callback) callback(loggedInUser.pin, loggedInUser.name, loggedInUser.role);
         } else {
-            alert("คุณไม่มีสิทธิ์ในการดำเนินรายการนี้");
+            if (typeof showToast === 'function') {
+                showToast("คุณไม่มีสิทธิ์ในการดำเนินรายการนี้ (เฉพาะแอดมินหรือฝ่ายกิจการฯ เท่านั้น)", "error");
+            } else {
+                alert("คุณไม่มีสิทธิ์ในการดำเนินรายการนี้");
+            }
         }
     } else {
         openPinModal("กรุณาเข้าสู่ระบบ", roleRequired, callback);
@@ -4044,7 +4049,13 @@ function formatThaiDateString(dateInput) {
     if (dock) dock.style.zIndex = '100';
     
     document.getElementById("document-print-area").innerHTML = htmlContent;
-    document.getElementById("modal-document-preview").classList.add("active");
+    if (typeof tintAllSignatures === 'function') {
+        tintAllSignatures().then(() => {
+            document.getElementById("modal-document-preview").classList.add("active");
+        });
+    } else {
+        document.getElementById("modal-document-preview").classList.add("active");
+    }
 };
 
 window.closeDocumentPreview = function() {
@@ -4198,8 +4209,6 @@ window.saveDocumentData = async function() {
 };
 
 window.exportDocumentToPdf = async function() {
-    if (!currentSigningStudent) return;
-    
     const element = document.getElementById("document-print-area");
     const scaleWrapper = document.getElementById("doc-preview-scale-wrapper");
     if (!element) {
@@ -4207,9 +4216,18 @@ window.exportDocumentToPdf = async function() {
         return;
     }
     
-    // ตั้งชื่อไฟล์ เช่น ป.ค.8_ครั้งที่1_เด็กชายสมชาย_ใจดี.pdf
-    const docTypeStr = currentSigningStudent.fullDocType || currentSigningStudent.documentType || currentSigningStudent.docType || 'เอกสาร';
-    const studentNameStr = (currentSigningStudent.fullName || 'นักเรียน').replace(/\s+/g, '_');
+    // ตั้งชื่อไฟล์
+    let docTypeStr = 'เอกสาร';
+    let studentNameStr = 'นักเรียน';
+    
+    if (typeof currentSigningStudent !== 'undefined' && currentSigningStudent) {
+        docTypeStr = currentSigningStudent.fullDocType || currentSigningStudent.documentType || currentSigningStudent.docType || 'เอกสาร';
+        studentNameStr = (currentSigningStudent.fullName || 'นักเรียน').replace(/\s+/g, '_');
+    } else if (window.currentPk11Student) {
+        docTypeStr = 'ป.ค.11';
+        studentNameStr = (window.currentPk11Student.fullName || 'นักเรียน').replace(/\s+/g, '_');
+    }
+    
     const fileName = `${docTypeStr}_${studentNameStr}.pdf`;
     
     if (typeof showToast === 'function') {
@@ -4316,9 +4334,8 @@ window.exportDocumentToPdf = async function() {
 };
 
 window.printDocument = function() {
-    if (!currentSigningStudent) return;
-    
-    const printContents = document.getElementById("document-print-area").innerHTML;
+    const printContents = document.getElementById("document-print-area")?.innerHTML;
+    if (!printContents) return;
     
     // สร้าง div ชั่วคราวเพื่อใช้ปริ้นท์โดยเฉพาะ
     const printWrapper = document.createElement('div');
@@ -5496,4 +5513,773 @@ window.openExemptionDetailModal = function(studentId) {
 window.closeExemptionDetailModal = function() {
     const modal = document.getElementById("modal-exemption-detail");
     if (modal) modal.classList.remove("active");
+};
+
+/* =========================================================
+ * 15. ระบบขออนุญาตออกนอกบริเวณโรงเรียน (ป.ค. 11)
+ * ========================================================= */
+
+window.currentPk11Step = 1;
+const totalPk11Steps = 4;
+window.pk11SignatureTarget = '';
+window.pk11Records = [];
+window.currentPk11Student = null;
+window.pk11DraftData = null;
+
+window.openPk11Wizard = function(recordId = null) {
+    document.getElementById('pk11-list-container').style.display = 'none';
+    document.getElementById('pk11-wizard-container').style.display = 'block';
+    
+    if (recordId) {
+        // Edit mode
+        const record = window.pk11Records.find(r => String(r.id) === String(recordId));
+        if (record) {
+            document.getElementById('pk11-record-id').value = record.id;
+            // Reconstruct currentPk11Student
+            window.currentPk11Student = {
+                studentId: record.studentId,
+                fullName: record.studentName,
+                grade: record.gradeRoom ? record.gradeRoom.split('/')[0] : '',
+                room: record.gradeRoom ? record.gradeRoom.split('/')[1] : ''
+            };
+            
+            // Populate Step 1
+            const searchInput = document.getElementById('pk11-student-search');
+            const dropdown = document.getElementById('pk11-student-dropdown');
+            const displayBadge = document.getElementById('pk11-student-display');
+            if (searchInput) {
+                searchInput.value = '';
+                searchInput.classList.add('hidden');
+            }
+            if (dropdown) dropdown.innerHTML = '';
+            
+            document.getElementById('pk11-student-name-display').innerText = record.studentName || '-';
+            if (displayBadge) displayBadge.classList.remove('hidden');
+            
+            
+            let dateVal = record.targetDate || record.createdAt || '';
+            if (dateVal && dateVal.includes('T')) dateVal = dateVal.split('T')[0];
+            const dateInput = document.getElementById('pk11-date');
+            dateInput.value = dateVal;
+            dateInput.disabled = true;
+            
+            document.getElementById('pk11-exit-time').value = record.exitTime || '';
+            document.getElementById('pk11-return-time').value = record.returnTime || '';
+            document.getElementById('pk11-location').value = record.location || '';
+            document.getElementById('pk11-reason').value = record.reason || '';
+            document.getElementById('pk11-student-phone').value = record.studentPhone || '';
+            
+            // Populate Step 2
+            document.getElementById('pk11-parent-name').value = record.parentName || '';
+            document.getElementById('pk11-relation').value = record.relation || '';
+            document.getElementById('pk11-parent-phone').value = record.parentPhone || '';
+            
+            // Populate Step 3 & 4
+            setTimeout(() => {
+                const hrSelect = document.getElementById('pk11-hr-select');
+                const saSelect = document.getElementById('pk11-sa-select');
+                const hrDisplay = document.getElementById('pk11-hr-display');
+                const saDisplay = document.getElementById('pk11-sa-display');
+                const hrNameDisplay = document.getElementById('pk11-hr-name-display');
+                const saNameDisplay = document.getElementById('pk11-sa-name-display');
+                const hrSearch = document.getElementById('pk11-hr-search');
+                const saSearch = document.getElementById('pk11-sa-search');
+                
+                if (hrSelect && record.hrName) {
+                    hrSelect.value = record.hrName;
+                    if(hrNameDisplay) hrNameDisplay.innerText = record.hrName;
+                    if(hrDisplay) hrDisplay.classList.remove('hidden');
+                    if(hrSearch) { hrSearch.value = ''; hrSearch.classList.add('hidden'); }
+                }
+                if (saSelect && record.saName) {
+                    saSelect.value = record.saName;
+                    if(saNameDisplay) saNameDisplay.innerText = record.saName;
+                    if(saDisplay) saDisplay.classList.remove('hidden');
+                    if(saSearch) { saSearch.value = ''; saSearch.classList.add('hidden'); }
+                }
+            }, 100);
+            
+            // Populate Signatures
+            const setSig = (targetId, b64) => {
+                const img = document.getElementById(`${targetId}-signature-preview`);
+                const container = document.getElementById(`${targetId}-signature-preview-container`);
+                if (b64 && b64.length > 100) {
+                    if (img) img.src = b64;
+                    if (container) container.style.display = 'block';
+                } else {
+                    if (img) img.src = '';
+                    if (container) container.style.display = 'none';
+                }
+            };
+            
+            setSig('pk11-student', record.studentSignature);
+            setSig('pk11-parent', record.parentSignature);
+            setSig('pk11-hr', record.hrSignature);
+            setSig('pk11-sa', record.saSignature);
+            
+            // Set status
+            const statusVal = record.status || 'อนุญาต';
+            const radio = document.querySelector(`input[name="pk11-sa-status"][value="${statusVal}"]`);
+            if (radio) radio.checked = true;
+        }
+    } else {
+        // Create mode
+        document.getElementById('pk11-record-id').value = '';
+        clearPk11Form();
+        window.pk11DraftData = null;
+        
+        // Auto set current date and time
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        const dateInput = document.getElementById('pk11-date');
+        dateInput.value = `${yyyy}-${mm}-${dd}`;
+        dateInput.disabled = false;
+        
+        const hh = String(today.getHours()).padStart(2, '0');
+        const min = String(today.getMinutes()).padStart(2, '0');
+        document.getElementById('pk11-exit-time').value = `${hh}:${min}`;
+    }
+    
+    goToPk11Step(1);
+};
+
+window.closePk11Wizard = function() {
+    document.getElementById('pk11-wizard-container').style.display = 'none';
+    document.getElementById('pk11-list-container').style.display = 'block';
+};
+
+window.goToPk11Step = function(step) {
+    if (step === 'next') step = window.currentPk11Step + 1;
+    if (step === 'prev') step = window.currentPk11Step - 1;
+    
+    if (step < 1 || step > totalPk11Steps) return;
+    
+    // Hide all steps and evaluate completion
+    const isStepCompleted = (stepIdx) => {
+        if (stepIdx === 1) {
+            const reason = document.getElementById('pk11-reason');
+            return window.currentPk11Student != null && reason && reason.value.trim() !== '';
+        } else if (stepIdx === 2) {
+            const sig = document.getElementById('pk11-parent-signature-preview');
+            return sig && sig.src && sig.src.length > 100;
+        } else if (stepIdx === 3) {
+            const sig = document.getElementById('pk11-hr-signature-preview');
+            return sig && sig.src && sig.src.length > 100;
+        } else if (stepIdx === 4) {
+            const sig = document.getElementById('pk11-sa-signature-preview');
+            return sig && sig.src && sig.src.length > 100;
+        }
+        return false;
+    };
+
+    for (let i = 1; i <= totalPk11Steps; i++) {
+        const stepEl = document.getElementById(`pk11-step-${i}`);
+        if (stepEl) stepEl.style.display = 'none';
+        
+        const navItem = document.getElementById(`pk11-nav-step-${i}`);
+        if (navItem) {
+            navItem.classList.remove('active', 'completed');
+            if (i === step) {
+                navItem.classList.add('active');
+            } else if (isStepCompleted(i)) {
+                navItem.classList.add('completed');
+            }
+        }
+    }
+    
+    // Show current step
+    const currentEl = document.getElementById(`pk11-step-${step}`);
+    if(currentEl) currentEl.style.display = 'block';
+    window.currentPk11Step = step;
+    
+    // Update buttons
+    const prevBtn = document.getElementById('btn-pk11-prev');
+    const saveBtn = document.getElementById('btn-pk11-save');
+    const previewBtn = document.getElementById('btn-pk11-preview');
+    
+    if(prevBtn) prevBtn.style.display = step === 1 ? 'none' : 'block';
+    
+    if (saveBtn) {
+        saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> บันทึก';
+    }
+};
+
+window.clearPk11Form = function() {
+    const inputs = ['pk11-student-search', 'pk11-date', 'pk11-location', 'pk11-exit-time', 'pk11-return-time', 'pk11-reason', 'pk11-student-phone', 'pk11-parent-name', 'pk11-relation', 'pk11-parent-phone', 'pk11-hr-select', 'pk11-sa-select'];
+    inputs.forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.value = '';
+    });
+    
+    const displayEl = document.getElementById('pk11-student-display');
+    if(displayEl) displayEl.classList.add('hidden');
+    const nameDisplayEl = document.getElementById('pk11-student-name-display');
+    if(nameDisplayEl) nameDisplayEl.innerText = '-';
+    
+    // Clear teacher selection
+    ['hr', 'sa'].forEach(role => clearTeacherSelection(role));
+    window.currentPk11Student = null;
+    
+    ['pk11-student', 'pk11-parent', 'pk11-hr', 'pk11-sa'].forEach(id => clearTeacherSignature(id));
+    
+    // Reset status
+    const statusRadio = document.querySelector('input[name="pk11-sa-status"][value="อนุญาต"]');
+    if (statusRadio) statusRadio.checked = true;
+};
+
+window.clearTeacherSelection = function(role) {
+    const select = document.getElementById(`pk11-${role}-select`);
+    const search = document.getElementById(`pk11-${role}-search`);
+    const display = document.getElementById(`pk11-${role}-display`);
+    const nameDisplay = document.getElementById(`pk11-${role}-name-display`);
+    
+    if (select) select.value = '';
+    if (search) { search.value = ''; search.classList.remove('hidden'); }
+    if (display) display.classList.add('hidden');
+    if (nameDisplay) nameDisplay.innerText = '-';
+};
+
+window.openTeacherSignature = function(targetId) {
+    window.pk11SignatureTarget = targetId;
+    
+    // Initialize SignaturePad if not already done
+    const canvas = document.getElementById('signature-pad');
+    if (!signaturePad && canvas && typeof SignaturePad !== 'undefined') {
+        signaturePad = new SignaturePad(canvas, {
+            backgroundColor: 'rgba(255, 255, 255, 0)',
+            penColor: '#0000FF'
+        });
+    }
+    
+    if (typeof openSignatureModal === 'function') {
+        openSignatureModal();
+    } else {
+        const modal = document.getElementById("modal-signature");
+        if(modal) {
+            modal.classList.add("active");
+            if (signaturePad) {
+                // Adjust scale for high DPI screens when modal opens
+                setTimeout(() => {
+                    if (canvas.offsetWidth > 0) {
+                        const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                        canvas.width = canvas.offsetWidth * ratio;
+                        canvas.height = canvas.offsetHeight * ratio;
+                        canvas.getContext("2d").scale(ratio, ratio);
+                        signaturePad.clear();
+                    }
+                }, 50);
+            }
+        }
+    }
+};
+
+window.clearSignature = function() {
+    if (typeof signaturePad !== 'undefined' && signaturePad) {
+        signaturePad.clear();
+    }
+};
+
+window.clearTeacherSignature = function(targetId) {
+    const img = document.getElementById(`${targetId}-signature-preview`);
+    const container = document.getElementById(`${targetId}-signature-preview-container`);
+    if(img) img.src = '';
+    if(container) container.style.display = 'none';
+};
+
+// Override original saveSignature if it exists to route back to PK11
+const originalSaveSignature = window.saveSignature;
+window.saveSignature = function() {
+    if (window.pk11SignatureTarget && typeof signaturePad !== 'undefined' && !signaturePad.isEmpty()) {
+        const dataUrl = signaturePad.toDataURL('image/png');
+        const img = document.getElementById(`${window.pk11SignatureTarget}-signature-preview`);
+        const container = document.getElementById(`${window.pk11SignatureTarget}-signature-preview-container`);
+        if(img) img.src = dataUrl;
+        if(container) container.style.display = 'block';
+        window.pk11SignatureTarget = '';
+        
+        if (typeof closeSignatureModal === 'function') {
+            closeSignatureModal();
+        } else {
+            const modal = document.getElementById("modal-signature");
+            if(modal) modal.classList.remove("active");
+        }
+        return;
+    }
+    
+    if (originalSaveSignature) {
+        originalSaveSignature();
+    }
+};
+
+window.savePk11Record = async function() {
+    if (!window.currentPk11Student) {
+        showToast("กรุณาเลือกนักเรียน", "error");
+        goToPk11Step(1);
+        return;
+    }
+    
+    const getSig = (id) => {
+        const el = document.getElementById(id);
+        if (!el) return "";
+        const src = el.src;
+        return (src && src.startsWith('data:image')) ? src : "";
+    };
+    
+    const payload = {
+        action: "savePK11",
+        id: document.getElementById('pk11-record-id').value || "",
+        studentId: window.currentPk11Student.studentId,
+        studentName: window.currentPk11Student.fullName,
+        gradeRoom: `${window.currentPk11Student.grade}/${window.currentPk11Student.room}`,
+        createdAt: document.getElementById('pk11-date').value,
+        targetDate: document.getElementById('pk11-date').value,
+        exitTime: document.getElementById('pk11-exit-time').value,
+        returnTime: document.getElementById('pk11-return-time').value,
+        location: document.getElementById('pk11-location').value,
+        reason: document.getElementById('pk11-reason').value,
+        studentPhone: document.getElementById('pk11-student-phone').value,
+        parentName: document.getElementById('pk11-parent-name').value,
+        relation: document.getElementById('pk11-relation').value,
+        parentPhone: document.getElementById('pk11-parent-phone').value,
+        hrName: document.getElementById('pk11-hr-select').value,
+        saName: document.getElementById('pk11-sa-select').value,
+        status: document.querySelector('input[name="pk11-sa-status"]:checked')?.value || "อนุญาต",
+        
+        // Signatures (Base64 or empty)
+        studentSignature: getSig('pk11-student-signature-preview'),
+        parentSignature: getSig('pk11-parent-signature-preview'),
+        hrSignature: getSig('pk11-hr-signature-preview'),
+        saSignature: getSig('pk11-sa-signature-preview')
+    };
+    
+    setLoader(true);
+    try {
+        const res = await fetch(config.scriptUrl, {
+            method: "POST",
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast("บันทึกข้อมูล ป.ค.11 สำเร็จ", "success");
+            
+            // Assign saved ID back to hidden input so subsequent saves update the same record
+            if (data.id) {
+                document.getElementById('pk11-record-id').value = data.id;
+            }
+            
+            // Go to next step or close if at the end
+            if (window.currentPk11Step < totalPk11Steps) {
+                goToPk11Step('next');
+            } else {
+                closePk11Wizard();
+            }
+            loadPk11Records(); // Refresh list in background
+        } else {
+            showToast("เกิดข้อผิดพลาด: " + data.message, "error");
+        }
+    } catch (err) {
+        showToast("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์", "error");
+        console.error(err);
+    } finally {
+        setLoader(false);
+    }
+};
+
+window.loadPk11Records = async function() {
+    if (!config.scriptUrl) return;
+    
+    setLoader(true);
+    try {
+        const res = await fetch(`${config.scriptUrl}?action=getPK11`);
+        const data = await res.json();
+        if (data.success) {
+            window.pk11Records = data.records || [];
+            renderPk11List();
+        }
+    } catch (err) {
+        console.error("โหลดข้อมูล ป.ค.11 ล้มเหลว", err);
+    } finally {
+        setLoader(false);
+    }
+};
+
+window.renderPk11List = function() {
+    const tbody = document.getElementById("pk11-table-tbody");
+    if (!tbody) return;
+    
+    tbody.innerHTML = "";
+    
+    if (!window.pk11Records || window.pk11Records.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="txt-center" style="color: var(--text-muted); padding: 30px;">ไม่มีบันทึกข้อมูลขออนุญาตออกนอกบริเวณ</td></tr>';
+        return;
+    }
+    
+    // Sort by date desc
+    const sorted = [...window.pk11Records].sort((a,b) => new Date(b.targetDate) - new Date(a.targetDate));
+    
+    sorted.forEach(item => {
+        const dateDisplay = item.targetDate ? formatThaiShortDate(item.targetDate) : '-';
+        // Determine status visually based on signatures
+        let statusBadge = `<span style="background: #e2e8f0; color: #64748b; padding: 2px 6px; border-radius: 6px; font-size: 11px; font-weight: bold;">รอพิจารณา</span>`;
+        if (item.saSignature && item.saSignature.length > 100) {
+            statusBadge = `<span style="background: #d1fae5; color: #047857; padding: 2px 6px; border-radius: 6px; font-size: 11px; font-weight: bold;">อนุมัติแล้ว</span>`;
+        } else if (item.hrSignature && item.hrSignature.length > 100) {
+            statusBadge = `<span style="background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 6px; font-size: 11px; font-weight: bold;">รอหัวหน้ากิจการ</span>`;
+        }
+        
+        const tr = document.createElement("tr");
+        const timeDisplay = (item.exitTime || '-') + ' - ' + (item.returnTime || '-');
+        
+        tr.innerHTML = `
+            <td class="txt-center">
+                <div style="display: flex; gap: 4px; justify-content: center; align-items: center; height: 100%;">
+                    <button onclick="previewPk11DocumentDirectly('${item.id}')" class="btn btn-outline" style="padding: 4px 8px; font-size: 11px; border-radius: 6px; border-color: var(--primary-color); color: var(--primary-color);" title="ดูเอกสาร">
+                        <i class="fa-solid fa-file-pdf"></i>
+                    </button>
+                    <button onclick="openPk11Wizard('${item.id}')" class="btn btn-outline" style="padding: 4px 8px; font-size: 11px; border-radius: 6px;" title="แก้ไข/ดำเนินการต่อ">
+                        <i class="fa-solid fa-file-signature"></i> จัดการ
+                    </button>
+                </div>
+            </td>
+            <td class="txt-center">${statusBadge}</td>
+            <td>
+                <div style="font-weight: 500; color: var(--text-main);">${item.studentName}</div>
+                <div style="font-size: 11px; color: var(--text-muted);">${item.gradeRoom}</div>
+            </td>
+            <td class="txt-center">${dateDisplay}</td>
+            <td class="txt-center" style="white-space: nowrap;">${timeDisplay}</td>
+            <td><div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;" title="${item.reason || ''}">${item.reason || '-'}</div></td>
+            <td class="txt-center">
+                <button onclick="deletePk11Record('${item.id}')" class="btn btn-outline" style="padding: 4px 8px; font-size: 11px; border-radius: 6px; border-color: var(--color-absent); color: var(--color-absent);" title="ลบรายการ">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+};
+
+window.deletePk11Record = async function(id) {
+    if (!confirm("คุณแน่ใจหรือไม่ว่าต้องการลบรายการขออนุญาตออกนอกบริเวณโรงเรียนนี้? (การดำเนินการนี้ไม่สามารถยกเลิกได้)")) {
+        return;
+    }
+    
+    setLoader(true);
+    try {
+        const res = await fetch(config.scriptUrl, {
+            method: "POST",
+            body: JSON.stringify({ action: "deletePK11", id: id })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast("ลบรายการสำเร็จ", "success");
+            loadPk11Records();
+        } else {
+            showToast("เกิดข้อผิดพลาด: " + data.message, "error");
+        }
+    } catch (err) {
+        showToast("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์", "error");
+        console.error(err);
+    } finally {
+        setLoader(false);
+    }
+};
+
+window.previewPk11DocumentDirectly = function(recordId) {
+    const item = window.pk11Records.find(r => r.id === recordId);
+    if (!item) return;
+    
+    if (typeof getPK11Template === 'function' && typeof generateDocumentHtml === 'function') {
+        const payload = {
+            date: item.targetDate || '-',
+            studentName: item.studentName || '-',
+            grade: item.gradeRoom ? item.gradeRoom.split('/')[0] : '-',
+            room: item.gradeRoom ? item.gradeRoom.split('/')[1] : '-',
+            reason: item.reason || '-',
+            location: item.location || '-',
+            exitTime: item.exitTime || '-',
+            returnTime: item.returnTime || '-',
+            parentName: item.parentName || '-',
+            relation: item.relation || '-',
+            hrName: item.hrName || '-',
+            saName: item.saName || '-',
+            homeroomTeacher: item.hrName || '-',
+            headOfStudentAffairs: item.saName || '-',
+            studentPhone: item.studentPhone || '-',
+            parentPhone: item.parentPhone || '-',
+            studentSignature: item.studentSignature || '',
+            parentSignature: item.parentSignature || '',
+            hrSignature: item.hrSignature || '',
+            saSignature: item.saSignature || '',
+            docType: 'ป.ค.11'
+        };
+        
+        const html = generateDocumentHtml(payload);
+        const modal = document.getElementById('modal-document-preview');
+        const container = document.getElementById('document-print-area');
+        if (modal && container) {
+            container.innerHTML = html;
+            if (typeof tintAllSignatures === 'function') {
+                tintAllSignatures().then(() => {
+                    modal.classList.add('active');
+                });
+            } else {
+                modal.classList.add('active');
+            }
+        }
+    } else {
+        showToast("ระบบเอกสารยังไม่พร้อม", "warning");
+    }
+};
+
+// Implement Student Search
+document.addEventListener('DOMContentLoaded', () => {
+    // Populate PK11 Time Selects
+    const exitSelect = document.getElementById('pk11-exit-time');
+    const returnSelect = document.getElementById('pk11-return-time');
+    if (exitSelect && returnSelect) {
+        let options = '<option value="">-- เลือกเวลา --</option>';
+        for (let h = 8; h <= 15; h++) {
+            for (let m = 0; m <= 50; m += 10) {
+                if (h === 8 && m < 30) continue;
+                if (h === 15 && m > 30) continue;
+                let hh = h.toString().padStart(2, '0');
+                let mm = m.toString().padStart(2, '0');
+                options += `<option value="${hh}:${mm}">${hh}:${mm} น.</option>`;
+            }
+        }
+        exitSelect.innerHTML = options;
+        returnSelect.innerHTML = options;
+    }
+
+    const searchInput = document.getElementById('pk11-student-search');
+    const dropdown = document.getElementById('pk11-student-dropdown');
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const val = e.target.value.trim().toLowerCase();
+            dropdown.innerHTML = '';
+            
+            if (val.length < 2) {
+                dropdown.style.display = 'none';
+                return;
+            }
+            
+            if (typeof students === 'undefined' || !students) return;
+            
+            const matches = students.filter(s => {
+                return (s.fullName && s.fullName.toLowerCase().includes(val)) || 
+                       (s.studentId && String(s.studentId).includes(val)) ||
+                       (s.no && String(s.no) === val);
+            }).slice(0, 8);
+            
+            if (matches.length > 0) {
+                matches.forEach(student => {
+                    const div = document.createElement('div');
+                    div.className = 'search-result-item';
+                    div.innerHTML = `<div style="font-weight:600;">${student.fullName}</div><div style="font-size:11px; color:#64748b;">ม.${student.grade}/${student.room} เลขที่ ${student.no} | รหัส ${student.studentId}</div>`;
+                    div.onclick = () => {
+                        const displayEl = document.getElementById('pk11-student-display');
+                        if(displayEl) displayEl.classList.remove('hidden');
+                        
+                        const nameDisplayEl = document.getElementById('pk11-student-name-display');
+                        if(nameDisplayEl) nameDisplayEl.innerText = `${student.fullName} (ม.${student.grade}/${student.room})`;
+                        
+                        window.currentPk11Student = student;
+                        searchInput.value = '';
+                        dropdown.style.display = 'none';
+                    };
+                    dropdown.appendChild(div);
+                });
+                dropdown.style.display = 'block';
+            } else {
+                dropdown.style.display = 'none';
+            }
+        });
+        
+        document.addEventListener('click', (e) => {
+            if (e.target !== searchInput && e.target !== dropdown) {
+                dropdown.style.display = 'none';
+            }
+        });
+    }
+    
+    // Setup Teacher Search (HR and SA)
+    ['hr', 'sa'].forEach(role => {
+        const tSearch = document.getElementById(`pk11-${role}-search`);
+        const tDropdown = document.getElementById(`pk11-${role}-dropdown`);
+        if (tSearch && tDropdown) {
+            tSearch.addEventListener('input', (e) => {
+                const val = e.target.value.trim().toLowerCase();
+                tDropdown.innerHTML = '';
+                
+                if (val.length < 2) {
+                    tDropdown.style.display = 'none';
+                    return;
+                }
+                
+                if (typeof users === 'undefined' || !users) return;
+                
+                const matches = users.filter(u => u.name && u.name.toLowerCase().includes(val)).slice(0, 8);
+                
+                if (matches.length > 0) {
+                    matches.forEach(user => {
+                        const div = document.createElement('div');
+                        div.className = 'search-result-item';
+                        div.innerHTML = `<div style="font-weight:600; padding: 4px 0;">${user.name}</div>`;
+                        div.onclick = () => {
+                            const displayEl = document.getElementById(`pk11-${role}-display`);
+                            if(displayEl) displayEl.classList.remove('hidden');
+                            
+                            const nameDisplayEl = document.getElementById(`pk11-${role}-name-display`);
+                            if(nameDisplayEl) nameDisplayEl.innerText = user.name;
+                            
+                            const selectEl = document.getElementById(`pk11-${role}-select`);
+                            if(selectEl) selectEl.value = user.name;
+                            
+                            tSearch.value = '';
+                            tSearch.classList.add('hidden');
+                            tDropdown.style.display = 'none';
+                        };
+                        tDropdown.appendChild(div);
+                    });
+                    tDropdown.style.display = 'block';
+                } else {
+                    tDropdown.style.display = 'none';
+                }
+            });
+            
+            document.addEventListener('click', (e) => {
+                if (e.target !== tSearch && e.target !== tDropdown) {
+                    tDropdown.style.display = 'none';
+                }
+            });
+        }
+    });
+});
+
+// Hook switchView to load PK11 data when selected
+const originalSwitchViewForPk11 = window.switchView;
+window.switchView = function(viewId) {
+    if (originalSwitchViewForPk11) originalSwitchViewForPk11(viewId);
+    
+    if (viewId === 'pk11') {
+        const viewEl = document.getElementById('view-pk11');
+        if (viewEl) viewEl.classList.add('active');
+        
+        const pageTitleEl = document.getElementById("header-page-title");
+        if (pageTitleEl) pageTitleEl.innerText = "ขออนุญาตออกนอกบริเวณ (ป.ค. 11)";
+        
+        const dockShortcut = document.getElementById("shortcut-student-affairs");
+        if (dockShortcut) dockShortcut.classList.add("active");
+        
+        closePk11Wizard();
+        loadPk11Records();
+    }
+};
+
+window.previewPk11Document = function() {
+    // Check if documents.js loaded and has getPK11Template
+    if (typeof getPK11Template === 'function' && typeof generateDocumentHtml === 'function') {
+        const getSigPreview = (id) => {
+            const el = document.getElementById(id);
+            if (!el) return "";
+            const src = el.src;
+            return (src && src.startsWith('data:image')) ? src : "";
+        };
+        
+        const payload = {
+            date: document.getElementById('pk11-date').value,
+            studentName: window.currentPk11Student ? window.currentPk11Student.fullName : '-',
+            grade: window.currentPk11Student ? window.currentPk11Student.grade : '-',
+            room: window.currentPk11Student ? window.currentPk11Student.room : '-',
+            reason: document.getElementById('pk11-reason').value || '-',
+            location: document.getElementById('pk11-location').value || '-',
+            exitTime: document.getElementById('pk11-exit-time').value || '-',
+            returnTime: document.getElementById('pk11-return-time').value || '-',
+            parentName: document.getElementById('pk11-parent-name').value || '-',
+            relation: document.getElementById('pk11-relation').value || '-',
+            hrName: document.getElementById('pk11-hr-select').value || '-',
+            saName: document.getElementById('pk11-sa-select').value || '-',
+            homeroomTeacher: document.getElementById('pk11-hr-select').value || '-',
+            headOfStudentAffairs: document.getElementById('pk11-sa-select').value || '-',
+            studentPhone: document.getElementById('pk11-student-phone').value || '-',
+            parentPhone: document.getElementById('pk11-parent-phone').value || '-',
+            docType: 'ป.ค.11',
+            status: document.querySelector('input[name="pk11-sa-status"]:checked')?.value || "อนุญาต",
+            
+            // Send base64 image strings or placeholders
+            studentSignature: getSigPreview('pk11-student-signature-preview'),
+            parentSignature: getSigPreview('pk11-parent-signature-preview'),
+            hrSignature: getSigPreview('pk11-hr-signature-preview'),
+            saSignature: getSigPreview('pk11-sa-signature-preview')
+        };
+        
+        const html = generateDocumentHtml(payload);
+        
+        const modal = document.getElementById('modal-document-preview');
+        const container = document.getElementById('document-print-area');
+        if (modal && container) {
+            container.innerHTML = html;
+            if (typeof tintAllSignatures === 'function') {
+                tintAllSignatures().then(() => {
+                    modal.classList.add('active');
+                });
+            } else {
+                modal.classList.add('active');
+            }
+        }
+    } else {
+        showToast("ระบบยังไม่พร้อมสำหรับการสร้างเอกสาร", "warning");
+    }
+};
+
+window.tintAllSignatures = async function() {
+    const container = document.getElementById('document-print-area');
+    if (!container) return;
+    
+    const images = container.querySelectorAll('img');
+    const promises = Array.from(images).map(img => {
+        if (img.src && img.src.startsWith('data:image')) {
+            return new Promise((resolve) => {
+                const tempImg = new Image();
+                tempImg.crossOrigin = "Anonymous";
+                tempImg.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = tempImg.width;
+                    canvas.height = tempImg.height;
+                    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                    
+                    ctx.drawImage(tempImg, 0, 0);
+                    
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const data = imageData.data;
+                    
+                    for (let i = 0; i < data.length; i += 4) {
+                        if (data[i + 3] > 0) {
+                            const r = data[i], g = data[i+1], b = data[i+2];
+                            const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+                            // Change dark pixels to standard blue #0000FF
+                            if (luminance < 150) {
+                                data[i] = 0;
+                                data[i + 1] = 0;
+                                data[i + 2] = 255;
+                            }
+                        }
+                    }
+                    
+                    ctx.putImageData(imageData, 0, 0);
+                    img.src = canvas.toDataURL('image/png');
+                    resolve();
+                };
+                tempImg.onerror = resolve;
+                tempImg.src = img.src;
+            });
+        }
+        return Promise.resolve();
+    });
+    
+    await Promise.all(promises);
 };

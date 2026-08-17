@@ -25,39 +25,45 @@ function generateDocumentHtml(studentInfo, signatureHtml, formattedDate) {
         baseDocType = baseDocType.split('_')[0];
     }
     
-    let content = "";
-    
-    switch (baseDocType) {
-        case 'ป.ค.8':
-            content = getPK8Template(studentInfo, signatureHtml, formattedDate);
-            break;
-        case 'ป.ค.9':
-            content = getPK9Template(studentInfo, signatureHtml, formattedDate);
-            break;
-        case 'ป.ค.1':
-            content = getPlaceholderTemplate("ป.ค.1", "แบบบันทึกพฤติกรรม...", studentInfo, signatureHtml, formattedDate);
-            break;
-        case 'ป.ค.2':
-            content = getPlaceholderTemplate("ป.ค.2", "แบบรายงาน...", studentInfo, signatureHtml, formattedDate);
-            break;
-        case 'ป.ค.3':
-            content = getPlaceholderTemplate("ป.ค.3", "แบบฟอร์ม...", studentInfo, signatureHtml, formattedDate);
-            break;
-        case 'ป.ค.4':
-            content = getPlaceholderTemplate("ป.ค.4", "แบบฟอร์ม...", studentInfo, signatureHtml, formattedDate);
-            break;
-        case 'ป.ค.5':
-            content = getPlaceholderTemplate("ป.ค.5", "แบบฟอร์ม...", studentInfo, signatureHtml, formattedDate);
-            break;
-        case 'ป.ค.6':
-            content = getPlaceholderTemplate("ป.ค.6", "แบบฟอร์ม...", studentInfo, signatureHtml, formattedDate);
-            break;
-        case 'ป.ค.7':
-            content = getPlaceholderTemplate("ป.ค.7", "แบบฟอร์ม...", studentInfo, signatureHtml, formattedDate);
-            break;
-        default:
-            content = getPlaceholderTemplate(baseDocType || studentInfo.docType, "เอกสารทั่วไป", studentInfo, signatureHtml, formattedDate);
-            break;
+    if (baseDocType.includes('11') || baseDocType.includes('PK11')) {
+        content = getPK11Template(studentInfo, formattedDate);
+    } else {
+        switch (baseDocType) {
+            case 'ป.ค.8':
+                content = getPK8Template(studentInfo, signatureHtml, formattedDate);
+                break;
+            case 'ป.ค.9':
+                content = getPK9Template(studentInfo, signatureHtml, formattedDate);
+                break;
+            case 'ป.ค.11':
+            case 'ป.ค. 11':
+                content = getPK11Template(studentInfo, formattedDate);
+                break;
+            case 'ป.ค.1':
+                content = getPlaceholderTemplate("ป.ค.1", "แบบบันทึกพฤติกรรม...", studentInfo, signatureHtml, formattedDate);
+                break;
+            case 'ป.ค.2':
+                content = getPlaceholderTemplate("ป.ค.2", "แบบรายงาน...", studentInfo, signatureHtml, formattedDate);
+                break;
+            case 'ป.ค.3':
+                content = getPlaceholderTemplate("ป.ค.3", "แบบฟอร์ม...", studentInfo, signatureHtml, formattedDate);
+                break;
+            case 'ป.ค.4':
+                content = getPlaceholderTemplate("ป.ค.4", "แบบฟอร์ม...", studentInfo, signatureHtml, formattedDate);
+                break;
+            case 'ป.ค.5':
+                content = getPlaceholderTemplate("ป.ค.5", "แบบฟอร์ม...", studentInfo, signatureHtml, formattedDate);
+                break;
+            case 'ป.ค.6':
+                content = getPlaceholderTemplate("ป.ค.6", "แบบฟอร์ม...", studentInfo, signatureHtml, formattedDate);
+                break;
+            case 'ป.ค.7':
+                content = getPlaceholderTemplate("ป.ค.7", "แบบฟอร์ม...", studentInfo, signatureHtml, formattedDate);
+                break;
+            default:
+                content = getPlaceholderTemplate(baseDocType || studentInfo.docType, "เอกสารทั่วไป", studentInfo, signatureHtml, formattedDate);
+                break;
+        }
     }
 
     return `<div style="${wrapperStyle}">${content}</div>`;
@@ -432,6 +438,225 @@ function getPlaceholderTemplate(docCode, docTitle, studentInfo, signatureHtml, f
                         </td>
                     </tr>
                 </table>
+            </div>
+        </div>
+    `;
+}
+
+function formatThaiFullDate(dateStr) {
+    if (!dateStr) {
+        const now = new Date();
+        const thMonths = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+        return `${now.getDate()} ${thMonths[now.getMonth()]} พ.ศ. ${now.getFullYear() + 543}`;
+    }
+    const thMonths = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+    if (thMonths.some(m => String(dateStr).includes(m))) return dateStr;
+    
+    let d, m, y;
+    if (String(dateStr).includes('/')) {
+        const parts = String(dateStr).split('/');
+        d = parseInt(parts[0]);
+        m = parseInt(parts[1]) - 1;
+        y = parseInt(parts[2]);
+    } else if (String(dateStr).includes('-')) {
+        const parts = String(dateStr).split('-');
+        y = parseInt(parts[0]);
+        m = parseInt(parts[1]) - 1;
+        d = parseInt(parts[2]);
+    }
+    
+    if (d && !isNaN(m) && y) {
+        const thYear = y < 2500 ? y + 543 : y;
+        return `${d} ${thMonths[m]} พ.ศ. ${thYear}`;
+    }
+    return dateStr;
+}
+
+function getDayOfWeekFromDate(dateStr) {
+    if (!dateStr) return 'พฤหัสบดี';
+    const days = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+    let dt = null;
+    if (String(dateStr).includes('/')) {
+        const parts = String(dateStr).split('/');
+        let y = parseInt(parts[2]);
+        if (y > 2500) y -= 543;
+        dt = new Date(y, parseInt(parts[1]) - 1, parseInt(parts[0]));
+    } else if (String(dateStr).includes('-')) {
+        const parts = String(dateStr).split('-');
+        let y = parseInt(parts[0]);
+        if (y > 2500) y -= 543;
+        dt = new Date(y, parseInt(parts[1]) - 1, parseInt(parts[2]));
+    }
+    if (dt && !isNaN(dt.getTime())) {
+        return days[dt.getDay()];
+    }
+    return 'พฤหัสบดี';
+}
+
+// ==========================================
+// เทมเพลต ป.ค.11 (แบบบันทึกขออนุญาตออกนอกบริเวณโรงเรียน)
+// ==========================================
+function getPK11Template(data, formattedDate) {
+    const valSpan = (val, defaultEm = 4, isBold = true) => {
+        const fontWeight = isBold ? 'font-weight: bold;' : 'font-weight: normal;';
+        if (val && String(val).trim() && !String(val).includes('...')) {
+            return `<span style="${fontWeight} border-bottom: 1px dotted #000; padding: 0 6px;">&nbsp;&nbsp;${String(val).trim()}&nbsp;&nbsp;</span>`;
+        }
+        const spaces = '&nbsp;'.repeat(defaultEm * 2);
+        return `<span style="border-bottom: 1px dotted #000; padding: 0 4px;">${spaces}</span>`;
+    };
+
+    const valSpanReason = (val) => {
+        if (val && String(val).trim() && !String(val).includes('...')) {
+            return `<span style="font-weight: bold; border-bottom: 1px dotted #000; padding: 0 6px;">${String(val).trim()}</span><span style="border-bottom: 1px dotted #000; padding: 0 4px;">${'&nbsp;'.repeat(60)}</span>`;
+        }
+        return `<span style="border-bottom: 1px dotted #000; padding: 0 4px;">${'&nbsp;'.repeat(80)}</span>`;
+    };
+
+    const studentName = data.studentName || data.fullName || '';
+    let rawGrade = data.grade || '';
+    let rawRoom = data.room || '';
+    let rawGradeRoom = data.gradeRoom || (rawGrade && rawRoom ? `${rawGrade}/${rawRoom}` : '');
+    
+    let gradeFormatted = '';
+    if (rawGradeRoom && rawGradeRoom !== '/') {
+        let clean = rawGradeRoom.replace(/^ม\.?\s*/, '').trim();
+        gradeFormatted = 'ม.' + clean;
+    } else if (rawGrade || rawRoom) {
+        let cG = rawGrade.replace(/ม\./g, '').replace(/ชั้น/g, '').trim();
+        let cR = rawRoom.replace(/ห้อง/g, '').trim();
+        gradeFormatted = cG && cR ? `ม.${cG}/${cR}` : (cG ? `ม.${cG}` : '');
+    }
+
+    const number = data.number || data.no || data.studentNo || '';
+    const exitTime = data.exitTime || '';
+    const returnTime = data.returnTime || '';
+    
+    let rawTargetDate = data.targetDate || formattedDate || '';
+    let displayTargetDate = formatThaiFullDate(rawTargetDate);
+    let dayOfWeek = data.dayOfWeek;
+    if (!dayOfWeek || dayOfWeek.includes('.')) {
+        dayOfWeek = getDayOfWeekFromDate(rawTargetDate) || 'พฤหัสบดี';
+    }
+
+    const reason = data.reason || '';
+    const location = data.location || '';
+    const parentName = data.parentName || '';
+    const relation = data.relation || '';
+    const studentPhone = data.studentPhone || '';
+    const parentPhone = data.parentPhone || '';
+    const homeroomTeacher = data.homeroomTeacher || '';
+    const headOfStudentAffairs = data.headOfStudentAffairs || '';
+
+    const parentSign = data.parentSign || data.parentSignature || data.signatureBase64 || '';
+    const hrSign = data.hrSign || data.hrSignature || '';
+    const saSign = data.saSign || data.saSignature || '';
+    const studentSign = data.studentSign || data.studentSignature || '';
+
+    return `
+        <div style="position: relative; font-family: 'Sarabun', 'TH Sarabun PSK', sans-serif; font-size: 16px; line-height: 1.6; color: #000; padding: 5px 10px;">
+            <!-- โลโก้โรงเรียน ตรงกลางบน -->
+            <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); text-align: center;">
+                <img src="${SCHOOL_LOGO_BASE64}" style="height: 85px; width: auto;" alt="โลโก้โรงเรียน">
+            </div>
+            
+            <div style="text-align: right; font-weight: bold; font-size: 14px;">ป.ค. 11</div>
+            <div style="height: 50px;"></div>
+            
+            <div style="text-align: center; font-weight: bold; font-size: 18px; margin-top: 5px;">แบบบันทึกขออนุญาตออกนอกบริเวณโรงเรียน</div>
+            <div style="text-align: center; font-weight: bold; font-size: 16px;">โรงเรียนซับบอนวิทยาคม อำเภอบึงสามพัน จังหวัดเพชรบูรณ์</div>
+            <div style="height: 14px;"></div>
+            
+            <div style="margin-left: 50%; text-align: left; font-size: 16px;">
+                วันที่ ${valSpan(displayTargetDate, 7, false)}
+            </div>
+            <div style="height: 10px;"></div>
+            
+            <div style="text-align: left; font-size: 16px;">
+                <span style="font-weight: bold;">เรียน</span>&nbsp;&nbsp;ผู้อำนวยการโรงเรียนซับบอนวิทยาคม (โดยผ่านงานกิจการนักเรียน)
+            </div>
+            <div style="height: 8px;"></div>
+            
+            <div style="text-align: justify; font-size: 16px; line-height: 2.1;">
+                <span style="display:inline-block; width:2.54cm;"></span>ข้าพเจ้า ${valSpan(studentName, 8)} นักเรียนชั้น ${valSpan(gradeFormatted, 3)} มีความประสงค์ขออนุญาตออกนอกบริเวณโรงเรียน ตั้งแต่เวลา ${valSpan(exitTime, 2)} น. และกลับเข้ามาในโรงเรียนเวลา ${valSpan(returnTime, 2)} น. ของวันที่ ${valSpan(displayTargetDate, 7)} ทั้งนี้เพื่อไปทำธุระเรื่อง
+            </div>
+            <div style="border-bottom: 1px dotted #000; width: 100%; height: 2.1em; line-height: 2.1; font-size: 16px;">
+                ${reason ? `<span style="font-weight: bold; padding: 0 6px;">&nbsp;&nbsp;${reason}&nbsp;&nbsp;</span>` : '&nbsp;'}
+            </div>
+            <div style="display: flex; align-items: flex-end; width: 100%; font-size: 16px; line-height: 2.1;">
+                <span style="white-space: nowrap;">สถานที่ที่ไปติดต่อ</span>
+                <span style="flex: 1; border-bottom: 1px dotted #000; font-weight: bold; padding: 0 8px;">${location ? `&nbsp;&nbsp;${location}&nbsp;&nbsp;` : '&nbsp;'}</span>
+            </div>
+            <div style="text-align: justify; font-size: 16px; line-height: 2.1;">
+                พร้อมด้วยผู้ปกครอง ชื่อ-สกุล ${valSpan(parentName, 8)} มีความสัมพันธ์เป็น ${valSpan(relation, 3)} เบอร์โทรศัพท์นักเรียน ${valSpan(studentPhone, 4)} เบอร์โทรศัพท์ผู้ปกครอง ${valSpan(parentPhone, 4)} เมื่อทำธุระเสร็จเรียบร้อยแล้วจะกลับเข้าเรียนตามปกติ
+            </div>
+            <div style="height: 8px;"></div>
+            
+            <div style="font-size: 16px;">
+                <span style="display:inline-block; width:2.54cm;"></span>จึงเรียนมาเพื่อโปรดพิจารณาอนุญาต
+            </div>
+            
+            <div style="height: 14px;"></div>
+            
+            <!-- ตารางลายเซ็น 4 ฝ่าย -->
+            <table width="100%" style="border-collapse: collapse; margin-top: 5px; font-size: 15px;">
+                <tr>
+                    <td width="50%" style="text-align: center; vertical-align: top; padding: 4px;">
+                        <div style="position: relative; display: flex; justify-content: center; align-items: flex-end; margin-bottom: 5px; height: 35px;">
+                            <div style="position: absolute; right: 50%; margin-right: 75px; bottom: 0;">ลงชื่อ</div>
+                            <div style="text-align: center; width: 140px; border-bottom: ${studentSign ? 'none' : '1px dotted #000'};">
+                                ${studentSign ? `<img src="${studentSign}" style="max-height: 45px; margin-bottom: -5px;">` : '&nbsp;'}
+                            </div>
+                            <div style="position: absolute; left: 50%; margin-left: 75px; bottom: 0; white-space: nowrap;">นักเรียน</div>
+                        </div>
+                        <div style="margin-top: 3px;">( <span style="font-weight: bold;">${studentName ? `&nbsp;${studentName}&nbsp;` : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}</span> )</div>
+                    </td>
+                    <td width="50%" style="text-align: center; vertical-align: top; padding: 4px;">
+                        <div style="position: relative; display: flex; justify-content: center; align-items: flex-end; margin-bottom: 5px; height: 35px;">
+                            <div style="position: absolute; right: 50%; margin-right: 75px; bottom: 0;">ลงชื่อ</div>
+                            <div style="text-align: center; width: 140px; border-bottom: ${parentSign ? 'none' : '1px dotted #000'};">
+                                ${parentSign ? `<img src="${parentSign}" style="max-height: 45px; margin-bottom: -5px;">` : '&nbsp;'}
+                            </div>
+                            <div style="position: absolute; left: 50%; margin-left: 75px; bottom: 0; white-space: nowrap;">ผู้ปกครอง</div>
+                        </div>
+                        <div style="margin-top: 3px;">( <span style="font-weight: bold;">${parentName ? `&nbsp;${parentName}&nbsp;` : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}</span> )</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td width="50%" style="text-align: center; vertical-align: top; padding: 30px 4px 4px 4px;">
+                        <!-- เว้นว่างซ้ายล่าง -->
+                    </td>
+                    <td width="50%" style="text-align: center; vertical-align: top; padding: 30px 4px 4px 4px;">
+                        <div style="position: relative; display: flex; justify-content: center; align-items: flex-end; margin-bottom: 5px; height: 35px;">
+                            <div style="position: absolute; right: 50%; margin-right: 75px; bottom: 0;">ลงชื่อ</div>
+                            <div style="text-align: center; width: 140px; border-bottom: ${hrSign ? 'none' : '1px dotted #000'};">
+                                ${hrSign ? `<img src="${hrSign}" style="max-height: 45px; margin-bottom: -5px;">` : '&nbsp;'}
+                            </div>
+                            <div style="position: absolute; left: 50%; margin-left: 75px; bottom: 0; white-space: nowrap;">ครูที่ปรึกษา</div>
+                        </div>
+                        <div style="margin-top: 3px;">( <span style="font-weight: bold;">${homeroomTeacher ? `&nbsp;${homeroomTeacher}&nbsp;` : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}</span> )</div>
+                    </td>
+                </tr>
+            </table>
+
+            <div style="margin-top: 35px; border: 1.5px solid #000; padding: 10px 14px 15px 14px; border-radius: 6px; background: #fafafa;">
+                <div style="font-weight: bold; text-decoration: underline; margin-bottom: 6px; font-size: 15px;">คำสั่ง / การพิจารณาอนุญาต</div>
+                <div style="display: flex; gap: 30px; font-size: 15px; margin-bottom: 40px;">
+                    <div>[ ${data.status === 'อนุญาต' || data.status === 'อนุญาตแล้ว' || !data.status ? '✓' : '&nbsp;&nbsp;'} ] <b>อนุญาต</b> ออกนอกบริเวณโรงเรียนได้</div>
+                    <div>[ ${data.status === 'ไม่อนุญาต' ? '✓' : '&nbsp;&nbsp;'} ] <b>ไม่อนุญาต</b> เนื่องจาก <span style="border-bottom: 1px dotted #000; padding: 0 50px;">&nbsp;</span></div>
+                </div>
+                <div style="display: flex; justify-content: flex-end;">
+                    <div style="text-align: center; width: 380px;">
+                        <div style="position: relative; display: flex; justify-content: center; align-items: flex-end; margin-bottom: 5px; height: 35px;">
+                            <div style="position: absolute; right: 50%; margin-right: 75px; bottom: 0;">ลงชื่อ</div>
+                            <div style="text-align: center; width: 140px; border-bottom: ${saSign ? 'none' : '1px dotted #000'};">
+                                ${saSign ? `<img src="${saSign}" style="max-height: 45px; margin-bottom: -5px;">` : '&nbsp;'}
+                            </div>
+                            <div style="position: absolute; left: 50%; margin-left: 75px; bottom: 0; white-space: nowrap;">งานกิจการนักเรียน</div>
+                        </div>
+                        <div style="margin-top: 3px;">( <span style="font-weight: bold;">${headOfStudentAffairs ? `&nbsp;${headOfStudentAffairs}&nbsp;` : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}</span> )</div>
+                    </div>
+                </div>
             </div>
         </div>
     `;

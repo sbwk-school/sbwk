@@ -491,6 +491,18 @@ input, select, textarea, button {
     background-color: #cbd5e1;
 }
 
+.dark-theme .btn-outline:hover {
+    background-color: var(--color-primary);
+    color: white;
+}
+
+/* ==================== DESKTOP DOCK ADJUSTMENTS ==================== */
+@media (min-width: 1025px) {
+    #start-menu-btn, .start-dock-btn {
+        display: none !important;
+    }
+}
+
 .btn-danger {
     background-color: var(--color-absent);
     color: white;
@@ -3482,4 +3494,70 @@ table.at-risk-table {
     max-height: 95vh !important;
     margin-top: 0 !important;
     border-radius: 16px !important;
+}
+
+/* ==================== HIDE START MENU ON DESKTOP ==================== */
+@media (min-width: 769px) {
+    #start-menu-btn {
+        display: none !important;
+    }
+    #start-menu-btn + .dock-separator {
+        display: none !important;
+    }
+}
+
+/* ==================== PK11 CUSTOM STYLES ==================== */
+/* Stepper Fixes */
+.step-item .step-circle {
+    display: flex !important;
+}
+.step-item.active .step-circle {
+    background: var(--primary-color) !important;
+    color: white !important;
+}
+.step-item.active .step-title {
+    color: var(--primary-color) !important;
+}
+.step-item.completed .step-circle {
+    background: #10b981 !important;
+    color: white !important;
+}
+.step-item.completed .step-title {
+    color: #10b981 !important;
+}
+.step-item:not(.active):not(.completed) .step-circle {
+    background: #e2e8f0 !important;
+    color: #64748b !important;
+}
+
+/* Student Search Dropdown */
+.searchable-select-container {
+    position: relative;
+    width: 100%;
+}
+.search-results-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    z-index: 1000;
+    max-height: 200px;
+    overflow-y: auto;
+    display: none;
+}
+.search-result-item {
+    padding: 10px 15px;
+    border-bottom: 1px solid #f1f5f9;
+    cursor: pointer;
+    background: white;
+}
+.search-result-item:hover {
+    background-color: #f8fafc;
+}
+.search-result-item:last-child {
+    border-bottom: none;
 }
