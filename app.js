@@ -2570,6 +2570,7 @@ function openRegisterModal() {
     document.getElementById("reg-new-teacher-wrapper").classList.add("hidden");
     document.getElementById("reg-new-teacher-name").value = "";
     document.getElementById("reg-teacher-pin").value = ""; // ล้างรหัส PIN
+    document.getElementById("modal-pin").classList.remove("active"); // ปิดหน้าจอ PIN
     document.getElementById("modal-register").classList.add("active");
 }
 
