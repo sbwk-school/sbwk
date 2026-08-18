@@ -194,7 +194,7 @@ function getPK8Template(studentInfo, signatureHtml, formattedDate) {
                                     <div style="white-space: nowrap;">ลงชื่อ</div>
                                     <div style="text-align: center; margin: 0 5px;">
                                         <div style="height: 35px; display: flex; align-items: flex-end; justify-content: center;">
-                                            ${(studentInfo.parentSign || studentInfo.signatureBase64) ? `<img src="${studentInfo.parentSign || studentInfo.signatureBase64}" style="max-height: 45px;">` : '...........................................'}
+                                            ${(studentInfo.parentSign || studentInfo.parentSignature || studentInfo.signatureBase64 || studentInfo.tempSignature) ? `<img src="${studentInfo.parentSign || studentInfo.parentSignature || studentInfo.signatureBase64 || studentInfo.tempSignature}" style="max-height: 45px;" alt="ลายเซ็นผู้ปกครอง">` : '...........................................'}
                                         </div>
                                         <div>(${studentInfo.parentName || '...........................................'})</div>
                                     </div>
@@ -328,7 +328,7 @@ function getPK9Template(studentInfo, signatureHtml, formattedDate) {
                                     <div style="white-space: nowrap;">ลงชื่อ</div>
                                     <div style="text-align: center; margin: 0 5px;">
                                         <div style="height: 35px; display: flex; align-items: flex-end; justify-content: center;">
-                                            ${(studentInfo.parentSign || studentInfo.signatureBase64) ? `<img src="${studentInfo.parentSign || studentInfo.signatureBase64}" style="max-height: 45px;">` : '...........................................'}
+                                            ${(studentInfo.parentSign || studentInfo.parentSignature || studentInfo.signatureBase64 || studentInfo.tempSignature) ? `<img src="${studentInfo.parentSign || studentInfo.parentSignature || studentInfo.signatureBase64 || studentInfo.tempSignature}" style="max-height: 45px;" alt="ลายเซ็นผู้ปกครอง">` : '...........................................'}
                                         </div>
                                         <div>(${studentInfo.parentName || '...........................................'})</div>
                                     </div>
@@ -450,19 +450,34 @@ function formatThaiFullDate(dateStr) {
         return `${now.getDate()} ${thMonths[now.getMonth()]} พ.ศ. ${now.getFullYear() + 543}`;
     }
     const thMonths = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-    if (thMonths.some(m => String(dateStr).includes(m))) return dateStr;
+    if (thMonths.some(m => String(dateStr).includes(m))) return String(dateStr);
+    
+    let cleanStr = String(dateStr).trim();
+    if (cleanStr.includes('T')) cleanStr = cleanStr.split('T')[0];
     
     let d, m, y;
-    if (String(dateStr).includes('/')) {
-        const parts = String(dateStr).split('/');
-        d = parseInt(parts[0]);
-        m = parseInt(parts[1]) - 1;
-        y = parseInt(parts[2]);
-    } else if (String(dateStr).includes('-')) {
-        const parts = String(dateStr).split('-');
-        y = parseInt(parts[0]);
-        m = parseInt(parts[1]) - 1;
-        d = parseInt(parts[2]);
+    if (cleanStr.includes('/')) {
+        const parts = cleanStr.split('/');
+        if (parseInt(parts[0]) > 1000) {
+            y = parseInt(parts[0]);
+            m = parseInt(parts[1]) - 1;
+            d = parseInt(parts[2]);
+        } else {
+            d = parseInt(parts[0]);
+            m = parseInt(parts[1]) - 1;
+            y = parseInt(parts[2]);
+        }
+    } else if (cleanStr.includes('-')) {
+        const parts = cleanStr.split('-');
+        if (parseInt(parts[0]) > 1000) {
+            y = parseInt(parts[0]);
+            m = parseInt(parts[1]) - 1;
+            d = parseInt(parts[2]);
+        } else {
+            d = parseInt(parts[0]);
+            m = parseInt(parts[1]) - 1;
+            y = parseInt(parts[2]);
+        }
     }
     
     if (d && !isNaN(m) && y) {
@@ -476,16 +491,30 @@ function getDayOfWeekFromDate(dateStr) {
     if (!dateStr) return 'พฤหัสบดี';
     const days = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
     let dt = null;
-    if (String(dateStr).includes('/')) {
-        const parts = String(dateStr).split('/');
+    let cleanStr = String(dateStr).trim();
+    if (cleanStr.includes('T')) cleanStr = cleanStr.split('T')[0];
+    if (cleanStr.includes('/')) {
+        const parts = cleanStr.split('/');
         let y = parseInt(parts[2]);
+        let m = parseInt(parts[1]) - 1;
+        let d = parseInt(parts[0]);
+        if (parseInt(parts[0]) > 1000) {
+            y = parseInt(parts[0]);
+            d = parseInt(parts[2]);
+        }
         if (y > 2500) y -= 543;
-        dt = new Date(y, parseInt(parts[1]) - 1, parseInt(parts[0]));
-    } else if (String(dateStr).includes('-')) {
-        const parts = String(dateStr).split('-');
+        dt = new Date(y, m, d);
+    } else if (cleanStr.includes('-')) {
+        const parts = cleanStr.split('-');
         let y = parseInt(parts[0]);
+        let m = parseInt(parts[1]) - 1;
+        let d = parseInt(parts[2]);
+        if (parseInt(parts[2]) > 1000) {
+            y = parseInt(parts[2]);
+            d = parseInt(parts[0]);
+        }
         if (y > 2500) y -= 543;
-        dt = new Date(y, parseInt(parts[1]) - 1, parseInt(parts[2]));
+        dt = new Date(y, m, d);
     }
     if (dt && !isNaN(dt.getTime())) {
         return days[dt.getDay()];
@@ -532,8 +561,8 @@ function getPK11Template(data, formattedDate) {
     const exitTime = data.exitTime || '';
     const returnTime = data.returnTime || '';
     
-    let rawTargetDate = data.targetDate || formattedDate || '';
-    let displayTargetDate = formatThaiFullDate(rawTargetDate);
+    let rawTargetDate = data.targetDate || data.date || data.createdAt || '';
+    let displayTargetDate = rawTargetDate ? formatThaiFullDate(rawTargetDate) : (formattedDate || formatThaiFullDate(new Date()));
     let dayOfWeek = data.dayOfWeek;
     if (!dayOfWeek || dayOfWeek.includes('.')) {
         dayOfWeek = getDayOfWeekFromDate(rawTargetDate) || 'พฤหัสบดี';
@@ -548,7 +577,7 @@ function getPK11Template(data, formattedDate) {
     const homeroomTeacher = data.homeroomTeacher || '';
     const headOfStudentAffairs = data.headOfStudentAffairs || '';
 
-    const parentSign = data.parentSign || data.parentSignature || data.signatureBase64 || '';
+    const parentSign = data.parentSign || data.parentSignature || data.signatureBase64 || data.tempSignature || '';
     const hrSign = data.hrSign || data.hrSignature || '';
     const saSign = data.saSign || data.saSignature || '';
     const studentSign = data.studentSign || data.studentSignature || '';
@@ -598,7 +627,7 @@ function getPK11Template(data, formattedDate) {
             
             <div style="height: 14px;"></div>
             
-            <!-- ตารางลายเซ็น 4 ฝ่าย -->
+            <!-- ตารางลายเซ็น นักเรียน และ ผู้ปกครอง -->
             <table width="100%" style="border-collapse: collapse; margin-top: 5px; font-size: 15px;">
                 <tr>
                     <td width="50%" style="text-align: center; vertical-align: top; padding: 4px;">
@@ -622,39 +651,48 @@ function getPK11Template(data, formattedDate) {
                         <div style="margin-top: 3px;">( <span style="font-weight: bold;">${parentName ? `&nbsp;${parentName}&nbsp;` : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}</span> )</div>
                     </td>
                 </tr>
-                <tr>
-                    <td width="50%" style="text-align: center; vertical-align: top; padding: 30px 4px 4px 4px;">
-                        <!-- เว้นว่างซ้ายล่าง -->
-                    </td>
-                    <td width="50%" style="text-align: center; vertical-align: top; padding: 30px 4px 4px 4px;">
-                        <div style="position: relative; display: flex; justify-content: center; align-items: flex-end; margin-bottom: 5px; height: 35px;">
-                            <div style="position: absolute; right: 50%; margin-right: 75px; bottom: 0;">ลงชื่อ</div>
-                            <div style="text-align: center; width: 140px; border-bottom: ${hrSign ? 'none' : '1px dotted #000'};">
-                                ${hrSign ? `<img src="${hrSign}" style="max-height: 45px; margin-bottom: -5px;">` : '&nbsp;'}
-                            </div>
-                            <div style="position: absolute; left: 50%; margin-left: 75px; bottom: 0; white-space: nowrap;">ครูที่ปรึกษา</div>
-                        </div>
-                        <div style="margin-top: 3px;">( <span style="font-weight: bold;">${homeroomTeacher ? `&nbsp;${homeroomTeacher}&nbsp;` : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}</span> )</div>
-                    </td>
-                </tr>
             </table>
 
-            <div style="margin-top: 35px; border: 1.5px solid #000; padding: 10px 14px 15px 14px; border-radius: 6px; background: #fafafa;">
-                <div style="font-weight: bold; text-decoration: underline; margin-bottom: 6px; font-size: 15px;">คำสั่ง / การพิจารณาอนุญาต</div>
-                <div style="display: flex; gap: 30px; font-size: 15px; margin-bottom: 40px;">
-                    <div>[ ${data.status === 'อนุญาต' || data.status === 'อนุญาตแล้ว' || !data.status ? '✓' : '&nbsp;&nbsp;'} ] <b>อนุญาต</b> ออกนอกบริเวณโรงเรียนได้</div>
-                    <div>[ ${data.status === 'ไม่อนุญาต' ? '✓' : '&nbsp;&nbsp;'} ] <b>ไม่อนุญาต</b> เนื่องจาก <span style="border-bottom: 1px dotted #000; padding: 0 50px;">&nbsp;</span></div>
-                </div>
-                <div style="display: flex; justify-content: flex-end;">
-                    <div style="text-align: center; width: 380px;">
-                        <div style="position: relative; display: flex; justify-content: center; align-items: flex-end; margin-bottom: 5px; height: 35px;">
-                            <div style="position: absolute; right: 50%; margin-right: 75px; bottom: 0;">ลงชื่อ</div>
-                            <div style="text-align: center; width: 140px; border-bottom: ${saSign ? 'none' : '1px dotted #000'};">
-                                ${saSign ? `<img src="${saSign}" style="max-height: 45px; margin-bottom: -5px;">` : '&nbsp;'}
+            <div style="margin-top: 20px; border: 1.5px solid #000; padding: 12px 16px; border-radius: 6px; background: #fafafa;">
+                <!-- ส่วนที่ 1 (บน): ความเห็นครูที่ปรึกษา -->
+                <div style="border-bottom: 1px dashed #94a3b8; padding-bottom: 10px; margin-bottom: 12px;">
+                    <div style="font-weight: bold; text-decoration: underline; font-size: 15px; margin-bottom: 6px;">ความเห็นครูที่ปรึกษา</div>
+                    <div style="display: flex; font-size: 14px; margin-bottom: 6px; padding-left: 5px;">
+                        <div style="width: 180px;">[ ${data.hrStatus === 'ไม่เห็นควรอนุญาต' ? '&nbsp;&nbsp;' : '✓'} ] เห็นควรอนุญาต</div>
+                        <div>[ ${data.hrStatus === 'ไม่เห็นควรอนุญาต' ? '✓' : '&nbsp;&nbsp;'} ] ไม่เห็นควรอนุญาต</div>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; padding-right: 45px;">
+                        <div style="text-align: center; width: 320px;">
+                            <div style="position: relative; display: flex; justify-content: center; align-items: flex-end; margin-bottom: 4px; height: 35px;">
+                                <div style="position: absolute; right: 50%; margin-right: 65px; bottom: 0;">ลงชื่อ</div>
+                                <div style="text-align: center; width: 130px; border-bottom: ${hrSign ? 'none' : '1px dotted #000'};">
+                                    ${hrSign ? `<img src="${hrSign}" style="max-height: 42px; margin-bottom: -5px;">` : '&nbsp;'}
+                                </div>
+                                <div style="position: absolute; left: 50%; margin-left: 65px; bottom: 0; white-space: nowrap;">ครูที่ปรึกษา</div>
                             </div>
-                            <div style="position: absolute; left: 50%; margin-left: 75px; bottom: 0; white-space: nowrap;">งานกิจการนักเรียน</div>
+                            <div style="margin-top: 2px; font-size: 14px;">( <span style="font-weight: bold;">${homeroomTeacher ? `&nbsp;${homeroomTeacher}&nbsp;` : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}</span> )</div>
                         </div>
-                        <div style="margin-top: 3px;">( <span style="font-weight: bold;">${headOfStudentAffairs ? `&nbsp;${headOfStudentAffairs}&nbsp;` : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}</span> )</div>
+                    </div>
+                </div>
+                
+                <!-- ส่วนที่ 2 (ล่าง): คำสั่ง / การพิจารณาอนุญาต (งานกิจการนักเรียน) -->
+                <div>
+                    <div style="font-weight: bold; text-decoration: underline; font-size: 15px; margin-bottom: 6px;">คำสั่ง / การพิจารณาอนุญาต</div>
+                    <div style="display: flex; font-size: 14px; margin-bottom: 6px; padding-left: 5px;">
+                        <div style="width: 180px;">[ ${data.status === 'ไม่อนุญาต' ? '&nbsp;&nbsp;' : '✓'} ] <b>อนุญาต</b></div>
+                        <div>[ ${data.status === 'ไม่อนุญาต' ? '✓' : '&nbsp;&nbsp;'} ] <b>ไม่อนุญาต</b></div>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; padding-right: 45px;">
+                        <div style="text-align: center; width: 320px;">
+                            <div style="position: relative; display: flex; justify-content: center; align-items: flex-end; margin-bottom: 4px; height: 35px;">
+                                <div style="position: absolute; right: 50%; margin-right: 65px; bottom: 0;">ลงชื่อ</div>
+                                <div style="text-align: center; width: 130px; border-bottom: ${saSign ? 'none' : '1px dotted #000'};">
+                                    ${saSign ? `<img src="${saSign}" style="max-height: 42px; margin-bottom: -5px;">` : '&nbsp;'}
+                                </div>
+                                <div style="position: absolute; left: 50%; margin-left: 65px; bottom: 0; white-space: nowrap;">งานกิจการนักเรียน</div>
+                            </div>
+                            <div style="margin-top: 2px; font-size: 14px;">( <span style="font-weight: bold;">${headOfStudentAffairs ? `&nbsp;${headOfStudentAffairs}&nbsp;` : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}</span> )</div>
+                        </div>
                     </div>
                 </div>
             </div>

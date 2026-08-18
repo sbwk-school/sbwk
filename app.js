@@ -1698,9 +1698,9 @@ async function verifyPinAndRun() {
             isAuthorized = true;
         } else if (pinRequiredRole === "ADMIN" && userRole === "ADMIN") {
             isAuthorized = true;
-        } else if (pinRequiredRole === "STUDENT_AFFAIRS" && (userRole === "ADMIN" || userRole === "STUDENT_AFFAIRS")) {
+        } else if (pinRequiredRole === "STUDENT_AFFAIRS" && (userRole === "ADMIN" || userRole === "STUDENT_AFFAIRS" || userRole === "กิจการนักเรียน")) {
             isAuthorized = true;
-        } else if (pinRequiredRole === "STUDENT_AFFAIRS_ONLY" && (userRole === "STUDENT_AFFAIRS" || userRole === "ADMIN")) {
+        } else if (pinRequiredRole === "STUDENT_AFFAIRS_ONLY" && (userRole === "STUDENT_AFFAIRS" || userRole === "ADMIN" || userRole === "กิจการนักเรียน")) {
             isAuthorized = true;
         }
         
@@ -1729,8 +1729,8 @@ window.requestLogin = function(roleRequired = "ANY", callback = null) {
         const userRole = loggedInUser.role;
         if (roleRequired === "ANY") isAuthorized = true;
         else if (roleRequired === "ADMIN" && userRole === "ADMIN") isAuthorized = true;
-        else if (roleRequired === "STUDENT_AFFAIRS" && (userRole === "ADMIN" || userRole === "STUDENT_AFFAIRS")) isAuthorized = true;
-        else if (roleRequired === "STUDENT_AFFAIRS_ONLY" && (userRole === "STUDENT_AFFAIRS" || userRole === "ADMIN")) isAuthorized = true;
+        else if (roleRequired === "STUDENT_AFFAIRS" && (userRole === "ADMIN" || userRole === "STUDENT_AFFAIRS" || userRole === "กิจการนักเรียน")) isAuthorized = true;
+        else if (roleRequired === "STUDENT_AFFAIRS_ONLY" && (userRole === "STUDENT_AFFAIRS" || userRole === "ADMIN" || userRole === "กิจการนักเรียน")) isAuthorized = true;
         
         if (isAuthorized) {
             if (callback) callback(loggedInUser.pin, loggedInUser.name, loggedInUser.role);
@@ -2858,8 +2858,9 @@ document.getElementById("btn-save-all-teachers").onclick = async () => {
 /**
  * 10. หน้าแอดมิน (Admin Control Panel)
  */
-async function loadHolidaysInAdmin() {
+window.loadHolidaysInAdmin = async function() {
     const tbody = document.getElementById("holiday-list-tbody");
+    if (!tbody) return;
     tbody.innerHTML = "";
     
     if (holidays.length === 0) {
@@ -2869,7 +2870,6 @@ async function loadHolidaysInAdmin() {
     
     holidays.forEach(h => {
         const tr = document.createElement("tr");
-        
         const thDateDisplay = formatThaiFriendlyDate(h.date);
         
         tr.innerHTML = `
@@ -2882,87 +2882,126 @@ async function loadHolidaysInAdmin() {
             </td>
         `;
         
-        tr.querySelector(".btn-delete-holiday").onclick = async () => {
-            setLoader(true);
-            
-            if (!config.scriptUrl) {
-                showToast("ฟังก์ชันนี้ต้องเชื่อมต่อระบบ Apps Script", "error");
-                setLoader(false);
-                return;
-            }
-            
-            try {
-                const res = await fetch(config.scriptUrl, {
-                    method: "POST",
-                    body: JSON.stringify({
-                        action: "deleteHoliday",
-                        pin: authenticatedAdminPin, // ส่งรหัสแอดมินจริงที่ล็อกอินเข้ามา
-                        date: h.date
-                    })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    showToast("ลบวันหยุดเรียบร้อย");
-                    await loadInitialData();
-                    loadHolidaysInAdmin();
+        const delBtn = tr.querySelector(".btn-delete-holiday");
+        if (delBtn) {
+            delBtn.onclick = async () => {
+                const executeDelete = async (pin) => {
+                    setLoader(true);
+                    
+                    if (!config.scriptUrl) {
+                        showToast("ฟังก์ชันนี้ต้องเชื่อมต่อระบบ Apps Script", "error");
+                        setLoader(false);
+                        return;
+                    }
+                    
+                    try {
+                        const res = await fetch(config.scriptUrl, {
+                            method: "POST",
+                            body: JSON.stringify({
+                                action: "deleteHoliday",
+                                pin: pin,
+                                date: h.date
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            showToast("ลบวันหยุดเรียบร้อย");
+                            holidays = holidays.filter(item => item.date !== h.date);
+                            loadHolidaysInAdmin();
+                            await loadInitialData();
+                            loadHolidaysInAdmin();
+                        } else {
+                            showToast("ลบล้มเหลว: " + data.message, "error");
+                        }
+                    } catch (err) {
+                        showToast("มีข้อผิดพลาดในการเชื่อมต่อ", "error");
+                    } finally {
+                        setLoader(false);
+                    }
+                };
+                
+                if (authenticatedAdminPin) {
+                    executeDelete(authenticatedAdminPin);
                 } else {
-                    showToast("ลบล้มเหลว: " + data.message, "error");
+                    requestLogin("ADMIN", (pin) => {
+                        authenticatedAdminPin = pin;
+                        executeDelete(pin);
+                    });
                 }
-            } catch (err) {
-                showToast("มีข้อผิดพลาด", "error");
-            } finally {
-                setLoader(false);
-            }
-        };
+            };
+        }
         
         tbody.appendChild(tr);
     });
-}
+};
 
-async function addHoliday() {
-    const dateInput = document.getElementById("holiday-date-input").value;
-    const nameInput = document.getElementById("holiday-name-input").value.trim();
+window.addHoliday = async function() {
+    const dateInput = document.getElementById("holiday-date-input") ? document.getElementById("holiday-date-input").value : "";
+    const nameInput = document.getElementById("holiday-name-input") ? document.getElementById("holiday-name-input").value.trim() : "";
     
     if (!dateInput || !nameInput) {
         showToast("กรุณากรอกวันที่และระบุชื่อวันหยุด", "error");
         return;
     }
     
-    setLoader(true);
-    
-    if (!config.scriptUrl) {
-        showToast("ฟังก์ชันนี้ต้องเชื่อมต่อระบบ Apps Script", "error");
-        setLoader(false);
-        return;
-    }
-    
-    try {
-        const res = await fetch(config.scriptUrl, {
-            method: "POST",
-            body: JSON.stringify({
-                action: "addHoliday",
-                pin: authenticatedAdminPin, // ส่งรหัสแอดมินจริงที่ล็อกอินเข้ามา
-                date: dateInput,
-                name: nameInput
-            })
-        });
-        const data = await res.json();
+    const executeAdd = async (pin) => {
+        setLoader(true);
         
-        if (data.success) {
-            showToast("เพิ่มวันหยุดสำเร็จ");
-            document.getElementById("holiday-date-input").value = "";
-            document.getElementById("holiday-name-input").value = "";
-            await loadInitialData();
-            loadHolidaysInAdmin();
-        } else {
-            showToast("เพิ่มวันหยุดไม่สำเร็จ: " + data.message, "error");
+        if (!config.scriptUrl) {
+            showToast("ฟังก์ชันนี้ต้องเชื่อมต่อระบบ Apps Script", "error");
+            setLoader(false);
+            return;
         }
-    } catch (e) {
-        showToast("การเชื่อมต่อกานข้อมูลมีปักหา", "error");
-    } finally {
-        setLoader(false);
+        
+        try {
+            const res = await fetch(config.scriptUrl, {
+                method: "POST",
+                body: JSON.stringify({
+                    action: "addHoliday",
+                    pin: pin,
+                    date: dateInput,
+                    name: nameInput
+                })
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                showToast("เพิ่มวันหยุดสำเร็จ");
+                const dateEl = document.getElementById("holiday-date-input");
+                const nameEl = document.getElementById("holiday-name-input");
+                if (dateEl) dateEl.value = "";
+                if (nameEl) nameEl.value = "";
+                
+                // อัปเดตในหน่วยความจำเพื่อความรวดเร็ว
+                const existingIdx = holidays.findIndex(h => h.date === dateInput);
+                if (existingIdx >= 0) {
+                    holidays[existingIdx].name = nameInput;
+                } else {
+                    holidays.push({ date: dateInput, name: nameInput });
+                }
+                loadHolidaysInAdmin();
+                
+                await loadInitialData();
+                loadHolidaysInAdmin();
+            } else {
+                showToast("เพิ่มวันหยุดไม่สำเร็จ: " + data.message, "error");
+            }
+        } catch (e) {
+            showToast("การเชื่อมต่อฐานข้อมูลมีปัญหา", "error");
+        } finally {
+            setLoader(false);
+        }
+    };
+    
+    if (authenticatedAdminPin) {
+        executeAdd(authenticatedAdminPin);
+    } else {
+        requestLogin("ADMIN", (pin) => {
+            authenticatedAdminPin = pin;
+            executeAdd(pin);
+        });
     }
-}
+};
 
 /**
  * 11. ฟังก์ชันเปลี่ยนหน้า (SPA View Switcher)
@@ -3017,6 +3056,13 @@ function processNoticeClick(studentId, fullName, gradeRoom, docType, fullDocType
         savedHrSign = item.hrSign || "";
         savedSaSign = item.saSign || "";
         savedParentSign = item.parentSign || item.signatureBase64 || "";
+    }
+
+    if (!savedParentSign && typeof documentsData !== 'undefined' && documentsData.length > 0) {
+        const existingDoc = documentsData.find(d => d.studentId === studentId && (d.documentType === fullDocType || d.documentType === docType));
+        if (existingDoc && existingDoc.signatureBase64) {
+            savedParentSign = existingDoc.signatureBase64;
+        }
     }
     
     // ข้ามไปพรีวิวทันที ถ้ามีชื่อครูที่ปรึกษาแล้ว
@@ -3142,6 +3188,13 @@ window.openNoticeActionModal = function(studentId, fullName, gradeRoom, docType,
         window.tempParentSign = atRiskTeachersCache[backendKey].parentSign || atRiskTeachersCache[backendKey].signatureBase64 || "";
         savedDocDate = atRiskTeachersCache[backendKey].docDate || "";
         savedReason = atRiskTeachersCache[backendKey].reason || "";
+    }
+
+    if (!window.tempParentSign && typeof documentsData !== 'undefined' && documentsData.length > 0) {
+        const existingDoc = documentsData.find(d => d.studentId === studentId && (d.documentType === fullDocType || d.documentType === docType));
+        if (existingDoc && existingDoc.signatureBase64) {
+            window.tempParentSign = existingDoc.signatureBase64;
+        }
     }
     
 function isReasonTextStr(s) {
@@ -3566,17 +3619,20 @@ window.renderAtRiskStudents = async function() {
             const fullDocType = `${docType}_ครั้งที่${noticeCount}`;
             const backendKey = `${s.studentId}|${docType}|ครั้งที่${noticeCount}`;
             
-            // เช็คสถานะผู้ปกครองเซ็น
-            const existingDoc = documentsData.find(d => d.studentId === s.studentId && d.documentType === fullDocType);
-            const isParentSigned = (existingDoc && existingDoc.signatureBase64) ? true : false;
-            
-            // เช็คสถานะครูลงชื่อ
+            // เช็คสถานะครูลงชื่อ และ ผปค เซ็น
             let savedHr = "";
             let savedSa = "";
+            let cachedParentSign = "";
             if (atRiskTeachersCache && atRiskTeachersCache[backendKey]) {
                 savedHr = atRiskTeachersCache[backendKey].hr || "";
                 savedSa = atRiskTeachersCache[backendKey].sa || "";
+                cachedParentSign = atRiskTeachersCache[backendKey].parentSign || atRiskTeachersCache[backendKey].signatureBase64 || "";
             }
+            
+            // เช็คสถานะผู้ปกครองเซ็น (ทั้งจาก atRiskTeachersCache และ documentsData)
+            const existingDoc = (typeof documentsData !== 'undefined' && documentsData) ? documentsData.find(d => d.studentId === s.studentId && (d.documentType === fullDocType || d.documentType === docType)) : null;
+            const docParentSign = (existingDoc && existingDoc.signatureBase64) ? existingDoc.signatureBase64 : "";
+            const isParentSigned = (cachedParentSign && cachedParentSign.length > 50) || (docParentSign && docParentSign.length > 50);
             
             // ลอจิกสีแบบพาสเทลเรียงตามสถานะการเซ็น
             let btnStyle = "";
@@ -3689,10 +3745,24 @@ window.openPreviewDirectly = async function(studentId, fullName, gradeRoom, docT
         saved = { ...atRiskTeachersCache[backendKey] };
     }
     
+    // โหลดลายเซ็นผู้ปกครองจาก documentsData (หากบันทึกจากหน้าเอกสารโดยตรง)
+    if (typeof documentsData !== 'undefined' && documentsData.length > 0) {
+        const existingDoc = documentsData.find(d => d.studentId === studentId && (d.documentType === fullDocType || d.documentType === docType));
+        if (existingDoc && existingDoc.signatureBase64) {
+            if (!saved.parentSign) saved.parentSign = existingDoc.signatureBase64;
+        }
+    }
+    
     currentSigningStudent.homeroomTeacher = saved.hr || '...........................................';
     currentSigningStudent.headOfStudentAffairs = saved.sa || '...........................................';
     currentSigningStudent.hrSign = saved.hrSign;
     currentSigningStudent.saSign = saved.saSign;
+    currentSigningStudent.parentName = saved.parentName;
+    currentSigningStudent.parentSign = saved.parentSign || saved.signatureBase64;
+    currentSigningStudent.signatureBase64 = saved.parentSign || saved.signatureBase64; // Ensure compatibility
+    currentSigningStudent.reason = saved.reason || "";
+    currentSigningStudent.docDate = saved.docDate || "";
+    
     
     const docToPrint = { ...currentSigningStudent, documentType: currentSigningStudent.fullDocType };
     document.getElementById("modal-at-risk-action").classList.remove("active");
@@ -3727,10 +3797,35 @@ window.saveAtRiskTeachers = async function() {
     saved.sa = saSelect;
     saved.parentName = parentNameVal;
     saved.reason = reasonVal;
-    saved.hrSign = window.tempHrSign !== undefined ? window.tempHrSign : saved.hrSign;
-    saved.saSign = window.tempSaSign !== undefined ? window.tempSaSign : saved.saSign;
-    saved.parentSign = window.tempParentSign !== undefined ? window.tempParentSign : (saved.parentSign || saved.signatureBase64 || "");
-    saved.signatureBase64 = saved.parentSign;
+    
+    if (window.tempHrSign === "CLEARED") {
+        saved.hrSign = "";
+    } else if (window.tempHrSign && window.tempHrSign.length > 50) {
+        saved.hrSign = window.tempHrSign;
+    }
+    
+    if (window.tempSaSign === "CLEARED") {
+        saved.saSign = "";
+    } else if (window.tempSaSign && window.tempSaSign.length > 50) {
+        saved.saSign = window.tempSaSign;
+    }
+    
+    if (window.tempParentSign === "CLEARED") {
+        saved.parentSign = "";
+        saved.signatureBase64 = "";
+    } else if (window.tempParentSign && window.tempParentSign.length > 50) {
+        saved.parentSign = window.tempParentSign;
+        saved.signatureBase64 = window.tempParentSign;
+    } else if (!saved.parentSign && saved.signatureBase64) {
+        saved.parentSign = saved.signatureBase64;
+    }
+    
+    currentSigningStudent.parentSign = saved.parentSign;
+    currentSigningStudent.signatureBase64 = saved.parentSign;
+    currentSigningStudent.hrSign = saved.hrSign;
+    currentSigningStudent.saSign = saved.saSign;
+    currentSigningStudent.parentName = saved.parentName;
+    currentSigningStudent.reason = saved.reason;
     
     if (docDateVal) {
         saved.docDate = docDateVal;
@@ -3739,6 +3834,26 @@ window.saveAtRiskTeachers = async function() {
     // บันทึกลง Cache เพื่อให้ UI เปลี่ยนทันที
     if (!atRiskTeachersCache) atRiskTeachersCache = {};
     atRiskTeachersCache[backendKey] = saved;
+    
+    // อัปเดต documentsData ด้วยเพื่อความสอดคล้อง
+    if (typeof documentsData !== 'undefined' && documentsData) {
+        const fullDocType = currentSigningStudent.fullDocType;
+        const studentId = currentSigningStudent.studentId;
+        const docIdx = documentsData.findIndex(d => d.studentId === studentId && (d.documentType === fullDocType || d.documentType === currentSigningStudent.docType));
+        if (saved.parentSign && saved.parentSign.length > 50) {
+            if (docIdx >= 0) {
+                documentsData[docIdx].signatureBase64 = saved.parentSign;
+            } else {
+                documentsData.push({
+                    studentId: studentId,
+                    documentType: fullDocType,
+                    signatureBase64: saved.parentSign
+                });
+            }
+        } else if (saved.parentSign === "" && docIdx >= 0) {
+            documentsData[docIdx].signatureBase64 = "";
+        }
+    }
     
     if (typeof renderAtRiskStudents === 'function') renderAtRiskStudents();
     
@@ -3791,14 +3906,25 @@ window.previewAtRiskDocument = async function() {
         saved = { ...atRiskTeachersCache[backendKey] };
     }
     
+    // โหลดลายเซ็นผู้ปกครองจาก documentsData (หากบันทึกจากหน้าเอกสารโดยตรง)
+    if (typeof documentsData !== 'undefined' && documentsData.length > 0 && currentSigningStudent) {
+        const fullDocType = currentSigningStudent.fullDocType;
+        const docType = currentSigningStudent.docType;
+        const studentId = currentSigningStudent.studentId;
+        const existingDoc = documentsData.find(d => d.studentId === studentId && (d.documentType === fullDocType || d.documentType === docType));
+        if (existingDoc && existingDoc.signatureBase64) {
+            if (!saved.parentSign) saved.parentSign = existingDoc.signatureBase64;
+        }
+    }
+    
     currentSigningStudent.homeroomTeacher = saved.hr;
     currentSigningStudent.headOfStudentAffairs = saved.sa;
     currentSigningStudent.parentName = saved.parentName;
     currentSigningStudent.reason = saved.reason || "";
     currentSigningStudent.hrSign = saved.hrSign;
     currentSigningStudent.saSign = saved.saSign;
-    currentSigningStudent.parentSign = saved.parentSign;
-    currentSigningStudent.signatureBase64 = saved.parentSign;
+    currentSigningStudent.parentSign = saved.parentSign || saved.signatureBase64;
+    currentSigningStudent.signatureBase64 = saved.parentSign || saved.signatureBase64;
     currentSigningStudent.docDate = saved.docDate || "";
     
     const docToPrint = { ...currentSigningStudent, documentType: currentSigningStudent.fullDocType };
@@ -3919,7 +4045,7 @@ window.openDocumentPreview = async function(studentInfo) {
     // 1. ถ้ามีวันที่ล็อค/บันทึกไว้ใน studentInfo หรือใน Cache ให้ใช้วันที่นั้น
     // 2. ถ้าไม่มี ให้ใช้วันที่ปัจจุบัน (today)
     let formattedDate = "";
-    let targetDateStr = studentInfo.docDate;
+    let targetDateStr = studentInfo.docDate || studentInfo.targetDate || studentInfo.date || studentInfo.createdAt;
     if (!targetDateStr && studentInfo.backendKey && atRiskTeachersCache && atRiskTeachersCache[studentInfo.backendKey]) {
         targetDateStr = atRiskTeachersCache[studentInfo.backendKey].docDate;
     }
@@ -4029,16 +4155,15 @@ function formatThaiDateString(dateInput) {
 
     const actualDocTypeForSave = studentInfo.documentType || studentInfo.docType;
 
-    // เคลียร์ปุ่มบันทึกแยก และแสดงปุ่ม เซ็น/แก้ไข เสมอทุกกรณี
     const btnOpenSig = document.getElementById("btn-open-signature");
-    if (btnOpenSig) btnOpenSig.style.display = "inline-flex";
-    
     const btnSaveSig = document.getElementById("btn-save-signature");
+    
+    if (btnOpenSig) btnOpenSig.style.display = "inline-flex";
     if (btnSaveSig) btnSaveSig.style.display = "none";
 
     let signatureHtml = "";
-    if (studentInfo.parentSign || studentInfo.signatureBase64) {
-        signatureHtml = `<img src="${studentInfo.parentSign || studentInfo.signatureBase64}" style="max-height: 80px;" alt="ลายเซ็นผู้ปกครอง"><br>`;
+    if (studentInfo.tempSignature || studentInfo.parentSign || studentInfo.signatureBase64) {
+        signatureHtml = `<img src="${studentInfo.tempSignature || studentInfo.parentSign || studentInfo.signatureBase64}" style="max-height: 80px;" alt="ลายเซ็นผู้ปกครอง"><br>`;
     } else {
         signatureHtml = `<div style="height: 80px;"></div>`;
     }
@@ -4067,10 +4192,7 @@ window.closeDocumentPreview = function() {
 };
 
 window.openSignatureFromPreview = function() {
-    document.getElementById("signature-modal-title").innerText = `เซ็นชื่อผู้ปกครอง: ${currentSigningStudent.fullName}`;
-    if (!signaturePadCanvas) initSignaturePad();
-    clearSignature();
-    document.getElementById("modal-signature").classList.add("active");
+    openTeacherSignature('parent');
 };
 
 window.openTeacherModalFromPreview = function() {
@@ -4091,77 +4213,163 @@ window.openTeacherModalFromPreview = function() {
 
 window.currentSigningTeacherRole = null;
 
-window.openTeacherSignature = function(role) {
-    window.currentSigningTeacherRole = role;
-    let roleName = 'ครูที่ปรึกษา';
-    if (role === 'sa') roleName = 'หัวหน้ากิจการนักเรียน';
-    else if (role === 'parent') roleName = 'ผู้ปกครองนักเรียน';
-    
-    document.getElementById("signature-modal-title").innerText = `เซ็นชื่อ: ${roleName}`;
-    if (!signaturePadCanvas) initSignaturePad();
-    clearSignature();
-    document.getElementById("modal-signature").classList.add("active");
+window.openTeacherSignature = function(targetRoleOrId) {
+    let roleName = 'ลายเซ็น';
+    if (targetRoleOrId === 'hr') {
+        window.currentSigningTeacherRole = 'hr';
+        window.pk11SignatureTarget = '';
+        roleName = 'ครูที่ปรึกษา';
+    } else if (targetRoleOrId === 'sa') {
+        window.currentSigningTeacherRole = 'sa';
+        window.pk11SignatureTarget = '';
+        roleName = 'หัวหน้ากิจการนักเรียน';
+    } else if (targetRoleOrId === 'parent') {
+        window.currentSigningTeacherRole = 'parent';
+        window.pk11SignatureTarget = '';
+        roleName = 'ผู้ปกครองนักเรียน';
+    } else if (typeof targetRoleOrId === 'string' && targetRoleOrId.startsWith('pk11-')) {
+        window.pk11SignatureTarget = targetRoleOrId;
+        window.currentSigningTeacherRole = null;
+        if (targetRoleOrId === 'pk11-student') roleName = 'นักเรียน (ป.ค.11)';
+        else if (targetRoleOrId === 'pk11-parent') roleName = 'ผู้ปกครอง (ป.ค.11)';
+        else if (targetRoleOrId === 'pk11-hr') roleName = 'ครูที่ปรึกษา (ป.ค.11)';
+        else if (targetRoleOrId === 'pk11-sa') roleName = 'หัวหน้ากิจการนักเรียน (ป.ค.11)';
+    } else {
+        window.currentSigningTeacherRole = null;
+        window.pk11SignatureTarget = '';
+        roleName = (currentSigningStudent && currentSigningStudent.fullName) ? `ผู้ปกครอง: ${currentSigningStudent.fullName}` : 'ผู้ปกครอง';
+    }
+
+    const titleEl = document.getElementById("signature-modal-title");
+    if (titleEl) titleEl.innerText = `เซ็นชื่อ: ${roleName}`;
+
+    const modal = document.getElementById("modal-signature");
+    if (modal) modal.classList.add("active");
+
+    const canvas = document.getElementById('signature-pad');
+    if (canvas) {
+        if (!signaturePad && typeof SignaturePad !== 'undefined') {
+            signaturePad = new SignaturePad(canvas, {
+                backgroundColor: 'rgba(255, 255, 255, 0)',
+                penColor: '#000080'
+            });
+        }
+        setTimeout(() => {
+            if (canvas.offsetWidth > 0) {
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                canvas.width = canvas.offsetWidth * ratio;
+                canvas.height = canvas.offsetHeight * ratio;
+                const ctx = canvas.getContext("2d");
+                if (ctx) ctx.scale(ratio, ratio);
+            }
+            if (signaturePad) {
+                signaturePad.clear();
+            } else if (signaturePadCtx) {
+                signaturePadCtx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }, 50);
+    }
 };
 
-window.clearTeacherSignature = function(role) {
-    if (role === 'hr') {
-        window.tempHrSign = "";
-        document.getElementById("hr-signature-preview-container").style.display = "none";
-        document.getElementById("hr-signature-preview").src = "";
-    } else if (role === 'sa') {
-        window.tempSaSign = "";
-        document.getElementById("sa-signature-preview-container").style.display = "none";
-        document.getElementById("sa-signature-preview").src = "";
-    } else if (role === 'parent') {
-        window.tempParentSign = "";
-        document.getElementById("parent-signature-preview-container").style.display = "none";
-        document.getElementById("parent-signature-preview").src = "";
+window.clearTeacherSignature = function(targetRoleOrId) {
+    if (targetRoleOrId === 'hr') {
+        window.tempHrSign = "CLEARED";
+        const img = document.getElementById("hr-signature-preview");
+        const container = document.getElementById("hr-signature-preview-container");
+        if (img) img.src = "";
+        if (container) container.style.display = "none";
+    } else if (targetRoleOrId === 'sa') {
+        window.tempSaSign = "CLEARED";
+        const img = document.getElementById("sa-signature-preview");
+        const container = document.getElementById("sa-signature-preview-container");
+        if (img) img.src = "";
+        if (container) container.style.display = "none";
+    } else if (targetRoleOrId === 'parent') {
+        window.tempParentSign = "CLEARED";
+        const img = document.getElementById("parent-signature-preview");
+        const container = document.getElementById("parent-signature-preview-container");
+        if (img) img.src = "";
+        if (container) container.style.display = "none";
+    } else if (typeof targetRoleOrId === 'string') {
+        const img = document.getElementById(`${targetRoleOrId}-signature-preview`);
+        const container = document.getElementById(`${targetRoleOrId}-signature-preview-container`);
+        if (img) img.src = '';
+        if (container) container.style.display = 'none';
     }
 };
 
 window.clearSignature = function() {
-    if (!signaturePadCanvas || !signaturePadCtx) return;
-    signaturePadCtx.clearRect(0, 0, signaturePadCanvas.width, signaturePadCanvas.height);
+    if (typeof signaturePad !== 'undefined' && signaturePad) {
+        signaturePad.clear();
+    } else {
+        const canvas = document.getElementById('signature-pad');
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    }
 };
 
 window.closeSignatureModal = function() {
-    document.getElementById("modal-signature").classList.remove("active");
+    const modal = document.getElementById("modal-signature");
+    if (modal) modal.classList.remove("active");
 };
 
 window.saveSignature = function() {
-    if (!signaturePadCanvas) return;
-    
-    // สร้าง Canvas สีขาวและบีบอัด JPEG
-    const tempCanvas = document.createElement("canvas");
-    tempCanvas.width = signaturePadCanvas.width;
-    tempCanvas.height = signaturePadCanvas.height;
-    const ctx = tempCanvas.getContext("2d");
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-    ctx.drawImage(signaturePadCanvas, 0, 0);
-    
-    const signatureBase64 = tempCanvas.toDataURL("image/jpeg", 0.6);
+    const canvas = document.getElementById('signature-pad');
+    if (!canvas) return;
+
+    let dataUrl = "";
+    if (typeof signaturePad !== 'undefined' && signaturePad && !signaturePad.isEmpty()) {
+        dataUrl = signaturePad.toDataURL('image/png');
+    } else if (canvas) {
+        dataUrl = canvas.toDataURL('image/png');
+    }
+
+    if (!dataUrl || dataUrl.length < 100) {
+        if (typeof showToast === 'function') showToast("กรุณาวาดลายเซ็นก่อนกดยืนยัน", "warning");
+        return;
+    }
+
     closeSignatureModal();
-    
-    if (window.currentSigningTeacherRole) {
-        // เซ็นในหน้า modal-at-risk-action (ครูที่ปรึกษา / หัวหน้ากิจการ / ผู้ปกครอง)
-        if (window.currentSigningTeacherRole === 'hr') {
-            window.tempHrSign = signatureBase64;
-            document.getElementById("hr-signature-preview").src = signatureBase64;
-            document.getElementById("hr-signature-preview-container").style.display = "block";
-        } else if (window.currentSigningTeacherRole === 'sa') {
-            window.tempSaSign = signatureBase64;
-            document.getElementById("sa-signature-preview").src = signatureBase64;
-            document.getElementById("sa-signature-preview-container").style.display = "block";
-        } else if (window.currentSigningTeacherRole === 'parent') {
-            window.tempParentSign = signatureBase64;
-            document.getElementById("parent-signature-preview").src = signatureBase64;
-            document.getElementById("parent-signature-preview-container").style.display = "block";
+
+    if (window.pk11SignatureTarget) {
+        const target = window.pk11SignatureTarget;
+        const img = document.getElementById(`${target}-signature-preview`);
+        const container = document.getElementById(`${target}-signature-preview-container`);
+        if (img) img.src = dataUrl;
+        if (container) container.style.display = 'block';
+        window.pk11SignatureTarget = '';
+    } else if (window.currentSigningTeacherRole === 'hr') {
+        window.tempHrSign = dataUrl;
+        const img = document.getElementById("hr-signature-preview");
+        const container = document.getElementById("hr-signature-preview-container");
+        if (img) img.src = dataUrl;
+        if (container) container.style.display = 'block';
+        window.currentSigningTeacherRole = null;
+    } else if (window.currentSigningTeacherRole === 'sa') {
+        window.tempSaSign = dataUrl;
+        const img = document.getElementById("sa-signature-preview");
+        const container = document.getElementById("sa-signature-preview-container");
+        if (img) img.src = dataUrl;
+        if (container) container.style.display = 'block';
+        window.currentSigningTeacherRole = null;
+    } else if (window.currentSigningTeacherRole === 'parent') {
+        window.tempParentSign = dataUrl;
+        const img = document.getElementById("parent-signature-preview");
+        const container = document.getElementById("parent-signature-preview-container");
+        if (img) img.src = dataUrl;
+        if (container) container.style.display = 'block';
+        if (currentSigningStudent) {
+            currentSigningStudent.parentSign = dataUrl;
+            currentSigningStudent.signatureBase64 = dataUrl;
+            currentSigningStudent.tempSignature = dataUrl;
         }
         window.currentSigningTeacherRole = null;
     } else if (currentSigningStudent) {
-        // เซ็นสำหรับผู้ปกครองในหน้าพรีวิวเอกสาร
-        currentSigningStudent.tempSignature = signatureBase64;
+        currentSigningStudent.tempSignature = dataUrl;
+        currentSigningStudent.parentSign = dataUrl;
+        currentSigningStudent.signatureBase64 = dataUrl;
         openDocumentPreview(currentSigningStudent);
     }
 };
@@ -4170,7 +4378,7 @@ window.saveDocumentData = async function() {
     if (!currentSigningStudent || !currentSigningStudent.tempSignature) return;
     setLoader(true);
     
-    const actualDocTypeForSave = currentSigningStudent.documentType || currentSigningStudent.docType;
+    const actualDocTypeForSave = currentSigningStudent.fullDocType || currentSigningStudent.documentType || currentSigningStudent.docType;
     
     try {
         const res = await fetch(config.scriptUrl, {
@@ -4402,6 +4610,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const sidebarBackdrop = document.getElementById("sidebar-backdrop");
     const sidebar = document.querySelector(".sidebar");
     
+    const mobileMenuBtn = document.getElementById("mobile-menu-btn");
+    
     const openStartMenu = () => {
         if (sidebar) sidebar.classList.add("active");
         if (startMenuBtn) startMenuBtn.classList.add("active");
@@ -4423,6 +4633,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     
     if (startMenuBtn) startMenuBtn.onclick = toggleStartMenu;
+    if (mobileMenuBtn) mobileMenuBtn.onclick = toggleStartMenu;
     if (mobileSidebarClose) mobileSidebarClose.onclick = closeStartMenu;
     if (sidebarBackdrop) sidebarBackdrop.onclick = closeStartMenu;
     
@@ -4627,6 +4838,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (document.getElementById("shortcut-shortcut-admin") || document.getElementById("shortcut-admin")) {
         const scAdmin = document.getElementById("shortcut-admin");
         if (scAdmin) scAdmin.onclick = triggerAdminFlow;
+    }
+    
+    const btnAddHoliday = document.getElementById("btn-add-holiday");
+    if (btnAddHoliday) {
+        btnAddHoliday.onclick = () => { addHoliday(); };
     }
     
     const btnRebuildStats = document.getElementById("btn-rebuild-stats");
@@ -5191,11 +5407,23 @@ window.openExemptionModal = function(targetStudentId) {
         currentRole = loggedInUser.role;
     }
     
-    if (currentRole) {
+    if (currentRole === "ADMIN" || currentRole === "STUDENT_AFFAIRS" || currentRole === "กิจการนักเรียน") {
         openExemptionModalInner(targetStudentId);
+    } else if (currentRole) {
+        if (typeof showToast === 'function') {
+            showToast("คุณไม่มีสิทธิ์ในการดำเนินรายการนี้ (เฉพาะแอดมินหรือฝ่ายกิจการฯ เท่านั้น)", "error");
+        } else {
+            alert("คุณไม่มีสิทธิ์ในการดำเนินรายการนี้");
+        }
     } else {
-        requestLogin("ANY", (pin, name, role) => {
-            openExemptionModalInner(targetStudentId);
+        requestLogin("STUDENT_AFFAIRS_ONLY", (pin, name, role) => {
+            if (role === "ADMIN" || role === "STUDENT_AFFAIRS" || role === "กิจการนักเรียน") {
+                openExemptionModalInner(targetStudentId);
+            } else {
+                if (typeof showToast === 'function') {
+                    showToast("คุณไม่มีสิทธิ์ในการดำเนินรายการนี้ (เฉพาะแอดมินหรือฝ่ายกิจการฯ เท่านั้น)", "error");
+                }
+            }
         });
     }
 };
@@ -5622,6 +5850,10 @@ window.openPk11Wizard = function(recordId = null) {
             const statusVal = record.status || 'อนุญาต';
             const radio = document.querySelector(`input[name="pk11-sa-status"][value="${statusVal}"]`);
             if (radio) radio.checked = true;
+            
+            const hrStatusVal = record.hrStatus || 'เห็นควรอนุญาต';
+            const hrRadio = document.querySelector(`input[name="pk11-hr-status"][value="${hrStatusVal}"]`);
+            if (hrRadio) hrRadio.checked = true;
         }
     } else {
         // Create mode
@@ -5641,6 +5873,9 @@ window.openPk11Wizard = function(recordId = null) {
         const hh = String(today.getHours()).padStart(2, '0');
         const min = String(today.getMinutes()).padStart(2, '0');
         document.getElementById('pk11-exit-time').value = `${hh}:${min}`;
+        
+        const hrRadio = document.querySelector('input[name="pk11-hr-status"][value="เห็นควรอนุญาต"]');
+        if (hrRadio) hrRadio.checked = true;
     }
     
     goToPk11Step(1);
@@ -5728,6 +5963,8 @@ window.clearPk11Form = function() {
     // Reset status
     const statusRadio = document.querySelector('input[name="pk11-sa-status"][value="อนุญาต"]');
     if (statusRadio) statusRadio.checked = true;
+    const hrStatusRadio = document.querySelector('input[name="pk11-hr-status"][value="เห็นควรอนุญาต"]');
+    if (hrStatusRadio) hrStatusRadio.checked = true;
 };
 
 window.clearTeacherSelection = function(role) {
@@ -5740,78 +5977,6 @@ window.clearTeacherSelection = function(role) {
     if (search) { search.value = ''; search.classList.remove('hidden'); }
     if (display) display.classList.add('hidden');
     if (nameDisplay) nameDisplay.innerText = '-';
-};
-
-window.openTeacherSignature = function(targetId) {
-    window.pk11SignatureTarget = targetId;
-    
-    // Initialize SignaturePad if not already done
-    const canvas = document.getElementById('signature-pad');
-    if (!signaturePad && canvas && typeof SignaturePad !== 'undefined') {
-        signaturePad = new SignaturePad(canvas, {
-            backgroundColor: 'rgba(255, 255, 255, 0)',
-            penColor: '#0000FF'
-        });
-    }
-    
-    if (typeof openSignatureModal === 'function') {
-        openSignatureModal();
-    } else {
-        const modal = document.getElementById("modal-signature");
-        if(modal) {
-            modal.classList.add("active");
-            if (signaturePad) {
-                // Adjust scale for high DPI screens when modal opens
-                setTimeout(() => {
-                    if (canvas.offsetWidth > 0) {
-                        const ratio = Math.max(window.devicePixelRatio || 1, 1);
-                        canvas.width = canvas.offsetWidth * ratio;
-                        canvas.height = canvas.offsetHeight * ratio;
-                        canvas.getContext("2d").scale(ratio, ratio);
-                        signaturePad.clear();
-                    }
-                }, 50);
-            }
-        }
-    }
-};
-
-window.clearSignature = function() {
-    if (typeof signaturePad !== 'undefined' && signaturePad) {
-        signaturePad.clear();
-    }
-};
-
-window.clearTeacherSignature = function(targetId) {
-    const img = document.getElementById(`${targetId}-signature-preview`);
-    const container = document.getElementById(`${targetId}-signature-preview-container`);
-    if(img) img.src = '';
-    if(container) container.style.display = 'none';
-};
-
-// Override original saveSignature if it exists to route back to PK11
-const originalSaveSignature = window.saveSignature;
-window.saveSignature = function() {
-    if (window.pk11SignatureTarget && typeof signaturePad !== 'undefined' && !signaturePad.isEmpty()) {
-        const dataUrl = signaturePad.toDataURL('image/png');
-        const img = document.getElementById(`${window.pk11SignatureTarget}-signature-preview`);
-        const container = document.getElementById(`${window.pk11SignatureTarget}-signature-preview-container`);
-        if(img) img.src = dataUrl;
-        if(container) container.style.display = 'block';
-        window.pk11SignatureTarget = '';
-        
-        if (typeof closeSignatureModal === 'function') {
-            closeSignatureModal();
-        } else {
-            const modal = document.getElementById("modal-signature");
-            if(modal) modal.classList.remove("active");
-        }
-        return;
-    }
-    
-    if (originalSaveSignature) {
-        originalSaveSignature();
-    }
 };
 
 window.savePk11Record = async function() {
@@ -5846,6 +6011,7 @@ window.savePk11Record = async function() {
         parentPhone: document.getElementById('pk11-parent-phone').value,
         hrName: document.getElementById('pk11-hr-select').value,
         saName: document.getElementById('pk11-sa-select').value,
+        hrStatus: document.querySelector('input[name="pk11-hr-status"]:checked')?.value || "เห็นควรอนุญาต",
         status: document.querySelector('input[name="pk11-sa-status"]:checked')?.value || "อนุญาต",
         
         // Signatures (Base64 or empty)
@@ -5992,9 +6158,20 @@ window.previewPk11DocumentDirectly = function(recordId) {
     const item = window.pk11Records.find(r => r.id === recordId);
     if (!item) return;
     
+    currentSigningStudent = null;
+    window.currentPk11Student = {
+        studentId: item.studentId,
+        fullName: item.studentName,
+        grade: item.gradeRoom ? item.gradeRoom.split('/')[0] : '',
+        room: item.gradeRoom ? item.gradeRoom.split('/')[1] : ''
+    };
+    
     if (typeof getPK11Template === 'function' && typeof generateDocumentHtml === 'function') {
+        const itemDate = item.targetDate || item.date || item.createdAt || '';
         const payload = {
-            date: item.targetDate || '-',
+            date: itemDate,
+            targetDate: itemDate,
+            createdAt: item.createdAt || itemDate,
             studentName: item.studentName || '-',
             grade: item.gradeRoom ? item.gradeRoom.split('/')[0] : '-',
             room: item.gradeRoom ? item.gradeRoom.split('/')[1] : '-',
@@ -6014,12 +6191,18 @@ window.previewPk11DocumentDirectly = function(recordId) {
             parentSignature: item.parentSignature || '',
             hrSignature: item.hrSignature || '',
             saSignature: item.saSignature || '',
+            hrStatus: item.hrStatus || 'เห็นควรอนุญาต',
+            status: item.status || 'อนุญาต',
             docType: 'ป.ค.11'
         };
         
         const html = generateDocumentHtml(payload);
         const modal = document.getElementById('modal-document-preview');
         const container = document.getElementById('document-print-area');
+        const btnOpenSig = document.getElementById("btn-open-signature");
+        const btnSaveSig = document.getElementById("btn-save-signature");
+        if (btnOpenSig) btnOpenSig.style.display = 'none';
+        if (btnSaveSig) btnSaveSig.style.display = 'none';
         if (modal && container) {
             container.innerHTML = html;
             if (typeof tintAllSignatures === 'function') {
@@ -6182,6 +6365,7 @@ window.switchView = function(viewId) {
 };
 
 window.previewPk11Document = function() {
+    currentSigningStudent = null;
     // Check if documents.js loaded and has getPK11Template
     if (typeof getPK11Template === 'function' && typeof generateDocumentHtml === 'function') {
         const getSigPreview = (id) => {
@@ -6191,8 +6375,11 @@ window.previewPk11Document = function() {
             return (src && src.startsWith('data:image')) ? src : "";
         };
         
+        const formDate = document.getElementById('pk11-date') ? document.getElementById('pk11-date').value : '';
         const payload = {
-            date: document.getElementById('pk11-date').value,
+            date: formDate,
+            targetDate: formDate,
+            createdAt: formDate,
             studentName: window.currentPk11Student ? window.currentPk11Student.fullName : '-',
             grade: window.currentPk11Student ? window.currentPk11Student.grade : '-',
             room: window.currentPk11Student ? window.currentPk11Student.room : '-',
@@ -6209,6 +6396,7 @@ window.previewPk11Document = function() {
             studentPhone: document.getElementById('pk11-student-phone').value || '-',
             parentPhone: document.getElementById('pk11-parent-phone').value || '-',
             docType: 'ป.ค.11',
+            hrStatus: document.querySelector('input[name="pk11-hr-status"]:checked')?.value || "เห็นควรอนุญาต",
             status: document.querySelector('input[name="pk11-sa-status"]:checked')?.value || "อนุญาต",
             
             // Send base64 image strings or placeholders
@@ -6222,6 +6410,10 @@ window.previewPk11Document = function() {
         
         const modal = document.getElementById('modal-document-preview');
         const container = document.getElementById('document-print-area');
+        const btnOpenSig = document.getElementById("btn-open-signature");
+        const btnSaveSig = document.getElementById("btn-save-signature");
+        if (btnOpenSig) btnOpenSig.style.display = 'none';
+        if (btnSaveSig) btnSaveSig.style.display = 'none';
         if (modal && container) {
             container.innerHTML = html;
             if (typeof tintAllSignatures === 'function') {
@@ -6243,6 +6435,10 @@ window.tintAllSignatures = async function() {
     
     const images = container.querySelectorAll('img');
     const promises = Array.from(images).map(img => {
+        const alt = img.getAttribute('alt') || '';
+        if (alt.includes('โลโก้') || img.src === (typeof SCHOOL_LOGO_BASE64 !== 'undefined' ? SCHOOL_LOGO_BASE64 : '')) {
+            return Promise.resolve();
+        }
         if (img.src && img.src.startsWith('data:image')) {
             return new Promise((resolve) => {
                 const tempImg = new Image();
