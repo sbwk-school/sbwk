@@ -8,6 +8,8 @@ const CONFIG_KEY = "school_attendance_config";
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1TY5QNusQpKayPX8MZXFvUcx--bae7B5Wty38FfzbW90/edit?usp=sharing";
 
 let config = {
+    supabaseUrl: (typeof GLOBAL_CONFIG !== "undefined" && GLOBAL_CONFIG.supabaseUrl) ? GLOBAL_CONFIG.supabaseUrl : "https://lkpgexffxxyczxfevqkc.supabase.co",
+    supabaseKey: (typeof GLOBAL_CONFIG !== "undefined" && GLOBAL_CONFIG.supabaseKey) ? GLOBAL_CONFIG.supabaseKey : "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrcGdleGZmeHh5Y3p4ZmV2cWtjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0NzA4ODgsImV4cCI6MjEwMzA0Njg4OH0.nZe6-3Hzw2ogcM_akBIK_w-JC9okXvp0r7GSjVj5YSM",
     sheetUrl: (typeof GLOBAL_CONFIG !== "undefined" && GLOBAL_CONFIG.sheetUrl) ? GLOBAL_CONFIG.sheetUrl : DEFAULT_SHEET_URL,
     scriptUrl: (typeof GLOBAL_CONFIG !== "undefined" && GLOBAL_CONFIG.scriptUrl) ? GLOBAL_CONFIG.scriptUrl : "",
     schoolName: "โรงเรียนซับบอนวิทยาคม",
@@ -15,6 +17,19 @@ let config = {
     semester: "ภาคเรียนที่ 1",
     academicYear: "ปีการศึกษา 2569"
 };
+
+// Supabase Instance Getter
+let _supabaseInstance = null;
+function getSupabase() {
+    if (!_supabaseInstance && typeof window.supabase !== "undefined" && config.supabaseUrl && config.supabaseKey) {
+        try {
+            _supabaseInstance = window.supabase.createClient(config.supabaseUrl, config.supabaseKey);
+        } catch (e) {
+            console.warn("Could not create Supabase client:", e);
+        }
+    }
+    return _supabaseInstance;
+}
 
 // สถานะการทำงานของระบบ (Global State)
 let students = [];       // รายชื่อนักเรียนทั้งหมด
@@ -56,6 +71,8 @@ let selectedMisconductStudent = null; // นักเรียนที่กำ
 function loadConfig() {
     // โหลดโดยตรงจาก GLOBAL_CONFIG ในไฟล์ config.js เท่านั้น (สำหรับโฮสติ้ง)
     if (typeof GLOBAL_CONFIG !== "undefined") {
+        if (GLOBAL_CONFIG.supabaseUrl) config.supabaseUrl = GLOBAL_CONFIG.supabaseUrl;
+        if (GLOBAL_CONFIG.supabaseKey) config.supabaseKey = GLOBAL_CONFIG.supabaseKey;
         if (GLOBAL_CONFIG.scriptUrl) config.scriptUrl = GLOBAL_CONFIG.scriptUrl;
         if (GLOBAL_CONFIG.sheetUrl) config.sheetUrl = GLOBAL_CONFIG.sheetUrl;
         if (GLOBAL_CONFIG.schoolName) config.schoolName = GLOBAL_CONFIG.schoolName;
@@ -204,121 +221,29 @@ function processStudentData(student) {
 }
 
 /**
- * แปลงอักษรย่อสถานะเช็คชื่อจาก Google Sheets เป็นคำเต็มสำหรับการประมวลผลบนหน้าจอ
+ * แปลงอักษรย่อสถานะเช็คชื่อเป็นคำเต็มสำหรับการประมวลผลบนหน้าจอ
  */
 function translateAbbreviationToStatus(abbr) {
+    if (!abbr) return "มา";
+    const clean = String(abbr).trim();
     const map = {
-        "ม": "มา",
-        "ล": "ลา",
-        "ข": "ขาด",
-        "ส": "สาย",
-        "ด": "โดด"
+        "ม": "มา", "ล": "ลา", "ข": "ขาด", "ส": "สาย", "ด": "โดด",
+        "มา": "มา", "ลา": "ลา", "ขาด": "ขาด", "สาย": "สาย", "โดด": "โดด"
     };
-    return map[abbr] || abbr;
+    return map[clean] || "มา";
 }
 
 /**
- * แปลงคำเต็มของสถานะเช็คชื่อเป็นอักษรย่อ เพื่อลดขนาดพื้นที่และแบนด์วิดท์ในการจัดเก็บข้อมูลลง Sheets
+ * แปลงคำเต็มของสถานะเช็คชื่อเป็นอักษรย่อ เพื่อจัดเก็บลงฐานข้อมูลอย่างกระชับ
  */
-function translateStatusToAbbreviation(status) {
+function translateStatusToAbbreviation(st) {
+    if (!st) return "ม";
+    const clean = String(st).trim();
     const map = {
-        "มา": "ม",
-        "ลา": "ล",
-        "ขาด": "ข",
-        "สาย": "ส",
-        "โดด": "ด"
+        "มา": "ม", "ลา": "ล", "ขาด": "ข", "สาย": "ส", "โดด": "ด",
+        "ม": "ม", "ล": "ล", "ข": "ข", "ส": "ส", "ด": "ด"
     };
-    return map[status] || status;
-}
-
-/**
- * แปลงข้อความ CSV เป็นอาเรย์ (กรณี Fallback)
- * รองรับคอลัมน์ A: เลขประจำตัว|ชั้นเรียน/ห้อง|ชื่อเต็ม
- */
-function parseCSV(text) {
-    const lines = text.split(/\r?\n/);
-    const result = [];
-    
-    for (let i = 1; i < lines.length; i++) {
-        let line = lines[i].trim();
-        if (!line) continue;
-        
-        let firstCol = line;
-        if (firstCol.startsWith('"')) {
-            const nextQuoteIdx = firstCol.indexOf('"', 1);
-            if (nextQuoteIdx !== -1) {
-                firstCol = firstCol.substring(1, nextQuoteIdx);
-            }
-        }
-        
-        const cells = firstCol.split('|');
-        if (cells.length < 3) continue;
-        
-        const studentId = cells[0].trim();
-        const gradeRoom = cells[1].trim(); // e.g. "ม.1/1"
-        const fullName = cells[2].trim();
-        
-        const gradeRoomParts = gradeRoom.split('/');
-        const grade = gradeRoomParts[0] || "";
-        const room = gradeRoomParts[1] || "";
-        
-        let student = {
-            no: result.length + 1,
-            studentId: studentId,
-            grade: grade,
-            room: room,
-            fullName: fullName
-        };
-        
-        result.push(processStudentData(student));
-    }
-    return result;
-}
-
-/**
- * Helper: เรียก API พร้อมระบบ Auto-Retry หาก Google Apps Script ติดคิวหรือ Cold Start
- * หาก Google ตอบกลับเป็น HTML ("ไม่พบเพจ") จะตัดเข้าสู่ Fallback ทันทีโดยไม่ต้องรอนาน
- */
-async function fetchJsonWithRetry(url, options = {}, maxRetries = 1, timeoutMs = 25000) {
-    let lastError = null;
-    for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-            
-            const res = await fetch(url, {
-                ...options,
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-            
-            const text = await res.text();
-            const trimmed = text.trim();
-            
-            // หากได้รับเป็นหน้าเว็บ HTML (เช่น Google แสดงหน้า "ไม่พบเพจ" หรือ "404") ให้ตัดการทำงานทันที
-            if (trimmed.startsWith("<") || trimmed.includes("<!DOCTYPE") || trimmed.includes("<html")) {
-                throw new Error("HTML_ERROR_PAGE");
-            }
-            
-            try {
-                const json = JSON.parse(text);
-                return json;
-            } catch (jsonErr) {
-                throw new Error("INVALID_JSON");
-            }
-        } catch (err) {
-            lastError = err;
-            // หากเป็น HTML error page แสดงว่าลิงก์ Apps Script มีปัญหา/ไม่พบเพจ ไม่ต้อง retry ให้เสียเวลา
-            if (err.message === "HTML_ERROR_PAGE") {
-                break;
-            }
-            if (attempt <= maxRetries) {
-                console.warn(`Fetch attempt ${attempt} failed, retrying once...`, err);
-                await new Promise(r => setTimeout(r, 1000));
-            }
-        }
-    }
-    throw lastError;
+    return map[clean] || "ม";
 }
 
 // Dynamic Script Loader (Lazy Loading Heavy Libraries)
@@ -361,124 +286,247 @@ async function ensurePdfLibrariesLoaded() {
 }
 
 /**
- * 1. โหลดข้อมูลเริ่มต้นทั้งหมด (มีระบบ LocalStorage Cache เปิดไว 0 วินาที)
+ * 1. โหลดข้อมูลเริ่มต้นทั้งหมดจาก Supabase Real-time Database
  */
-function getInitCacheKey() {
-    return `sbwk_cache_init_${currentCheckingDate}`;
-}
-
-function parseAndApplyInitData(data) {
-    if (!data || !data.success) return false;
-    
-    let roomCounters = {};
-    students = (data.students || []).map((s) => {
-        let processed = processStudentData(s);
-        let roomKey = `${processed.grade}/${processed.room}`;
-        if (!roomCounters[roomKey]) roomCounters[roomKey] = 1;
-        processed.no = roomCounters[roomKey]++;
-        return processed;
-    });
-    holidays = data.holidays || [];
-    users = data.users || [];
-    todayLogs = data.todayLogs || {};
-    todayLogsDetails = data.todayLogsDetails || {};
-    for (let id in todayLogsDetails) {
-        todayLogsDetails[id] = translateAbbreviationToStatus(todayLogsDetails[id]);
-    }
-    if (data.accumulatedStats) accumulatedStatsMap = data.accumulatedStats;
-    if (data.documents) documentsData = data.documents;
-    if (data.atRiskTeachers) atRiskTeachersCache = data.atRiskTeachers;
-    isDeferredDataLoaded = true;
-    if (typeof populateTeacherDropdowns === 'function') populateTeacherDropdowns();
-    
-    updateHeaderDate();
-    checkTodayHoliday();
-    renderRooms();
-    calculateOverallStats();
-    return true;
-}
-
-function loadInitialDataFromLocalCache() {
-    try {
-        const raw = localStorage.getItem(getInitCacheKey());
-        if (!raw) return false;
-        const cachedData = JSON.parse(raw);
-        return parseAndApplyInitData(cachedData);
-    } catch (e) {
-        console.warn("Error reading local init cache:", e);
-        return false;
-    }
-}
-
 async function loadInitialData() {
-    // 1. ลองเปิดข้อมูลจาก Cache ท้องถิ่นทันที (0 วินาที)
-    const hasLocalCache = loadInitialDataFromLocalCache();
-    
-    if (hasLocalCache) {
-        setLoader(false); // ซ่อนหน้าหมุ่นทันทีเนื่องจากมีข้อมูลแล้ว
-    } else {
-        setLoader(true); // ถ้ายังไม่มีข้อมูลในเครื่อง ให้หมุนรอ
-    }
-    
-    // 2. ดึงข้อมูลล่าสุดจากเซิร์ฟเวอร์แบบเบื้องหลัง (Background Sync)
-    try {
-        if (config.scriptUrl) {
-            try {
-                const data = await fetchJsonWithRetry(`${config.scriptUrl}?action=init&date=${currentCheckingDate}`, {}, 1, 25000);
-                
-                if (data && data.success) {
-                    // เซฟข้อมูลเข้า LocalStorage ไว้ใช้รอบหน้า
-                    try {
-                        localStorage.setItem(getInitCacheKey(), JSON.stringify(data));
-                    } catch (storeErr) {}
-                    
-                    parseAndApplyInitData(data);
-                    
-                    if (!hasLocalCache) {
-                        if (students.length === 0) {
-                            showToast("ดึงข้อมูลเรียบร้อย แต่ไม่พบรายชื่อในหน้าชีทแรก", "error");
-                        } else {
-                            showToast(`โหลดรายชื่อสำหรับวันที่ ${currentCheckingDate} สำเร็จ ${students.length} คน`);
-                        }
-                    }
-                } else if (!hasLocalCache) {
-                    showToast("ดึงสคริปต์ล้มเหลว: " + (data ? data.message : "ไม่ทราบสาเหตุ"), "error");
-                    await loadStudentsFromCsvFallback();
-                }
-            } catch (e) {
-                console.warn("Apps Script unreachable, falling back to direct sheet CSV...", e);
-                if (!hasLocalCache) {
-                    showToast("กำลังโหลดรายชื่อตรงจาก Google Sheet...", "info");
-                    await loadStudentsFromCsvFallback();
-                }
-            }
-        } else if (!hasLocalCache) {
-            showToast("ไม่ได้ตั้งค่า Apps Script กำลังโหลดรายชื่อแบบดึงชีทตรง...", "error");
-            await loadStudentsFromCsvFallback();
-        }
-    } catch (err) {
-        console.error("Error during loadInitialData:", err);
-    } finally {
+    setLoader(true);
+    const db = getSupabase();
+    if (!db) {
         setLoader(false);
+        showToast("ไม่พบการเชื่อมต่อฐานข้อมูล Supabase", "error");
+        return;
     }
     
-    // โหลดประวัติสถิติและข้อมูลเอกสารทั้งหมดเบื้องหลังทันที
-    if (config.scriptUrl) {
+    try {
+        const [
+            studentsRes,
+            holidaysRes,
+            usersRes,
+            attendanceRes,
+            trackingRes,
+            exemptionsRes,
+            pk11Res
+        ] = await Promise.all([
+            db.from('std').select('*').order('grade').order('room').order('no'),
+            db.from('hol').select('*').order('date'),
+            db.from('usr').select('*').order('id'),
+            db.from('att').select('*').eq('date', currentCheckingDate),
+            db.from('pk8_pk9').select('*'),
+            db.from('exm').select('*'),
+            db.from('pk11').select('*').order('target_date', { ascending: false })
+        ]);
+        
+        // 1. Students (std)
+        let roomCounters = {};
+        students = (studentsRes.data || []).map(r => {
+            let s = {
+                studentId: r.student_id,
+                grade: r.grade,
+                room: r.room,
+                no: r.no,
+                fullName: r.full_name,
+                gender: r.gender || '1'
+            };
+            let rKey = `${s.grade}/${s.room}`;
+            if (!roomCounters[rKey]) roomCounters[rKey] = 1;
+            s.no = roomCounters[rKey]++;
+            return processStudentData(s);
+        });
+        
+        // 2. Holidays (hol)
+        holidays = (holidaysRes.data || []).map(h => ({ date: h.date, name: h.name }));
+        
+        // 3. Users (usr)
+        users = (usersRes.data || []).map((u, idx) => ({
+            code: u.code || ('T' + String(idx + 1).padStart(3, '0')),
+            name: u.name,
+            pin: u.pin,
+            role: u.role || 'TEACHER',
+            hasPin: !!u.pin
+        }));
+        
+        // 4. Today Attendance Logs (att)
+        todayLogs = {};
+        todayLogsDetails = {};
+        (attendanceRes.data || []).forEach(r => {
+            const roomKey = `${r.grade}/${r.room}`;
+            if (!todayLogs[roomKey]) {
+                todayLogs[roomKey] = { Present: 0, Leave: 0, Absent: 0, Late: 0, Cut: 0, Total: 0 };
+            }
+            const st = translateAbbreviationToStatus(r.status);
+            if (st === 'มา') todayLogs[roomKey].Present++;
+            else if (st === 'ลา') todayLogs[roomKey].Leave++;
+            else if (st === 'ขาด') todayLogs[roomKey].Absent++;
+            else if (st === 'สาย') todayLogs[roomKey].Late++;
+            else if (st === 'โดด') todayLogs[roomKey].Cut++;
+            todayLogs[roomKey].Total++;
+            
+            todayLogsDetails[r.student_id] = st;
+        });
+        
+        // 5. At Risk Tracking Cache (pk8_pk9)
+        atRiskTeachersCache = {};
+        documentsData = (trackingRes.data || []).map(t => ({
+            studentId: String(t.student_id),
+            documentType: `${t.doc_type}_ครั้งที่${t.notice_count}`,
+            signatureBase64: t.parent_sign || ''
+        }));
+
+        (trackingRes.data || []).forEach(t => {
+            const hrTeacher = (typeof users !== 'undefined' && users) ? users.find(u => u.code === t.hr_name || u.name === t.hr_name) : null;
+            const saTeacher = (typeof users !== 'undefined' && users) ? users.find(u => u.code === t.sa_name || u.name === t.sa_name) : null;
+            const sId = String(t.student_id).trim();
+            const dType = String(t.doc_type).trim();
+            const nCount = parseInt(t.notice_count) || 1;
+            const cacheItem = {
+                studentId: sId,
+                docType: dType,
+                noticeCount: nCount,
+                hr: hrTeacher ? hrTeacher.name : (t.hr_name || ''),
+                sa: saTeacher ? saTeacher.name : (t.sa_name || ''),
+                parentName: t.parent_name || '',
+                docDate: t.doc_date || '',
+                reason: t.reason || '',
+                hrSign: t.hr_sign || '',
+                saSign: t.sa_sign || '',
+                parentSign: t.parent_sign || '',
+                signatureBase64: t.parent_sign || ''
+            };
+            atRiskTeachersCache[`${sId}|${dType}|ครั้งที่${nCount}`] = cacheItem;
+            atRiskTeachersCache[`${sId}|${dType}|${nCount}`] = cacheItem;
+            atRiskTeachersCache[`${sId}|${dType}_ครั้งที่${nCount}`] = cacheItem;
+        });
+        
+        // 6. Exemptions Cache (exm)
+        exemptionsCache = {};
+        (exemptionsRes.data || []).forEach(e => {
+            const st = (typeof students !== 'undefined' && students) ? students.find(s => s.studentId === e.student_id) : null;
+            exemptionsCache[e.student_id] = {
+                studentId: e.student_id,
+                studentName: st ? st.fullName : e.student_id,
+                fullName: st ? st.fullName : e.student_id,
+                gradeRoom: st ? `${st.grade}/${st.room}` : '-',
+                type: e.type || 'ทั้งหมด',
+                reason: e.reason || ''
+            };
+        });
+        
+        // 7. PK11 Records (pk11)
+        window.pk11Records = (pk11Res.data || []).map(p => {
+            const st = (typeof students !== 'undefined' && students) ? students.find(s => s.studentId === p.student_id) : null;
+            const hrTeacher = (typeof users !== 'undefined' && users) ? users.find(u => u.code === p.hr_name || u.name === p.hr_name) : null;
+            const saTeacher = (typeof users !== 'undefined' && users) ? users.find(u => u.code === p.sa_name || u.name === p.sa_name) : null;
+            const hrApproved = (p.hr_status === true || p.hr_status === 'true' || p.hr_status === 'เห็นควรอนุญาต' || p.hr_status === 'TRUE');
+            const saApproved = (p.status === true || p.status === 'true' || p.status === 'อนุญาต' || p.status === 'TRUE');
+            return {
+                id: p.id,
+                targetDate: p.target_date,
+                studentId: p.student_id,
+                studentName: st ? st.fullName : '-',
+                gradeRoom: st ? `${st.grade}/${st.room}` : '-',
+                exitTime: p.exit_time,
+                returnTime: p.return_time,
+                location: p.location,
+                reason: p.reason,
+                studentPhone: p.student_phone,
+                parentName: p.parent_name,
+                relation: p.relation,
+                parentPhone: p.parent_phone,
+                hrName: hrTeacher ? hrTeacher.name : (p.hr_name || '-'),
+                saName: saTeacher ? saTeacher.name : (p.sa_name || '-'),
+                hrStatus: hrApproved ? "เห็นควรอนุญาต" : "ไม่เห็นควรอนุญาต",
+                status: saApproved ? "อนุญาต" : "ไม่อนุญาต",
+                studentSignature: p.student_signature || '',
+                parentSignature: p.parent_signature || '',
+                hrSignature: p.hr_signature || '',
+                saSignature: p.sa_signature || ''
+            };
+        });
+        
+        isDeferredDataLoaded = true;
+        if (typeof populateTeacherDropdowns === 'function') populateTeacherDropdowns();
+        
+        updateHeaderDate();
+        checkTodayHoliday();
+        renderRooms();
+        calculateOverallStats();
+        
+        // Background prefetch stats data
         setTimeout(() => {
-            Promise.all([
-                fetchStatsDataOnce(false),
-                fetchDeferredDataOnce(false)
-            ]).then(() => {
+            fetchStatsDataOnce(false).then(() => {
                 if (students && students.length > 0 && allStatsData) {
                     isAtRiskDataLoaded = true;
+                    if (typeof updateAtRiskNoticeInTab === 'function') updateAtRiskNoticeInTab();
                 }
-            }).catch(e => console.warn("Background prefetch warning:", e));
-        }, 500);
+            });
+        }, 100);
+    } catch (dbErr) {
+        console.error("Supabase loadInitialData error:", dbErr);
+        showToast("เกิดข้อผิดพลาดในการโหลดข้อมูลจากฐานข้อมูล", "error");
+    } finally {
+        setLoader(false);
     }
 }
 
 let deferredDataPromise = null;
 async function fetchDeferredDataOnce(forceFresh = false) {
+    const db = getSupabase();
+    if (db) {
+        try {
+            const [trackingRes, exemptionsRes] = await Promise.all([
+                db.from('pk8_pk9').select('*'),
+                db.from('exm').select('*')
+            ]);
+            atRiskTeachersCache = {};
+            documentsData = (trackingRes.data || []).map(t => ({
+                studentId: String(t.student_id),
+                documentType: `${t.doc_type}_ครั้งที่${t.notice_count}`,
+                signatureBase64: t.parent_sign || ''
+            }));
+            (trackingRes.data || []).forEach(t => {
+                const hrTeacher = (typeof users !== 'undefined' && users) ? users.find(u => u.code === t.hr_name || u.name === t.hr_name) : null;
+                const saTeacher = (typeof users !== 'undefined' && users) ? users.find(u => u.code === t.sa_name || u.name === t.sa_name) : null;
+                const sId = String(t.student_id).trim();
+                const dType = String(t.doc_type).trim();
+                const nCount = parseInt(t.notice_count) || 1;
+                const cacheItem = {
+                    studentId: sId,
+                    docType: dType,
+                    noticeCount: nCount,
+                    hr: hrTeacher ? hrTeacher.name : (t.hr_name || ''),
+                    sa: saTeacher ? saTeacher.name : (t.sa_name || ''),
+                    parentName: t.parent_name || '',
+                    docDate: t.doc_date || '',
+                    reason: t.reason || '',
+                    hrSign: t.hr_sign || '',
+                    saSign: t.sa_sign || '',
+                    parentSign: t.parent_sign || '',
+                    signatureBase64: t.parent_sign || ''
+                };
+                atRiskTeachersCache[`${sId}|${dType}|ครั้งที่${nCount}`] = cacheItem;
+                atRiskTeachersCache[`${sId}|${dType}|${nCount}`] = cacheItem;
+                atRiskTeachersCache[`${sId}|${dType}_ครั้งที่${nCount}`] = cacheItem;
+            });
+            exemptionsCache = {};
+            (exemptionsRes.data || []).forEach(e => {
+                const st = (typeof students !== 'undefined' && students) ? students.find(s => s.studentId === e.student_id) : null;
+                exemptionsCache[e.student_id] = {
+                    studentId: e.student_id,
+                    studentName: st ? st.fullName : e.student_id,
+                    fullName: st ? st.fullName : e.student_id,
+                    gradeRoom: st ? `${st.grade}/${st.room}` : '-',
+                    type: e.type || 'ทั้งหมด',
+                    reason: e.reason || ''
+                };
+            });
+            isDeferredDataLoaded = true;
+            populateTeacherDropdowns();
+            return;
+        } catch (e) {
+            console.warn("Supabase deferred data warning:", e);
+        }
+    }
+    
     if (!config.scriptUrl) return;
     if (deferredDataPromise && !forceFresh) return deferredDataPromise;
     
@@ -501,25 +549,79 @@ async function fetchDeferredDataOnce(forceFresh = false) {
     return deferredDataPromise;
 }
 
+function translateAbbreviationToStatus(abbr) {
+    if (!abbr) return "มา";
+    const clean = String(abbr).trim();
+    const map = {
+        "ม": "มา", "ล": "ลา", "ข": "ขาด", "ส": "สาย", "ด": "โดด",
+        "มา": "มา", "ลา": "ลา", "ขาด": "ขาด", "สาย": "สาย", "โดด": "โดด"
+    };
+    return map[clean] || "มา";
+}
+
+function translateStatusToAbbreviation(st) {
+    if (!st) return "ม";
+    const clean = String(st).trim();
+    const map = {
+        "มา": "ม", "ลา": "ล", "ขาด": "ข", "สาย": "ส", "โดด": "ด",
+        "ม": "ม", "ล": "ล", "ข": "ข", "ส": "ส", "ด": "ด"
+    };
+    return map[clean] || "ม";
+}
+
+async function fetchAllSupabaseRows(db, table, select = '*', orderCol = 'date') {
+    let allRows = [];
+    let from = 0;
+    const pageSize = 1000;
+    while (true) {
+        let query = db.from(table).select(select).range(from, from + pageSize - 1);
+        if (orderCol) query = query.order(orderCol, { ascending: true });
+        const { data, error } = await query;
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        allRows.push(...data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+    }
+    return allRows;
+}
+
 async function fetchStatsDataOnce(forceFresh = false) {
-    if (!config.scriptUrl) return;
     if (allStatsData && allStatsData.dates && !forceFresh) return;
+    const db = getSupabase();
+    if (!db) return;
+    
     try {
-        const cacheBuster = forceFresh ? `&t=${Date.now()}` : '';
-        const data = await fetchJsonWithRetry(`${config.scriptUrl}?action=getStats&month=ALL&room=ALL${cacheBuster}`, {}, 0, 15000);
-        if (data && data.success && data.stats) {
-            const stats = data.stats;
-            if (stats.logs) {
-                stats.logs.forEach(log => {
-                    log.status = translateAbbreviationToStatus(log.status);
-                });
-            }
-            allStatsData = stats;
-            if (typeof updateAtRiskNoticeInTab === 'function') updateAtRiskNoticeInTab();
-            if (typeof calculateOverallStats === 'function') calculateOverallStats();
-        }
+        const rows = await fetchAllSupabaseRows(db, 'att', '*', 'date');
+        const logs = [];
+        const datesSet = new Set();
+        const monthsSet = new Set();
+        
+        (rows || []).forEach(r => {
+            const dateStr = r.date;
+            if (!dateStr) return;
+            datesSet.add(dateStr);
+            monthsSet.add(dateStr.substring(0, 7));
+            const st = (typeof students !== 'undefined' && students) ? students.find(s => s.studentId === r.student_id) : null;
+            logs.push({
+                date: dateStr,
+                studentId: r.student_id,
+                name: st ? st.fullName : '',
+                room: (st && st.grade) ? `${st.grade}/${st.room}` : `${r.grade}/${r.room}`,
+                status: translateAbbreviationToStatus(r.status)
+            });
+        });
+        
+        allStatsData = {
+            dates: Array.from(datesSet).sort(),
+            availableMonths: Array.from(monthsSet).sort(),
+            logs: logs
+        };
+        
+        if (typeof updateAtRiskNoticeInTab === 'function') updateAtRiskNoticeInTab();
+        if (typeof calculateOverallStats === 'function') calculateOverallStats();
     } catch (e) {
-        console.warn("Stats data load skipped:", e.message);
+        console.warn("Supabase stats load warning:", e);
     }
 }
 
@@ -544,36 +646,6 @@ function populateTeacherDropdowns() {
     
     if (currentHr) hrSelect.value = currentHr;
     if (currentSa) saSelect.value = currentSa;
-}
-
-async function loadStudentsFromCsvFallback() {
-    const sheetId = extractSheetId(config.sheetUrl) || "1caozfZoNBlgZPmvUMnggb7DuRgoB4IsPSslt7XgYPTk";
-    // ใช้ Google Visualization API (GViz) CSV ซึ่งรองรับ Cross-Origin (CORS) สำหรับทุกเบราว์เซอร์
-    const gvizCsvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
-    
-    try {
-        const res = await fetch(gvizCsvUrl);
-        if (!res.ok) throw new Error("การเข้าถึงชีทล้มเหลว โปรดเช็คการแชร์ชีท");
-        const text = await res.text();
-        const rawStudents = parseCSV(text);
-        
-        let roomCounters = {};
-        students = (rawStudents || []).map((s) => {
-            let processed = processStudentData(s);
-            let roomKey = `${processed.grade}/${processed.room}`;
-            if (!roomCounters[roomKey]) roomCounters[roomKey] = 1;
-            processed.no = roomCounters[roomKey]++;
-            return processed;
-        });
-        
-        if (students.length === 0) {
-            showToast("ไม่พบรายชื่อนักเรียนใน Google Sheet", "error");
-        } else {
-            showToast(`โหลดรายชื่อผ่านชีทสำเร็จ ${students.length} คน (แบบสำรอง)`);
-        }
-    } catch (e) {
-        showToast("โหลดรายชื่อผ่าน CSV ไม่สำเร็จ: " + e.message, "error");
-    }
 }
 
 // อัปเดตแสดงวันที่หน้าแรกตามวันที่เลือกจริง
@@ -1773,10 +1845,10 @@ window.logout = function() {
 };
 
 /**
- * 6. บันทึกเช็คชื่อไปยัง Google Apps Script - บันทึกสถานะรายคนลงสเตตวันนี้
+ * 6. บันทึกเช็คชื่อไปยัง Supabase Database และ Google Sheets
  */
 async function saveAttendanceToSheet(pinCode, teacherName) {
-    showToast(`บันทึกการเช็คชื่อห้อง ${selectedRoom.grade}/${selectedRoom.room} ล่วงหน้าเรียบร้อย (ระบบกำลังบันทึกลงชีทเบื้องหลัง)`);
+    showToast(`บันทึกการเช็คชื่อห้อง ${selectedRoom.grade}/${selectedRoom.room} เรียบร้อย ⚡`);
     
     // อัปเดตข้อมูลภาพรวมรายห้องลง State วันนี้เพื่อสะท้อนหน้าแรก
     const summary = { Present: 0, Leave: 0, Absent: 0, Late: 0, Cut: 0, Total: attendanceRecords.length };
@@ -1787,7 +1859,7 @@ async function saveAttendanceToSheet(pinCode, teacherName) {
         else if (r.status === "สาย") summary.Late++;
         else if (r.status === "โดด") summary.Cut++;
         
-        // สำคัญ: บันทึกสถานะรายบุคคลลง todayLogsDetails ทันทีเพื่อให้ค้างสถานะเวลาเปิดใหม่
+        // บันทึกสถานะรายบุคคลลง todayLogsDetails ทันทีเพื่อให้ค้างสถานะเวลาเปิดใหม่
         todayLogsDetails[r.studentId] = r.status;
         isAtRiskDataLoaded = false;
         
@@ -1821,35 +1893,24 @@ async function saveAttendanceToSheet(pinCode, teacherName) {
     renderRooms();
     showPreviewSummary();
     
-    const payload = {
-        action: "saveAttendance",
-        pin: pinCode,
-        date: currentCheckingDate, // บันทึกตามวันที่ดำเนินการจริงที่เลือก
-        grade: selectedRoom.grade,
-        room: selectedRoom.room,
-        records: attendanceRecords.map(r => ({
-            studentId: r.studentId,
-            name: r.fullName,
-            status: translateStatusToAbbreviation(r.status)
-        }))
-    };
-    
-    if (!config.scriptUrl) {
-        showToast("ทำงานโหมดออฟไลน์: บันทึกข้อมูลชั่วคราวในอุปกรณ์เรียบร้อย", "success");
-        return;
-    }
-    
-    // Send to background without awaiting
-    fetch(config.scriptUrl, {
-        method: "POST",
-        body: JSON.stringify(payload)
-    }).then(res => res.json()).then(data => {
-        if (!data.success) {
-            showToast("บันทึกเบื้องหลังไม่สำเร็จ: " + data.message, "error");
+    // บันทึกลง Supabase Database ด้วยระบบ Atomic UPSERT ความเร็วสูง
+    const db = getSupabase();
+    if (db) {
+        try {
+            const rowsToUpsert = attendanceRecords.map(r => ({
+                date: currentCheckingDate,
+                grade: selectedRoom.grade,
+                room: selectedRoom.room,
+                student_id: r.studentId,
+                status: translateStatusToAbbreviation(r.status)
+            }));
+            
+            const { error: upsertErr } = await db.from('att').upsert(rowsToUpsert, { onConflict: 'date,student_id' });
+            if (upsertErr) throw upsertErr;
+        } catch (dbErr) {
+            console.error("Supabase attendance atomic upsert error:", dbErr);
         }
-    }).catch(e => {
-        console.error("เชื่อมต่อกานข้อมูลเบื้องหลังล้มเหลว", e);
-    });
+    }
 }
 
 
@@ -1857,11 +1918,6 @@ async function saveAttendanceToSheet(pinCode, teacherName) {
  * 7. ส่วนสถิติย้อนหลัง (Statistics View)
  */
 async function fetchAndRenderStats() {
-    if (!config.scriptUrl) {
-        showToast("โปรดตั้งค่าลิงก์ Apps Script ก่อนเรียกดูสถิติ", "error");
-        return;
-    }
-    
     // โหลดประวัติทั้งหมดมาไว้ในแรมหากยังไม่มี หรือหากข้อมูลโครงสร้างสถิติล่าสุดยังไม่ครบ
     if (!allStatsData || !allStatsData.dates || !allStatsData.availableMonths) {
         setLoader(true);
@@ -1947,11 +2003,12 @@ async function renderSchoolTrendChart(logs, datesList) {
         let pCount = 0, lCount = 0, aCount = 0, lateCount = 0, cutCount = 0;
         logs.forEach(log => {
             if (log.date === date) {
-                if (log.status === "มา") pCount++;
-                else if (log.status === "ลา") lCount++;
-                else if (log.status === "ขาด") aCount++;
-                else if (log.status === "สาย") lateCount++;
-                else if (log.status === "โดด") cutCount++;
+                const st = translateAbbreviationToStatus(log.status);
+                if (st === "มา") pCount++;
+                else if (st === "ลา") lCount++;
+                else if (st === "ขาด") aCount++;
+                else if (st === "สาย") lateCount++;
+                else if (st === "โดด") cutCount++;
             }
         });
         seriesPresent.push(pCount);
@@ -2062,11 +2119,12 @@ function renderAccumulatedStats(logs, targetRoom) {
     
     logs.forEach(log => {
         if (countsMap[log.studentId]) {
-            if (log.status === "มา") countsMap[log.studentId].Present++;
-            else if (log.status === "ลา") countsMap[log.studentId].Leave++;
-            else if (log.status === "ขาด") countsMap[log.studentId].Absent++;
-            else if (log.status === "สาย") countsMap[log.studentId].Late++;
-            else if (log.status === "โดด") countsMap[log.studentId].Cut++;
+            const st = translateAbbreviationToStatus(log.status);
+            if (st === "มา") countsMap[log.studentId].Present++;
+            else if (st === "ลา") countsMap[log.studentId].Leave++;
+            else if (st === "ขาด") countsMap[log.studentId].Absent++;
+            else if (st === "สาย") countsMap[log.studentId].Late++;
+            else if (st === "โดด") countsMap[log.studentId].Cut++;
         }
     });
     
@@ -2219,11 +2277,12 @@ function renderDailyGridStats(logs, datesList, targetRoom, tableId = "stats-dail
             let classStyle = "";
             
             if (status) {
-                if (status === "มา") { statusChar = "ม"; classStyle = "status-present"; }
-                else if (status === "ลา") { statusChar = "ล"; classStyle = "status-leave"; }
-                else if (status === "ขาด") { statusChar = "ข"; classStyle = "status-absent"; }
-                else if (status === "สาย") { statusChar = "ส"; classStyle = "status-late"; }
-                else if (status === "โดด") { statusChar = "ด"; classStyle = "status-cut"; }
+                const st = translateAbbreviationToStatus(status);
+                if (st === "มา") { statusChar = "ม"; classStyle = "status-present"; }
+                else if (st === "ลา") { statusChar = "ล"; classStyle = "status-leave"; }
+                else if (st === "ขาด") { statusChar = "ข"; classStyle = "status-absent"; }
+                else if (st === "สาย") { statusChar = "ส"; classStyle = "status-late"; }
+                else if (st === "โดด") { statusChar = "ด"; classStyle = "status-cut"; }
             } else {
                 statusChar = "-";
                 classStyle = "status-none";
@@ -2265,16 +2324,29 @@ async function fetchAndRenderMisconducts() {
     renderMisconductTable();
 }
 
-async function fetchMisconductDataOnce() {
-    if (!config.scriptUrl) return;
+async function fetchMisconductDataOnce(forceFresh = false) {
+    const db = getSupabase();
+    if (!db) return;
     try {
-        const res = await fetch(`${config.scriptUrl}?action=getMisconducts`);
-        const data = await res.json();
-        if (data.success) {
-            misconductLogs = data.misconducts || [];
-        }
+        const { data, error } = await db.from('mis').select('*').order('date', { ascending: false });
+        if (error) throw error;
+        misconductLogs = (data || []).map(r => {
+            const st = (typeof students !== 'undefined' && students) ? students.find(s => s.studentId === r.student_id) : null;
+            return {
+                id: r.id,
+                date: r.date,
+                studentId: r.student_id,
+                name: st ? st.fullName : '-',
+                grade: st ? st.grade : (r.grade || '-'),
+                room: st ? st.room : (r.room || '-'),
+                description: r.description,
+                recorder: r.recorder,
+                resolved: !!r.resolved,
+                resolution: r.resolution || ""
+            };
+        });
     } catch (e) {
-        console.error("โหลดบันทึกพฤติกรรมเริ่มต้นล้มเหลว", e);
+        console.error("Supabase fetchMisconductDataOnce error:", e);
     }
 }
 
@@ -2302,6 +2374,10 @@ function renderMisconductTable() {
         const dateParts = item.date.split("-");
         const formattedDate = dateParts.length === 3 ? `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}` : item.date;
         
+        // ค้นหาชื่อเต็มของครูผู้แจ้งจากรหัสครู (เช่น T014 -> ชื่อครู)
+        const recorderTeacher = (typeof users !== 'undefined' && users) ? users.find(u => u.code === item.recorder || u.name === item.recorder) : null;
+        const displayRecorderName = recorderTeacher ? recorderTeacher.name : (item.recorder || 'ครูผู้สอน');
+        
         tr.innerHTML = `
             <td class="txt-center">
                 <button type="button" class="btn-toggle-resolve" data-id="${item.id}" style="background: none; border: none; cursor: pointer; color: ${item.resolved ? 'var(--color-success)' : '#cbd5e1'}; font-size: 24px; padding: 0; display: flex; align-items: center; justify-content: center; margin: 0 auto; transition: 0.2s;">
@@ -2313,7 +2389,7 @@ function renderMisconductTable() {
             <td class="row-clickable">${item.grade}/${item.room}</td>
             <td class="row-clickable">${formattedDate}</td>
             <td class="row-clickable" style="max-width: 120px;"><div style="font-size: 13px; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.description}</div></td>
-            <td class="row-clickable" style="max-width: 100px;"><div style="font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.recorder}</div></td>
+            <td class="row-clickable" style="max-width: 120px;"><div style="font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${displayRecorderName}">${displayRecorderName}</div></td>
             <td class="row-clickable" style="max-width: 120px;"><div style="font-size: 13px; color: ${item.resolution ? '#166534' : 'var(--text-muted)'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.resolution || '-'}</div></td>
         `;
         
@@ -2324,7 +2400,7 @@ function renderMisconductTable() {
                 document.getElementById("detail-misconduct-student").innerText = `${item.name} (${item.grade}/${item.room})`;
                 document.getElementById("detail-misconduct-date").innerText = formattedDate;
                 document.getElementById("detail-misconduct-desc").innerText = item.description;
-                document.getElementById("detail-misconduct-reporter").innerText = item.recorder;
+                document.getElementById("detail-misconduct-reporter").innerText = displayRecorderName;
                 
                 const resolutionGroup = document.getElementById("detail-misconduct-resolution-group");
                 if (item.resolved && item.resolution) {
@@ -2383,10 +2459,7 @@ function renderMisconductTable() {
                 modal.classList.remove("active");
                 
                 openPinModal("ป้อนรหัสแอดมิน / ครูปกครอง", "STUDENT_AFFAIRS", async (pin, userName) => {
-                    // Optimistic UI Update - เปลี่ยนค่าในตารางให้เห็นทันทีก่อนบันทึกเสร็จ
                     item.resolved = newStatus;
-                    
-                    // ถ้ายกเลิก ให้ล้างข้อความ ถ้าแก้ให้เติมชั่วคราว
                     if (newStatus) {
                         const dateStr = new Date().toLocaleDateString('en-GB'); // DD/MM/YYYY
                         item.resolution = `${resolutionText} (${userName}, ${dateStr})`;
@@ -2396,38 +2469,18 @@ function renderMisconductTable() {
                     
                     renderMisconductTable();
                     
-                    // ไม่ต้องบล็อคหน้าจอทั้งหมดด้วย Loader แล้ว ปล่อยให้มันบันทึกเงียบๆ ด้านหลัง
-                    if (!config.scriptUrl) {
-                        showToast("ไม่สามารถอัปเดตออนไลน์ได้เนื่องจากไม่ได้ตั้งค่า Apps Script", "error");
-                        return;
-                    }
-                    
-                    try {
-                        const res = await fetch(config.scriptUrl, {
-                            method: "POST",
-                            body: JSON.stringify({
-                                action: "toggleMisconductResolved",
-                                pin: pin,
-                                id: id,
+                    const db = getSupabase();
+                    if (db) {
+                        try {
+                            const { error: dbErr } = await db.from('mis').update({
                                 resolved: newStatus,
-                                resolutionText: resolutionText
-                            })
-                        });
-                        const resData = await res.json();
-                        
-                        if (!resData.success) {
-                            showToast("เกิดข้อผิดพลาด: " + resData.message, "error");
-                            // Revert on fail
-                            item.resolved = !newStatus;
-                            renderMisconductTable();
-                        } else {
-                            showToast("อัปเดตสถานะความประพฤติเรียบร้อย");
+                                resolution: item.resolution
+                            }).eq('id', id);
+                            if (dbErr) throw dbErr;
+                            showToast("อัปเดตสถานะความประพฤติเรียบร้อย ⚡");
+                        } catch (err) {
+                            console.error("Supabase toggle resolve error:", err);
                         }
-                    } catch (err) {
-                        showToast("ไม่สามารถอัปเดตสถานะความประพฤติได้", "error");
-                        // Revert on fail
-                        item.resolved = !newStatus;
-                        renderMisconductTable();
                     }
                 });
             };
@@ -2438,7 +2491,6 @@ function renderMisconductTable() {
 }
 
 function handleMisconductSearch(query) {
-    // รีเซ็ตการเลือกนักเรียนเมื่อมีการพิมพ์ใหม่
     selectedMisconductStudent = null;
     document.getElementById("selected-student-display").classList.add("hidden");
     
@@ -2481,7 +2533,7 @@ function selectStudentForMisconduct(student) {
     document.getElementById("misconduct-student-dropdown").classList.remove("active");
 }
 
-async function submitMisconduct(pinCode) {
+async function submitMisconduct(pinCode, userName = null) {
     const dateInput = document.getElementById("misconduct-date-input").value;
     const descInput = document.getElementById("misconduct-desc-input").value;
     const searchInput = document.getElementById("misconduct-student-search").value.trim();
@@ -2492,53 +2544,54 @@ async function submitMisconduct(pinCode) {
     }
     
     setLoader(true);
+    const newId = "M" + Math.random().toString(36).substring(2, 6).toUpperCase();
+    const studentId = selectedMisconductStudent ? selectedMisconductStudent.studentId : "-";
     
-    if (!config.scriptUrl) {
-        showToast("ฟังก์ชันนี้ต้องเชื่อมต่อระบบ Apps Script", "error");
-        setLoader(false);
-        return;
+    // ดึงข้อมูลครูผู้แจ้งอย่างถูกต้องตามชื่อและรหัส PIN ของครูที่เข้าสู่ระบบ
+    let activeTeacher = null;
+    if (userName) {
+        activeTeacher = users.find(u => u.name === userName);
+    }
+    if (!activeTeacher && pinCode) {
+        activeTeacher = users.find(u => String(u.pin) === String(pinCode));
+    }
+    if (!activeTeacher && typeof loggedInUser !== 'undefined' && loggedInUser) {
+        activeTeacher = loggedInUser;
     }
     
-    const payload = {
-        action: "saveMisconduct",
-        pin: pinCode,
-        date: dateInput,
-        studentId: selectedMisconductStudent ? selectedMisconductStudent.studentId : "-",
-        studentName: selectedMisconductStudent ? selectedMisconductStudent.fullName : searchInput,
-        grade: selectedMisconductStudent ? selectedMisconductStudent.grade : "-",
-        room: selectedMisconductStudent ? selectedMisconductStudent.room : "-",
-        description: descInput
-    };
+    const teacherCode = (activeTeacher && activeTeacher.code) ? activeTeacher.code : (activeTeacher ? activeTeacher.name : "T001");
     
-    try {
-        const res = await fetch(config.scriptUrl, {
-            method: "POST",
-            body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            showToast("เพิ่มบันทึกความประพฤติสำเร็จ");
+    const db = getSupabase();
+    if (db) {
+        try {
+            const { error: dbErr } = await db.from('mis').insert({
+                id: newId,
+                date: dateInput,
+                student_id: studentId,
+                description: descInput,
+                recorder: teacherCode,
+                resolved: false,
+                resolution: ""
+            });
+            if (dbErr) throw dbErr;
             
+            showToast("เพิ่มบันทึกความประพฤติสำเร็จ ⚡");
             document.getElementById("modal-add-misconduct").classList.remove("active");
             document.getElementById("misconduct-desc-input").value = "";
             document.getElementById("misconduct-student-search").value = "";
             document.getElementById("selected-student-display").classList.add("hidden");
             selectedMisconductStudent = null;
             
-            // ดึงข้อมูลใหม่จากหลังบ้านทันที เพื่อให้แสดงผลในตารางพร้อม ID ที่ถูกต้อง
-            await fetchMisconductDataOnce();
+            await fetchMisconductDataOnce(true);
             renderMisconductTable();
-            // อัปเดตตารางเพื่อเปลี่ยนสีปุ่ม
-            if (typeof renderAtRiskStudents === 'function') {
-                renderAtRiskStudents();
-            }
-        } else {
-            showToast("บันทึกไม่สำเร็จ: " + data.message, "error");
+            if (typeof renderAtRiskStudents === 'function') renderAtRiskStudents();
+        } catch (e) {
+            console.error("Supabase submitMisconduct error:", e);
+            showToast("เกิดข้อผิดพลาดในการบันทึกความประพฤติ", "error");
+        } finally {
+            setLoader(false);
         }
-    } catch (e) {
-        showToast("เชื่อมต่อข้อมูลไม่สำเร็จ", "error");
-    } finally {
+    } else {
         setLoader(false);
     }
 }
@@ -2612,54 +2665,41 @@ function handleRegisterSubmit() {
 
 async function saveUserRegistration(name, code, pinCode, role) {
     setLoader(true);
+    const assignedCode = code || ('T' + String(users.length + 1).padStart(3, '0'));
     
-    if (!config.scriptUrl) {
-        showToast("ฟังก์ชันนี้ต้องเชื่อมต่อระบบ Apps Script", "error");
-        setLoader(false);
-        return;
-    }
-    
-    const payload = {
-        action: "registerUser",
-        name: name,
-        code: code,
-        newPin: pinCode,
-        role: role
-    };
-    
-    try {
-        const res = await fetch(config.scriptUrl, {
-            method: "POST",
-            body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            showToast(`ลงทะเบียนคุณครู ${name} พร้อมรหัส PIN เรียบร้อย`);
+    const db = getSupabase();
+    if (db) {
+        try {
+            const { error } = await db.from('usr').upsert({
+                code: assignedCode,
+                name: name,
+                pin: pinCode,
+                role: role || 'TEACHER'
+            }, { onConflict: 'name' });
+            if (error) throw error;
             
-            // เพิ่ม/อัปเดตข้อมูลผู้ใช้ในหน่วยความจำทันทีเพื่อให้ยืนยันรหัสได้รวดเร็ว
+            showToast(`ลงทะเบียนคุณครู ${name} (${assignedCode}) เรียบร้อย ⚡`);
             let existingUser = users.find(u => u.name === name);
             if (existingUser) {
+                existingUser.code = assignedCode;
                 existingUser.pin = pinCode;
-                existingUser.code = code;
                 existingUser.hasPin = true;
             } else {
                 users.push({
+                    code: assignedCode,
                     name: name,
-                    code: code,
                     role: role,
                     pin: pinCode,
                     hasPin: true
                 });
             }
-            
-            // loadInitialData(); ถูกนำออกเพื่อให้ไม่ต้องโหลดใหม่ทั้งหน้าตอนลงทะเบียน
-        } else {
-            showToast("ลงทะเบียนรหัสผ่านไม่สำเร็จ: " + data.message, "error");
+        } catch (dbErr) {
+            console.error("Supabase saveUserRegistration error:", dbErr);
+            showToast("เกิดข้อผิดพลาดในการลงทะเบียน", "error");
+        } finally {
+            setLoader(false);
         }
-    } catch (e) {
-        showToast("ไม่สามารถอัปเดตระบบรหัสผ่านได้", "error");
-    } finally {
+    } else {
         setLoader(false);
     }
 }
@@ -2673,7 +2713,7 @@ function renderAdminTeachers() {
     document.getElementById("admin-teacher-unsaved-msg").style.display = "none";
     
     if (users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="txt-center" style="color: var(--text-muted);">ไม่มีรายการข้อมูลผู้ใช้งานครู</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="txt-center" style="color: var(--text-muted);">ไม่มีรายการข้อมูลผู้ใช้งานครู</td></tr>';
         return;
     }
     
@@ -2691,6 +2731,7 @@ function renderAdminTeachers() {
         const isSelfAdmin = u.name === "Admin";
         
         tr.innerHTML = `
+            <td style="text-align: center; font-family: monospace; font-weight: 700; color: #2563eb;">${u.code || '-'}</td>
             <td><strong>${u.name}</strong></td>
             <td>
                 <input type="text" class="admin-pin-input form-control" data-name="${u.name}" value="${u.pin || ''}" maxlength="4" style="font-family: monospace; letter-spacing: 2px; width: 80px; text-align: center; padding: 4px; display: inline-block; font-size: 0.9rem;" pattern="[0-9]{4}">
@@ -2716,7 +2757,7 @@ function renderAdminTeachers() {
             };
         }
         
-        // จัดการลบบักชีครู
+        // จัดการลบบัญชีครู
         const delBtn = tr.querySelector(".btn-delete-teacher");
         if (delBtn && !isSelfAdmin) {
             delBtn.onclick = () => {
@@ -2732,32 +2773,21 @@ function renderAdminTeachers() {
                     modal.classList.remove("active");
                     setLoader(true);
                     
-                    if (!config.scriptUrl) {
-                        showToast("ฟังก์ชันนี้ต้องเชื่อมต่อระบบ Apps Script", "error");
-                        setLoader(false);
-                        return;
-                    }
-                    
-                    try {
-                        const res = await fetch(config.scriptUrl, {
-                            method: "POST",
-                            body: JSON.stringify({
-                                action: "deleteUser",
-                                pin: authenticatedAdminPin,
-                                name: u.name
-                            })
-                        });
-                        const data = await res.json();
-                        if (data.success) {
-                            showToast(`ลบบักชีผู้ใช้ของ ${u.name} สำเร็จ`);
-                            users = users.filter(usr => usr.name !== u.name); // ลบจากหน่วยความจำ
-                            renderAdminTeachers(); // เรนเดอร์ใหม่
-                        } else {
-                            showToast("ลบผู้ใช้ไม่สำเร็จ: " + data.message, "error");
+                    const db = getSupabase();
+                    if (db) {
+                        try {
+                            const { error } = await db.from('usr').delete().eq('name', u.name);
+                            if (error) throw error;
+                            showToast(`ลบบัญชีผู้ใช้ของ ${u.name} สำเร็จ ⚡`);
+                            users = users.filter(usr => usr.name !== u.name);
+                            renderAdminTeachers();
+                        } catch (dbErr) {
+                            console.error("Supabase deleteUser error:", dbErr);
+                            showToast("เกิดข้อผิดพลาดในการลบผู้ใช้", "error");
+                        } finally {
+                            setLoader(false);
                         }
-                    } catch (err) {
-                        showToast("การเชื่อมต่อระบบล้มเหลว", "error");
-                    } finally {
+                    } else {
                         setLoader(false);
                     }
                 };
@@ -2817,27 +2847,22 @@ document.getElementById("btn-save-all-teachers").onclick = async () => {
     
     setLoader(true);
     
-    if (!config.scriptUrl) {
-        showToast("ฟังก์ชันนี้ต้องเชื่อมต่อระบบ Apps Script", "error");
-        setLoader(false);
-        return;
-    }
-    
-    try {
-        const res = await fetch(config.scriptUrl, {
-            method: "POST",
-            body: JSON.stringify({
-                action: "updateAllUserRoles",
-                pin: authenticatedAdminPin,
-                updates: updates
-            })
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            showToast("บันทึกข้อมูลครูและรหัสผ่านทั้งหมดสำเร็จ");
+    const db = getSupabase();
+    if (db) {
+        try {
+            for (let u of updates) {
+                const userObj = users.find(usr => usr.name === u.name);
+                const assignedCode = (userObj && userObj.code) ? userObj.code : ('T' + String(users.indexOf(userObj) + 1).padStart(3, '0'));
+                const { error } = await db.from('usr').upsert({
+                    code: assignedCode,
+                    name: u.name,
+                    pin: u.pin,
+                    role: u.role
+                }, { onConflict: 'name' });
+                if (error) throw error;
+            }
+            showToast("บันทึกข้อมูลครูและรหัสผ่านทั้งหมดสำเร็จ ⚡");
             document.getElementById("admin-teacher-unsaved-msg").style.display = "none";
-            // อัปเดตในหน่วยความจำ
             updates.forEach(u => {
                 const userObj = users.find(usr => usr.name === u.name);
                 if (userObj) {
@@ -2845,12 +2870,13 @@ document.getElementById("btn-save-all-teachers").onclick = async () => {
                     userObj.pin = u.pin;
                 }
             });
-        } else {
-            showToast("บันทึกล้มเหลว: " + data.message, "error");
+        } catch (dbErr) {
+            console.error("Supabase updateAllUserRoles error:", dbErr);
+            showToast("เกิดข้อผิดพลาดในการบันทึกข้อมูลครู", "error");
+        } finally {
+            setLoader(false);
         }
-    } catch (e) {
-        showToast("การเชื่อมต่อระบบล้มเหลว", "error");
-    } finally {
+    } else {
         setLoader(false);
     }
 };
@@ -2888,34 +2914,22 @@ window.loadHolidaysInAdmin = async function() {
                 const executeDelete = async (pin) => {
                     setLoader(true);
                     
-                    if (!config.scriptUrl) {
-                        showToast("ฟังก์ชันนี้ต้องเชื่อมต่อระบบ Apps Script", "error");
-                        setLoader(false);
-                        return;
-                    }
-                    
-                    try {
-                        const res = await fetch(config.scriptUrl, {
-                            method: "POST",
-                            body: JSON.stringify({
-                                action: "deleteHoliday",
-                                pin: pin,
-                                date: h.date
-                            })
-                        });
-                        const data = await res.json();
-                        if (data.success) {
-                            showToast("ลบวันหยุดเรียบร้อย");
+                    const db = getSupabase();
+                    if (db) {
+                        try {
+                            const { error } = await db.from('hol').delete().eq('date', h.date);
+                            if (error) throw error;
+                            showToast("ลบวันหยุดเรียบร้อย ⚡");
                             holidays = holidays.filter(item => item.date !== h.date);
                             loadHolidaysInAdmin();
-                            await loadInitialData();
-                            loadHolidaysInAdmin();
-                        } else {
-                            showToast("ลบล้มเหลว: " + data.message, "error");
+                            checkTodayHoliday();
+                        } catch (dbErr) {
+                            console.error("Supabase deleteHoliday error:", dbErr);
+                            showToast("เกิดข้อผิดพลาดในการลบวันหยุด", "error");
+                        } finally {
+                            setLoader(false);
                         }
-                    } catch (err) {
-                        showToast("มีข้อผิดพลาดในการเชื่อมต่อ", "error");
-                    } finally {
+                    } else {
                         setLoader(false);
                     }
                 };
@@ -2947,32 +2961,20 @@ window.addHoliday = async function() {
     const executeAdd = async (pin) => {
         setLoader(true);
         
-        if (!config.scriptUrl) {
-            showToast("ฟังก์ชันนี้ต้องเชื่อมต่อระบบ Apps Script", "error");
-            setLoader(false);
-            return;
-        }
-        
-        try {
-            const res = await fetch(config.scriptUrl, {
-                method: "POST",
-                body: JSON.stringify({
-                    action: "addHoliday",
-                    pin: pin,
+        const db = getSupabase();
+        if (db) {
+            try {
+                const { error } = await db.from('hol').upsert({
                     date: dateInput,
                     name: nameInput
-                })
-            });
-            const data = await res.json();
-            
-            if (data.success) {
-                showToast("เพิ่มวันหยุดสำเร็จ");
+                });
+                if (error) throw error;
+                showToast("เพิ่มวันหยุดสำเร็จ ⚡");
                 const dateEl = document.getElementById("holiday-date-input");
                 const nameEl = document.getElementById("holiday-name-input");
                 if (dateEl) dateEl.value = "";
                 if (nameEl) nameEl.value = "";
                 
-                // อัปเดตในหน่วยความจำเพื่อความรวดเร็ว
                 const existingIdx = holidays.findIndex(h => h.date === dateInput);
                 if (existingIdx >= 0) {
                     holidays[existingIdx].name = nameInput;
@@ -2980,15 +2982,14 @@ window.addHoliday = async function() {
                     holidays.push({ date: dateInput, name: nameInput });
                 }
                 loadHolidaysInAdmin();
-                
-                await loadInitialData();
-                loadHolidaysInAdmin();
-            } else {
-                showToast("เพิ่มวันหยุดไม่สำเร็จ: " + data.message, "error");
+                checkTodayHoliday();
+            } catch (dbErr) {
+                console.error("Supabase addHoliday error:", dbErr);
+                showToast("เกิดข้อผิดพลาดในการเพิ่มวันหยุด", "error");
+            } finally {
+                setLoader(false);
             }
-        } catch (e) {
-            showToast("การเชื่อมต่อฐานข้อมูลมีปัญหา", "error");
-        } finally {
+        } else {
             setLoader(false);
         }
     };
@@ -3857,43 +3858,200 @@ window.saveAtRiskTeachers = async function() {
     
     if (typeof renderAtRiskStudents === 'function') renderAtRiskStudents();
     
-    // ส่งข้อมูลไปเซฟที่ Google Sheets เบื้องหลัง
-    if (config.scriptUrl) {
-        showToast("กำลังบันทึกข้อมูลไปที่ Google Sheets...", "info");
+    // บันทึกไปยัง Supabase Database
+    const db = getSupabase();
+    if (db) {
         try {
-            const res = await fetch(config.scriptUrl, {
-                method: "POST",
-                body: JSON.stringify({
-                    action: "saveAtRiskTeachers",
-                    key: backendKey,
-                    studentId: currentSigningStudent.studentId,
-                    studentName: currentSigningStudent.fullName,
-                    gradeRoom: currentSigningStudent.gradeRoom,
-                    docType: currentSigningStudent.docType,
-                    hr: saved.hr,
-                    sa: saved.sa,
-                    hrSign: saved.hrSign,
-                    saSign: saved.saSign,
-                    parentName: saved.parentName,
-                    parentSign: saved.parentSign,
-                    docDate: saved.docDate || "",
-                    reason: saved.reason || ""
-                })
+            const hrTeacher = (typeof users !== 'undefined' && users) ? users.find(u => u.name === saved.hr || u.code === saved.hr) : null;
+            const saTeacher = (typeof users !== 'undefined' && users) ? users.find(u => u.name === saved.sa || u.code === saved.sa) : null;
+            const hrCode = hrTeacher ? (hrTeacher.code || hrTeacher.name) : (saved.hr || '');
+            const saCode = saTeacher ? (saTeacher.code || saTeacher.name) : (saved.sa || '');
+
+            const sId = currentSigningStudent.studentId;
+            const dType = currentSigningStudent.docType;
+            const nCount = parseInt(currentSigningStudent.noticeCount) || 1;
+
+            // Upload signatures to Supabase Storage if they are in Base64 format
+            const hrSignUrl = await uploadSignatureToSupabase(saved.hrSign, 'pk8_pk9', `${sId}_${dType}_${nCount}_hr`);
+            const saSignUrl = await uploadSignatureToSupabase(saved.saSign, 'pk8_pk9', `${sId}_${dType}_${nCount}_sa`);
+            const parentSignUrl = await uploadSignatureToSupabase(saved.parentSign, 'pk8_pk9', `${sId}_${dType}_${nCount}_parent`);
+
+            saved.hrSign = hrSignUrl;
+            saved.saSign = saSignUrl;
+            saved.parentSign = parentSignUrl;
+            saved.signatureBase64 = parentSignUrl;
+
+            const { error: dbErr } = await db.from('pk8_pk9').upsert({
+                student_id: sId,
+                doc_type: dType,
+                notice_count: nCount,
+                hr_name: hrCode,
+                sa_name: saCode,
+                parent_name: saved.parentName || '',
+                doc_date: saved.docDate || '',
+                reason: saved.reason || '',
+                hr_sign: hrSignUrl,
+                sa_sign: saSignUrl,
+                parent_sign: parentSignUrl
             });
-            const result = await res.json();
-            if (result.success) {
-                showToast("บันทึกข้อมูลลงฐานข้อมูลเรียบร้อย", "success");
-            } else {
-                showToast("เกิดข้อผิดพลาด: " + result.message, "error");
-            }
-        } catch (error) {
-            showToast("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์", "error");
+            if (dbErr) throw dbErr;
+            showToast("บันทึกข้อมูลและลายเซ็นลงฐานข้อมูลสำเร็จ ⚡", "success");
+        } catch (err) {
+            console.error("Supabase pk8_pk9 save error:", err);
+            showToast("เกิดข้อผิดพลาดในการบันทึกข้อมูล", "error");
         }
-    } else {
-        showToast("บันทึกข้อมูลเรียบร้อย (ออฟไลน์)", "success");
     }
     
     closeAtRiskActionModal();
+};
+
+/**
+ * อัปโหลดรูปลายเซ็นขึ้น Supabase Storage (Bucket: signatures) และคืนค่าเป็น Public URL
+ */
+async function uploadSignatureToSupabase(dataUrl, folder = 'misc', filename = '') {
+    if (!dataUrl) return '';
+    if (typeof dataUrl === 'string' && (dataUrl.startsWith('http://') || dataUrl.startsWith('https://'))) {
+        return dataUrl;
+    }
+    if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image')) {
+        return dataUrl;
+    }
+    const db = getSupabase();
+    if (!db || !db.storage) return dataUrl;
+    
+    try {
+        const parts = dataUrl.split(';base64,');
+        if (parts.length < 2) return dataUrl;
+        const contentType = parts[0].split(':')[1] || 'image/png';
+        const raw = window.atob(parts[1]);
+        const rawLength = raw.length;
+        const uInt8Array = new Uint8Array(rawLength);
+        for (let i = 0; i < rawLength; ++i) {
+            uInt8Array[i] = raw.charCodeAt(i);
+        }
+        const blob = new Blob([uInt8Array], { type: contentType });
+        
+        const ext = contentType.includes('webp') ? 'webp' : 'png';
+        const cleanName = (filename || `sig_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`).replace(/[^a-zA-Z0-9_\-\.]/g, '_');
+        const filePath = `${folder}/${cleanName}.${ext}`;
+        
+        const { data, error } = await db.storage
+            .from('signatures')
+            .upload(filePath, blob, {
+                cacheControl: '3600',
+                upsert: true,
+                contentType: contentType
+            });
+            
+        if (error) {
+            console.warn("Storage upload warning (fallback to Base64):", error);
+            return dataUrl;
+        }
+        
+        const { data: publicData } = db.storage.from('signatures').getPublicUrl(filePath);
+        return (publicData && publicData.publicUrl) ? publicData.publicUrl : dataUrl;
+    } catch (err) {
+        console.error("uploadSignatureToSupabase error:", err);
+        return dataUrl;
+    }
+}
+
+/**
+ * สคริปต์ย้ายลายเซ็น Base64 เก่าในฐานข้อมูลขึ้น Supabase Storage (One-Time Migration)
+ */
+window.migrateExistingSignaturesToStorage = async function() {
+    const db = getSupabase();
+    if (!db) {
+        showToast("ไม่สามารถเชื่อมต่อฐานข้อมูลได้", "error");
+        return;
+    }
+    setLoader(true);
+    let convertedCount = 0;
+    try {
+        // 1. แปลงใน pk8_pk9
+        const { data: pkRows, error: pkErr } = await db.from('pk8_pk9').select('*');
+        if (!pkErr && pkRows) {
+            for (const row of pkRows) {
+                let updated = false;
+                let hrSign = row.hr_sign;
+                let saSign = row.sa_sign;
+                let parentSign = row.parent_sign;
+
+                if (hrSign && hrSign.startsWith('data:image')) {
+                    hrSign = await uploadSignatureToSupabase(hrSign, 'pk8_pk9', `${row.student_id}_${row.doc_type}_${row.notice_count}_hr`);
+                    updated = true;
+                }
+                if (saSign && saSign.startsWith('data:image')) {
+                    saSign = await uploadSignatureToSupabase(saSign, 'pk8_pk9', `${row.student_id}_${row.doc_type}_${row.notice_count}_sa`);
+                    updated = true;
+                }
+                if (parentSign && parentSign.startsWith('data:image')) {
+                    parentSign = await uploadSignatureToSupabase(parentSign, 'pk8_pk9', `${row.student_id}_${row.doc_type}_${row.notice_count}_parent`);
+                    updated = true;
+                }
+
+                if (updated) {
+                    await db.from('pk8_pk9').update({
+                        hr_sign: hrSign,
+                        sa_sign: saSign,
+                        parent_sign: parentSign
+                    }).match({
+                        student_id: row.student_id,
+                        doc_type: row.doc_type,
+                        notice_count: row.notice_count
+                    });
+                    convertedCount++;
+                }
+            }
+        }
+
+        // 2. แปลงใน pk11
+        const { data: pk11Rows, error: pk11Err } = await db.from('pk11').select('*');
+        if (!pk11Err && pk11Rows) {
+            for (const row of pk11Rows) {
+                let updated = false;
+                let stdSign = row.student_signature;
+                let parSign = row.parent_signature;
+                let hrSign = row.hr_signature;
+                let saSign = row.sa_signature;
+
+                if (stdSign && stdSign.startsWith('data:image')) {
+                    stdSign = await uploadSignatureToSupabase(stdSign, 'pk11', `${row.id}_student`);
+                    updated = true;
+                }
+                if (parSign && parSign.startsWith('data:image')) {
+                    parSign = await uploadSignatureToSupabase(parSign, 'pk11', `${row.id}_parent`);
+                    updated = true;
+                }
+                if (hrSign && hrSign.startsWith('data:image')) {
+                    hrSign = await uploadSignatureToSupabase(hrSign, 'pk11', `${row.id}_hr`);
+                    updated = true;
+                }
+                if (saSign && saSign.startsWith('data:image')) {
+                    saSign = await uploadSignatureToSupabase(saSign, 'pk11', `${row.id}_sa`);
+                    updated = true;
+                }
+
+                if (updated) {
+                    await db.from('pk11').update({
+                        student_signature: stdSign,
+                        parent_signature: parSign,
+                        hr_signature: hrSign,
+                        sa_signature: saSign
+                    }).eq('id', row.id);
+                    convertedCount++;
+                }
+            }
+        }
+
+        showToast(`ย้ายลายเซ็นขึ้น Cloud Storage สำเร็จ ${convertedCount} รายการ ⚡`, "success");
+        await loadInitialData();
+    } catch (e) {
+        console.error("Migration error:", e);
+        showToast("เกิดข้อผิดพลาดในการแปลงข้อมูลลายเซ็น", "error");
+    } finally {
+        setLoader(false);
+    }
 };
 
 window.previewAtRiskDocument = async function() {
@@ -4310,21 +4468,129 @@ window.clearSignature = function() {
     }
 };
 
+window.triggerSignatureUpload = function() {
+    const input = document.getElementById("signature-upload-input");
+    if (input) input.click();
+};
+
+window.handleSignatureFileUpload = function(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+        showToast("กรุณาเลือกไฟล์รูปภาพที่ถูกต้อง", "error");
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+        const dataUrl = evt.target.result;
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.getElementById('signature-pad');
+            if (!canvas) return;
+
+            // 1. สร้าง Offscreen Canvas เพื่อวิเคราะห์และตัดขอบว่างรอบลายเซ็น (Auto-Crop / Auto-Trim)
+            const offCanvas = document.createElement('canvas');
+            offCanvas.width = img.naturalWidth || img.width;
+            offCanvas.height = img.naturalHeight || img.height;
+            const offCtx = offCanvas.getContext('2d');
+            offCtx.drawImage(img, 0, 0);
+
+            let minX = offCanvas.width, minY = offCanvas.height, maxX = 0, maxY = 0;
+            let hasVisiblePixel = false;
+
+            try {
+                const imgData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
+                const d = imgData.data;
+                const w = offCanvas.width;
+                const h = offCanvas.height;
+
+                for (let y = 0; y < h; y++) {
+                    for (let x = 0; x < w; x++) {
+                        const idx = (y * w + x) * 4;
+                        const r = d[idx];
+                        const g = d[idx + 1];
+                        const b = d[idx + 2];
+                        const a = d[idx + 3];
+
+                        // ตรวจจับพิกเซลที่ไม่ใช่พื้นหลังโปร่งใส และไม่ใช่สีขาวล้วน
+                        const isVisible = a > 25 && (r < 240 || g < 240 || b < 240);
+                        if (isVisible) {
+                            if (x < minX) minX = x;
+                            if (x > maxX) maxX = x;
+                            if (y < minY) minY = y;
+                            if (y > maxY) maxY = y;
+                            hasVisiblePixel = true;
+                        }
+                    }
+                }
+            } catch (cropErr) {
+                console.warn("Auto-crop fallback to full image:", cropErr);
+            }
+
+            if (!hasVisiblePixel) {
+                minX = 0; minY = 0; maxX = offCanvas.width; maxY = offCanvas.height;
+            }
+
+            const cropW = Math.max(maxX - minX + 1, 1);
+            const cropH = Math.max(maxY - minY + 1, 1);
+
+            // 2. เคลียร์ Canvas และรีเซ็ต Transform เพื่อวาดในพิกัดจริง
+            if (typeof signaturePad !== 'undefined' && signaturePad) {
+                signaturePad.clear();
+            }
+
+            const ctx = canvas.getContext('2d');
+            ctx.save();
+            ctx.setTransform(1, 0, 0, 1, 0, 0); // รีเซ็ตการซูม retina ให้วาดตรงพิกัดจริง
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 3. ปรับขนาดสัดส่วนมาตรฐานให้อยู่กึ่งกลางกรอบอย่างสมส่วน
+            const maxAllowedW = canvas.width * 0.76;
+            const maxAllowedH = canvas.height * 0.68;
+            const scale = Math.min(maxAllowedW / cropW, maxAllowedH / cropH, 2.0);
+
+            const finalW = cropW * scale;
+            const finalH = cropH * scale;
+            const finalX = (canvas.width - finalW) / 2;
+            const finalY = (canvas.height - finalH) / 2;
+
+            // 4. วาดเฉพาะส่วนของลายเซ็นที่ตัดขอบแล้วให้อยู่ตรงกลาง
+            ctx.drawImage(offCanvas, minX, minY, cropW, cropH, finalX, finalY, finalW, finalH);
+            ctx.restore();
+
+            if (typeof signaturePad !== 'undefined' && signaturePad) {
+                signaturePad._isEmpty = false;
+            }
+
+            showToast("เพิ่มรูปภาพลายเซ็น (ตัดขอบและจัดกึ่งกลางอัตโนมัติ) เรียบร้อยแล้ว ⚡", "success");
+        };
+        img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+};
+
 window.closeSignatureModal = function() {
     const modal = document.getElementById("modal-signature");
     if (modal) modal.classList.remove("active");
 };
 
+function getTrimmedSignatureDataUrl(sourceCanvas) {
+    if (!sourceCanvas) return "";
+    if (typeof signaturePad !== 'undefined' && signaturePad && !signaturePad.isEmpty()) {
+        return signaturePad.toDataURL('image/png');
+    }
+    return sourceCanvas.toDataURL('image/png');
+}
+
 window.saveSignature = function() {
     const canvas = document.getElementById('signature-pad');
     if (!canvas) return;
 
-    let dataUrl = "";
-    if (typeof signaturePad !== 'undefined' && signaturePad && !signaturePad.isEmpty()) {
-        dataUrl = signaturePad.toDataURL('image/png');
-    } else if (canvas) {
-        dataUrl = canvas.toDataURL('image/png');
-    }
+    // บันทึกภาพลายเซ็นตามขนาดสเกลที่ผู้ใช้ปรับไว้ใน Canvas อย่างแม่นยำ
+    const dataUrl = getTrimmedSignatureDataUrl(canvas);
 
     if (!dataUrl || dataUrl.length < 100) {
         if (typeof showToast === 'function') showToast("กรุณาวาดลายเซ็นก่อนกดยืนยัน", "warning");
@@ -4379,40 +4645,45 @@ window.saveDocumentData = async function() {
     setLoader(true);
     
     const actualDocTypeForSave = currentSigningStudent.fullDocType || currentSigningStudent.documentType || currentSigningStudent.docType;
+    const studentId = currentSigningStudent.studentId;
+    const sig = currentSigningStudent.tempSignature;
     
-    try {
-        const res = await fetch(config.scriptUrl, {
-            method: "POST",
-            body: JSON.stringify({
-                action: "saveDocument",
-                studentId: currentSigningStudent.studentId,
-                documentType: actualDocTypeForSave,
-                studentName: currentSigningStudent.fullName,
-                gradeRoom: currentSigningStudent.gradeRoom,
-                signatureBase64: currentSigningStudent.tempSignature
-            })
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            showToast("บันทึกข้อมูลและลายเซ็นสำเร็จ!", "success");
-            document.getElementById("btn-save-signature").style.display = "none";
-            // นำเข้าข้อมูลจำลองเพื่อให้เปิดครั้งต่อไปเห็นทันที
-            documentsData.push({
-                studentId: currentSigningStudent.studentId,
-                documentType: actualDocTypeForSave,
-                signatureBase64: currentSigningStudent.tempSignature
+    const db = getSupabase();
+    if (db) {
+        try {
+            const parts = (actualDocTypeForSave || '').split('_');
+            const docType = parts[0] || currentSigningStudent.docType || '';
+            const noticeCount = parseInt((parts[1] || '').replace('ครั้งที่', '')) || 1;
+            
+            const uploadedSigUrl = await uploadSignatureToSupabase(sig, 'pk8_pk9', `${studentId}_${docType}_${noticeCount}_parent`);
+
+            const { error: dbErr } = await db.from('pk8_pk9').upsert({
+                student_id: studentId,
+                doc_type: docType,
+                notice_count: noticeCount,
+                parent_sign: uploadedSigUrl
             });
-            // อัปเดตตารางเพื่อเปลี่ยนสีปุ่ม
+            if (dbErr) throw dbErr;
+            
+            showToast("บันทึกข้อมูลและลายเซ็นสำเร็จ! ⚡", "success");
+            const btnSaveSig = document.getElementById("btn-save-signature");
+            if (btnSaveSig) btnSaveSig.style.display = "none";
+            
+            documentsData.push({
+                studentId: studentId,
+                documentType: actualDocTypeForSave,
+                signatureBase64: uploadedSigUrl
+            });
             if (typeof renderAtRiskStudents === 'function') {
                 renderAtRiskStudents();
             }
-        } else {
-            showToast("ไม่สามารถบันทึกได้: " + data.message, "error");
+        } catch (err) {
+            console.error("Supabase saveDocumentData error:", err);
+            showToast("เกิดข้อผิดพลาดในการบันทึกลายเซ็น", "error");
+        } finally {
+            setLoader(false);
         }
-    } catch (e) {
-        showToast("เกิดข้อผิดพลาดในการส่งข้อมูล", "error");
-    } finally {
+    } else {
         setLoader(false);
     }
 };
@@ -4845,76 +5116,6 @@ document.addEventListener("DOMContentLoaded", () => {
         btnAddHoliday.onclick = () => { addHoliday(); };
     }
     
-    const btnRebuildStats = document.getElementById("btn-rebuild-stats");
-    if (btnRebuildStats) {
-        btnRebuildStats.onclick = () => {
-            requestLogin("ADMIN", async (pinCode) => {
-                setLoader(true);
-                if (!config.scriptUrl) {
-                    showToast("ไม่สามารถทำได้เนื่องจากไม่ได้ตั้งค่า Apps Script", "error");
-                    setLoader(false);
-                    return;
-                }
-                try {
-                    const res = await fetch(config.scriptUrl, {
-                        method: "POST",
-                        body: JSON.stringify({
-                            action: "rebuildStats",
-                            pin: pinCode
-                        })
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                        showToast("คำนวณและซิงค์สถิติสะสมย้อนหลังเรียบร้อยแล้ว");
-                        await loadInitialData();
-                    } else {
-                        showToast("ซิงค์สถิติไม่สำเร็จ: " + data.message, "error");
-                    }
-                } catch (err) {
-                    showToast("เกิดข้อผิดพลาดในการเชื่อมต่อ", "error");
-                } finally {
-                    setLoader(false);
-                }
-            });
-        };
-    }
-    
-    const btnCleanDuplicates = document.getElementById("btn-clean-duplicates");
-    if (btnCleanDuplicates) {
-        btnCleanDuplicates.onclick = () => {
-            requestLogin("ADMIN", async (pinCode) => {
-                setLoader(true);
-                if (!config.scriptUrl) {
-                    showToast("ไม่สามารถทำได้เนื่องจากไม่ได้ตั้งค่า Apps Script", "error");
-                    setLoader(false);
-                    return;
-                }
-                try {
-                    const res = await fetch(config.scriptUrl, {
-                        method: "POST",
-                        body: JSON.stringify({
-                            action: "cleanDuplicates",
-                            pin: pinCode
-                        })
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                        const s = data.summary || {};
-                        const msg = s.removed !== undefined ? `ปรับปรุงชีทสำเร็จ! ลบประวัติซ้ำออก ${s.removed} แถว (คงเหลือ ${s.after} แถว)` : "ปรับปรุงลบประวัติซ้ำซ้อนสำเร็จแล้ว";
-                        showToast(msg);
-                        await loadInitialData();
-                    } else {
-                        showToast("ปรับปรุงไม่สำเร็จ: " + data.message, "error");
-                    }
-                } catch (err) {
-                    showToast("เกิดข้อผิดพลาดในการเชื่อมต่อ", "error");
-                } finally {
-                    setLoader(false);
-                }
-            });
-        };
-    }
-    
     document.getElementById("btn-clear-attendance").onclick = () => {
         document.getElementById("modal-confirm-clear").classList.add("active");
     };
@@ -4928,36 +5129,27 @@ document.addEventListener("DOMContentLoaded", () => {
         
         requestLogin("ADMIN", async (pinCode) => {
             setLoader(true);
-            
-            if (!config.scriptUrl) {
-                showToast("ไม่สามารถทำได้เนื่องจากไม่ได้ตั้งค่า Apps Script", "error");
-                setLoader(false);
-                return;
-            }
-            
-            try {
-                const res = await fetch(config.scriptUrl, {
-                    method: "POST",
-                    body: JSON.stringify({
-                        action: "clearAttendance",
-                        pin: pinCode
-                    })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    showToast("ล้างประวัติเวลาเรียนทั้งหมดเรียบร้อยแล้ว");
+            const db = getSupabase();
+            if (db) {
+                try {
+                    const { error } = await db.from('att').delete().neq('id', 0);
+                    if (error) throw error;
+                    showToast("ล้างประวัติเวลาเรียนทั้งหมดเรียบร้อยแล้ว ⚡");
                     document.getElementById("modal-admin").classList.remove("active");
                     await loadInitialData();
-                } else {
-                    showToast("ล้างข้อมูลไม่สำเร็จ: " + data.message, "error");
+                } catch (dbErr) {
+                    console.error("Supabase clear attendance error:", dbErr);
+                    showToast("เกิดข้อผิดพลาดในการล้างข้อมูล", "error");
+                } finally {
+                    setLoader(false);
                 }
-            } catch (err) {
-                showToast("เกิดข้อผิดพลาดในการเชื่อมต่อ", "error");
-            } finally {
+            } else {
                 setLoader(false);
             }
         });
     };
+
+
     
     document.getElementById("btn-open-add-misconduct").onclick = () => {
         document.getElementById("misconduct-date-input").value = getLocalDateString();
@@ -4981,8 +5173,8 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     
     document.getElementById("btn-submit-misconduct").onclick = () => {
-        requestLogin("ANY", (pinCode) => {
-            submitMisconduct(pinCode);
+        requestLogin("ANY", (pinCode, userName, role) => {
+            submitMisconduct(pinCode, userName);
         });
     };
     
@@ -5024,9 +5216,10 @@ window.updateAtRiskNoticeInTab = function() {
         allStatsData.logs.forEach(log => {
             if (log.room === `${selectedRoom.grade}/${selectedRoom.room}`) {
                 let sid = log.studentId;
+                let st = translateAbbreviationToStatus(log.status);
                 if (!sStats[sid]) sStats[sid] = { a: 0, l: 0 };
-                if (log.status === 'ขาด') sStats[sid].a++;
-                if (log.status === 'สาย') sStats[sid].l++;
+                if (st === 'ขาด') sStats[sid].a++;
+                if (st === 'สาย') sStats[sid].l++;
             }
         });
         let hasAtRisk = false;
@@ -5155,17 +5348,17 @@ window.renderRoomSpecificStats = function() {
     
     logs.forEach(log => {
         if (log.room === `${selectedRoom.grade}/${selectedRoom.room}`) {
-            let st = log.status;
+            let st = translateAbbreviationToStatus(log.status);
             let sid = log.studentId;
             
             if (!cumulativeStudentStats[sid]) {
                 cumulativeStudentStats[sid] = { Present: 0, Leave: 0, Absent: 0, Late: 0, Cut: 0, Total: 0 };
             }
             if (st === 'มา') cumulativeStudentStats[sid].Present++;
-            if (st === 'ลา') cumulativeStudentStats[sid].Leave++;
-            if (st === 'ขาด') cumulativeStudentStats[sid].Absent++;
-            if (st === 'สาย') cumulativeStudentStats[sid].Late++;
-            if (st === 'โดด') cumulativeStudentStats[sid].Cut++;
+            else if (st === 'ลา') cumulativeStudentStats[sid].Leave++;
+            else if (st === 'ขาด') cumulativeStudentStats[sid].Absent++;
+            else if (st === 'สาย') cumulativeStudentStats[sid].Late++;
+            else if (st === 'โดด') cumulativeStudentStats[sid].Cut++;
             cumulativeStudentStats[sid].Total++;
         }
     });
@@ -5351,11 +5544,12 @@ function renderRoomSpecificSchedule() {
             let classStyle = "";
             
             if (status) {
-                if (status === "มา") { statusChar = "ม"; classStyle = "status-present"; }
-                else if (status === "ลา") { statusChar = "ล"; classStyle = "status-leave"; }
-                else if (status === "ขาด") { statusChar = "ข"; classStyle = "status-absent"; }
-                else if (status === "สาย") { statusChar = "ส"; classStyle = "status-late"; }
-                else if (status === "โดด") { statusChar = "ด"; classStyle = "status-cut"; }
+                const st = translateAbbreviationToStatus(status);
+                if (st === "มา") { statusChar = "ม"; classStyle = "status-present"; }
+                else if (st === "ลา") { statusChar = "ล"; classStyle = "status-leave"; }
+                else if (st === "ขาด") { statusChar = "ข"; classStyle = "status-absent"; }
+                else if (st === "สาย") { statusChar = "ส"; classStyle = "status-late"; }
+                else if (st === "โดด") { statusChar = "ด"; classStyle = "status-cut"; }
             } else {
                 statusChar = "-";
                 classStyle = "status-none";
@@ -5444,8 +5638,9 @@ function openExemptionModalInner(targetStudentId) {
                     absent = 0; late = 0;
                     allStatsData.logs.forEach(log => {
                         if (log.studentId === s.studentId) {
-                            if (log.status === "ขาด") absent++;
-                            if (log.status === "สาย") late++;
+                            const st = translateAbbreviationToStatus(log.status);
+                            if (st === "ขาด") absent++;
+                            if (st === "สาย") late++;
                         }
                     });
                 }
@@ -5531,31 +5726,27 @@ async function executeSaveExemption(studentId, type, reason) {
     const gradeRoom = studentObj.grade ? `${studentObj.grade}/${studentObj.room}` : "";
     
     setLoader(true);
-    try {
-        const res = await fetch(config.scriptUrl, {
-            method: "POST",
-            body: JSON.stringify({
-                action: "saveExemption",
-                studentId: studentId,
-                studentName: studentName,
-                gradeRoom: gradeRoom,
+    const db = getSupabase();
+    if (db) {
+        try {
+            const { error: dbErr } = await db.from('exm').upsert({
+                student_id: studentId,
                 type: type,
                 reason: reason
-            })
-        });
-        const data = await res.json();
-        if (data.success) {
+            });
+            if (dbErr) throw dbErr;
             showToast("บันทึกข้อมูลการผ่อนผันเรียบร้อยแล้ว!", "success");
             if (!exemptionsCache) exemptionsCache = {};
-            exemptionsCache[studentId] = { studentId, type, reason, date: new Date().toISOString().split('T')[0] };
+            exemptionsCache[studentId] = { studentId, studentName, fullName: studentName, gradeRoom, type, reason, date: new Date().toISOString().split('T')[0] };
             renderActiveExemptionsInModal();
             renderAtRiskStudents();
-        } else {
-            showToast("เกิดข้อผิดพลาด: " + data.message, "error");
+        } catch (err) {
+            console.error("Supabase exemptions save error:", err);
+            showToast("เกิดข้อผิดพลาดในการบันทึกการผ่อนผัน", "error");
+        } finally {
+            setLoader(false);
         }
-    } catch (err) {
-        showToast("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์", "error");
-    } finally {
+    } else {
         setLoader(false);
     }
 }
@@ -5581,26 +5772,22 @@ window.deleteExemptionRecord = async function(studentId) {
 
 async function executeDeleteExemption(studentId) {
     setLoader(true);
-    try {
-        const res = await fetch(config.scriptUrl, {
-            method: "POST",
-            body: JSON.stringify({
-                action: "deleteExemption",
-                studentId: studentId
-            })
-        });
-        const data = await res.json();
-        if (data.success) {
+    const db = getSupabase();
+    if (db) {
+        try {
+            const { error: dbErr } = await db.from('exm').delete().eq('student_id', studentId);
+            if (dbErr) throw dbErr;
             showToast("ยกเลิกการผ่อนผันเรียบร้อยแล้ว", "success");
             if (exemptionsCache) delete exemptionsCache[studentId];
             renderActiveExemptionsInModal();
             renderAtRiskStudents();
-        } else {
-            showToast("เกิดข้อผิดพลาด: " + data.message, "error");
+        } catch (err) {
+            console.error("Supabase exemptions delete error:", err);
+            showToast("เกิดข้อผิดพลาดในการยกเลิกการผ่อนผัน", "error");
+        } finally {
+            setLoader(false);
         }
-    } catch (err) {
-        showToast("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์", "error");
-    } finally {
+    } else {
         setLoader(false);
     }
 }
@@ -5990,39 +6177,106 @@ window.savePk11Record = async function() {
         const el = document.getElementById(id);
         if (!el) return "";
         const src = el.src;
-        return (src && src.startsWith('data:image')) ? src : "";
+        return (src && (src.startsWith('data:image') || src.startsWith('http'))) ? src : "";
     };
     
-    const payload = {
-        action: "savePK11",
-        id: document.getElementById('pk11-record-id').value || "",
-        studentId: window.currentPk11Student.studentId,
-        studentName: window.currentPk11Student.fullName,
-        gradeRoom: `${window.currentPk11Student.grade}/${window.currentPk11Student.room}`,
-        createdAt: document.getElementById('pk11-date').value,
-        targetDate: document.getElementById('pk11-date').value,
-        exitTime: document.getElementById('pk11-exit-time').value,
-        returnTime: document.getElementById('pk11-return-time').value,
+    const recId = document.getElementById('pk11-record-id').value || ("P" + Math.random().toString(36).substring(2, 6).toUpperCase());
+    const targetDateVal = document.getElementById('pk11-date').value || new Date().toISOString().split('T')[0];
+    
+    const hrVal = document.getElementById('pk11-hr-select').value;
+    const saVal = document.getElementById('pk11-sa-select').value;
+    const hrTeacher = (typeof users !== 'undefined' && users) ? users.find(u => u.name === hrVal || u.code === hrVal) : null;
+    const saTeacher = (typeof users !== 'undefined' && users) ? users.find(u => u.name === saVal || u.code === saVal) : null;
+    const hrCode = hrTeacher ? (hrTeacher.code || hrTeacher.name) : (hrVal || "");
+    const saCode = saTeacher ? (saTeacher.code || saTeacher.name) : (saVal || "");
+    const isHrApproved = document.querySelector('input[name="pk11-hr-status"]:checked')?.value === "เห็นควรอนุญาต";
+    const isSaApproved = document.querySelector('input[name="pk11-sa-status"]:checked')?.value === "อนุญาต";
+
+    // Upload signatures to Supabase Storage
+    const rawStudentSig = getSig('pk11-student-signature-preview');
+    const rawParentSig = getSig('pk11-parent-signature-preview');
+    const rawHrSig = getSig('pk11-hr-signature-preview');
+    const rawSaSig = getSig('pk11-sa-signature-preview');
+
+    const studentSigUrl = await uploadSignatureToSupabase(rawStudentSig, 'pk11', `${recId}_student`);
+    const parentSigUrl = await uploadSignatureToSupabase(rawParentSig, 'pk11', `${recId}_parent`);
+    const hrSigUrl = await uploadSignatureToSupabase(rawHrSig, 'pk11', `${recId}_hr`);
+    const saSigUrl = await uploadSignatureToSupabase(rawSaSig, 'pk11', `${recId}_sa`);
+
+    const recordData = {
+        id: recId,
+        target_date: targetDateVal,
+        student_id: window.currentPk11Student.studentId,
+        exit_time: document.getElementById('pk11-exit-time').value,
+        return_time: document.getElementById('pk11-return-time').value,
         location: document.getElementById('pk11-location').value,
         reason: document.getElementById('pk11-reason').value,
-        studentPhone: document.getElementById('pk11-student-phone').value,
-        parentName: document.getElementById('pk11-parent-name').value,
+        student_phone: document.getElementById('pk11-student-phone').value,
+        parent_name: document.getElementById('pk11-parent-name').value,
         relation: document.getElementById('pk11-relation').value,
-        parentPhone: document.getElementById('pk11-parent-phone').value,
-        hrName: document.getElementById('pk11-hr-select').value,
-        saName: document.getElementById('pk11-sa-select').value,
-        hrStatus: document.querySelector('input[name="pk11-hr-status"]:checked')?.value || "เห็นควรอนุญาต",
-        status: document.querySelector('input[name="pk11-sa-status"]:checked')?.value || "อนุญาต",
+        parent_phone: document.getElementById('pk11-parent-phone').value,
+        hr_name: hrCode,
+        sa_name: saCode,
+        hr_status: isHrApproved,
+        status: isSaApproved,
         
-        // Signatures (Base64 or empty)
-        studentSignature: getSig('pk11-student-signature-preview'),
-        parentSignature: getSig('pk11-parent-signature-preview'),
-        hrSignature: getSig('pk11-hr-signature-preview'),
-        saSignature: getSig('pk11-sa-signature-preview')
+        student_signature: studentSigUrl,
+        parent_signature: parentSigUrl,
+        hr_signature: hrSigUrl,
+        sa_signature: saSigUrl
     };
     
     setLoader(true);
+    const db = getSupabase();
+    if (db) {
+        try {
+            const { error } = await db.from('pk11').upsert(recordData);
+            if (error) throw error;
+            showToast("บันทึกข้อมูล ป.ค.11 สำเร็จ ⚡", "success");
+            document.getElementById('pk11-record-id').value = recId;
+            
+            if (window.currentPk11Step < totalPk11Steps) {
+                goToPk11Step('next');
+            } else {
+                closePk11Wizard();
+            }
+            loadPk11Records();
+            setLoader(false);
+            return;
+        } catch (err) {
+            console.error("Supabase savePK11 error:", err);
+            showToast("เกิดข้อผิดพลาดในการบันทึก ป.ค.11", "error");
+        } finally {
+            setLoader(false);
+        }
+    }
+    
     try {
+        const payload = {
+            action: "savePK11",
+            id: recId,
+            studentId: window.currentPk11Student.studentId,
+            studentName: window.currentPk11Student.fullName,
+            gradeRoom: `${window.currentPk11Student.grade}/${window.currentPk11Student.room}`,
+            createdAt: targetDateVal,
+            targetDate: targetDateVal,
+            exitTime: recordData.exit_time,
+            returnTime: recordData.return_time,
+            location: recordData.location,
+            reason: recordData.reason,
+            studentPhone: recordData.student_phone,
+            parentName: recordData.parent_name,
+            relation: recordData.relation,
+            parentPhone: recordData.parent_phone,
+            hrName: recordData.hr_name,
+            saName: recordData.sa_name,
+            hrStatus: recordData.hr_status,
+            status: recordData.status,
+            studentSignature: recordData.student_signature,
+            parentSignature: recordData.parent_signature,
+            hrSignature: recordData.hr_signature,
+            saSignature: recordData.sa_signature
+        };
         const res = await fetch(config.scriptUrl, {
             method: "POST",
             body: JSON.stringify(payload)
@@ -6030,97 +6284,138 @@ window.savePk11Record = async function() {
         const data = await res.json();
         if (data.success) {
             showToast("บันทึกข้อมูล ป.ค.11 สำเร็จ", "success");
-            
-            // Assign saved ID back to hidden input so subsequent saves update the same record
             if (data.id) {
                 document.getElementById('pk11-record-id').value = data.id;
             }
-            
-            // Go to next step or close if at the end
             if (window.currentPk11Step < totalPk11Steps) {
                 goToPk11Step('next');
             } else {
                 closePk11Wizard();
             }
-            loadPk11Records(); // Refresh list in background
+            loadPk11Records();
         } else {
             showToast("เกิดข้อผิดพลาด: " + data.message, "error");
         }
     } catch (err) {
         showToast("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์", "error");
-        console.error(err);
     } finally {
         setLoader(false);
     }
 };
 
 window.loadPk11Records = async function() {
-    if (!config.scriptUrl) return;
-    
-    setLoader(true);
+    const db = getSupabase();
+    if (!db) return;
     try {
-        const res = await fetch(`${config.scriptUrl}?action=getPK11`);
-        const data = await res.json();
-        if (data.success) {
-            window.pk11Records = data.records || [];
-            renderPk11List();
-        }
+        const { data, error } = await db.from('pk11').select('*').order('target_date', { ascending: false });
+        if (error) throw error;
+        window.pk11Records = (data || []).map(r => {
+            const st = (typeof students !== 'undefined' && students) ? students.find(s => s.studentId === r.student_id) : null;
+            const hrTeacher = (typeof users !== 'undefined' && users) ? users.find(u => u.code === r.hr_name || u.name === r.hr_name) : null;
+            const saTeacher = (typeof users !== 'undefined' && users) ? users.find(u => u.code === r.sa_name || u.name === r.sa_name) : null;
+            
+            const hasSaSign = !!(r.sa_signature && r.sa_signature.length > 5);
+            const hasHrSign = !!(r.hr_signature && r.hr_signature.length > 5);
+            
+            const hrApproved = (r.hr_status === true || r.hr_status === 'true' || r.hr_status === 'เห็นควรอนุญาต' || r.hr_status === 'TRUE');
+            const hrDisapproved = (r.hr_status === false || r.hr_status === 'false' || r.hr_status === 'ไม่เห็นควรอนุญาต');
+            
+            const saApproved = (r.status === true || r.status === 'true' || r.status === 'อนุญาต' || r.status === 'TRUE');
+            const saDisapproved = (r.status === false || r.status === 'false' || r.status === 'ไม่อนุญาต');
+
+            let finalStatus = "รออนุมัติ";
+            if (saDisapproved && (hasSaSign || r.sa_name)) {
+                finalStatus = "ไม่อนุญาต";
+            } else if (hrDisapproved && (hasHrSign || r.hr_name)) {
+                finalStatus = "ไม่อนุญาต";
+            } else if (hasSaSign && saApproved) {
+                finalStatus = "อนุญาต";
+            } else {
+                finalStatus = "รออนุมัติ";
+            }
+
+            return {
+                id: r.id,
+                targetDate: r.target_date,
+                studentId: r.student_id,
+                studentName: st ? st.fullName : '-',
+                gradeRoom: st ? `${st.grade}/${st.room}` : '-',
+                exitTime: r.exit_time,
+                returnTime: r.return_time,
+                location: r.location,
+                reason: r.reason,
+                studentPhone: r.student_phone,
+                parentName: r.parent_name,
+                relation: r.relation,
+                parentPhone: r.parent_phone,
+                hrName: hrTeacher ? hrTeacher.name : (r.hr_name || '-'),
+                saName: saTeacher ? saTeacher.name : (r.sa_name || '-'),
+                hrStatus: hasHrSign ? (hrApproved ? "เห็นควรอนุญาต" : "ไม่เห็นควรอนุญาต") : (r.hr_status || "รอความเห็น"),
+                status: finalStatus,
+                studentSignature: r.student_signature,
+                parentSignature: r.parent_signature,
+                hrSignature: r.hr_signature,
+                saSignature: r.sa_signature
+            };
+        });
+        renderPk11List();
     } catch (err) {
-        console.error("โหลดข้อมูล ป.ค.11 ล้มเหลว", err);
-    } finally {
-        setLoader(false);
+        console.error("Supabase loadPk11Records error:", err);
     }
 };
 
 window.renderPk11List = function() {
-    const tbody = document.getElementById("pk11-table-tbody");
+    const tbody = document.getElementById('pk11-table-tbody');
     if (!tbody) return;
-    
-    tbody.innerHTML = "";
+    tbody.innerHTML = '';
     
     if (!window.pk11Records || window.pk11Records.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="txt-center" style="color: var(--text-muted); padding: 30px;">ไม่มีบันทึกข้อมูลขออนุญาตออกนอกบริเวณ</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="txt-center" style="color: var(--text-muted); padding: 30px;">ไม่มีรายการขออนุญาตออกนอกบริเวณโรงเรียน</td></tr>';
         return;
     }
     
-    // Sort by date desc
-    const sorted = [...window.pk11Records].sort((a,b) => new Date(b.targetDate) - new Date(a.targetDate));
-    
-    sorted.forEach(item => {
-        const dateDisplay = item.targetDate ? formatThaiShortDate(item.targetDate) : '-';
-        // Determine status visually based on signatures
-        let statusBadge = `<span style="background: #e2e8f0; color: #64748b; padding: 2px 6px; border-radius: 6px; font-size: 11px; font-weight: bold;">รอพิจารณา</span>`;
-        if (item.saSignature && item.saSignature.length > 100) {
-            statusBadge = `<span style="background: #d1fae5; color: #047857; padding: 2px 6px; border-radius: 6px; font-size: 11px; font-weight: bold;">อนุมัติแล้ว</span>`;
-        } else if (item.hrSignature && item.hrSignature.length > 100) {
-            statusBadge = `<span style="background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 6px; font-size: 11px; font-weight: bold;">รอหัวหน้ากิจการ</span>`;
+    window.pk11Records.forEach((record) => {
+        const tr = document.createElement('tr');
+        
+        const dateParts = (record.targetDate || '').split('-');
+        const displayDate = dateParts.length === 3 ? `${dateParts[2]}/${dateParts[1]}/${parseInt(dateParts[0]) + 543}` : (record.targetDate || '-');
+        
+        let statusBadge = '';
+        if (record.status === 'อนุญาต') {
+            statusBadge = `<span class="badge" style="background: #ecfdf5; color: #047857; font-weight: 600; padding: 4px 10px; border-radius: 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-circle-check"></i> อนุญาต</span>`;
+        } else if (record.status === 'ไม่อนุญาต') {
+            statusBadge = `<span class="badge" style="background: #fef2f2; color: #b91c1c; font-weight: 600; padding: 4px 10px; border-radius: 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-circle-xmark"></i> ไม่อนุญาต</span>`;
+        } else {
+            statusBadge = `<span class="badge" style="background: #fffbeb; color: #b45309; font-weight: 600; padding: 4px 10px; border-radius: 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #fde68a;"><i class="fa-solid fa-clock"></i> รออนุมัติ</span>`;
         }
-        
-        const tr = document.createElement("tr");
-        const timeDisplay = (item.exitTime || '-') + ' - ' + (item.returnTime || '-');
-        
+            
+        const timeDisplay = (record.exitTime || record.returnTime) 
+            ? `${record.exitTime || '-'} - ${record.returnTime || '-'}`
+            : '-';
+            
         tr.innerHTML = `
-            <td class="txt-center">
-                <div style="display: flex; gap: 4px; justify-content: center; align-items: center; height: 100%;">
-                    <button onclick="previewPk11DocumentDirectly('${item.id}')" class="btn btn-outline" style="padding: 4px 8px; font-size: 11px; border-radius: 6px; border-color: var(--primary-color); color: var(--primary-color);" title="ดูเอกสาร">
-                        <i class="fa-solid fa-file-pdf"></i>
-                    </button>
-                    <button onclick="openPk11Wizard('${item.id}')" class="btn btn-outline" style="padding: 4px 8px; font-size: 11px; border-radius: 6px;" title="แก้ไข/ดำเนินการต่อ">
-                        <i class="fa-solid fa-file-signature"></i> จัดการ
-                    </button>
-                </div>
+            <td class="txt-center" style="white-space: nowrap;">
+                <button class="btn btn-sm btn-outline" onclick="previewPk11DocumentDirectly('${record.id}')" title="พิมพ์/ดูเอกสาร ป.ค.11" style="padding: 4px 8px; font-size: 12px; margin-right: 4px; border-radius: 6px; color: #2563eb; border-color: #bfdbfe; background: #eff6ff; cursor: pointer;">
+                    <i class="fa-solid fa-print"></i> เอกสาร
+                </button>
+                <button class="btn btn-sm btn-outline" onclick="openPk11Wizard('${record.id}')" title="แก้ไข" style="padding: 4px 8px; font-size: 12px; border-radius: 6px; color: #475569; border-color: #cbd5e1; cursor: pointer;">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                </button>
             </td>
             <td class="txt-center">${statusBadge}</td>
-            <td>
-                <div style="font-weight: 500; color: var(--text-main);">${item.studentName}</div>
-                <div style="font-size: 11px; color: var(--text-muted);">${item.gradeRoom}</div>
+            <td style="white-space: nowrap;">
+                <strong>${record.studentName || '-'}</strong>
+                <div style="font-size: 11.5px; color: var(--text-muted);">${record.gradeRoom || '-'}</div>
             </td>
-            <td class="txt-center">${dateDisplay}</td>
-            <td class="txt-center" style="white-space: nowrap;">${timeDisplay}</td>
-            <td><div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;" title="${item.reason || ''}">${item.reason || '-'}</div></td>
+            <td class="txt-center" style="white-space: nowrap;">${displayDate}</td>
+            <td class="txt-center" style="white-space: nowrap; font-size: 12px;">${timeDisplay}</td>
+            <td style="max-width: 150px;">
+                <div style="font-size: 13px; font-weight: 500; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${record.reason || '-'}">${record.reason || '-'}</div>
+                <div style="font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${record.location || '-'}"><i class="fa-solid fa-location-dot"></i> ${record.location || '-'}</div>
+            </td>
             <td class="txt-center">
-                <button onclick="deletePk11Record('${item.id}')" class="btn btn-outline" style="padding: 4px 8px; font-size: 11px; border-radius: 6px; border-color: var(--color-absent); color: var(--color-absent);" title="ลบรายการ">
-                    <i class="fa-solid fa-trash"></i>
+                <button class="delete-btn" onclick="deletePk11Record('${record.id}')" title="ลบรายการ" style="color: #ef4444; background: none; border: none; cursor: pointer; padding: 4px 8px; font-size: 14px;">
+                    <i class="fa-solid fa-trash-can"></i>
                 </button>
             </td>
         `;
@@ -6134,23 +6429,19 @@ window.deletePk11Record = async function(id) {
     }
     
     setLoader(true);
-    try {
-        const res = await fetch(config.scriptUrl, {
-            method: "POST",
-            body: JSON.stringify({ action: "deletePK11", id: id })
-        });
-        const data = await res.json();
-        if (data.success) {
-            showToast("ลบรายการสำเร็จ", "success");
-            loadPk11Records();
-        } else {
-            showToast("เกิดข้อผิดพลาด: " + data.message, "error");
+    const db = getSupabase();
+    if (db) {
+        try {
+            const { error } = await db.from('pk11').delete().eq('id', id);
+            if (error) throw error;
+            showToast("ลบรายการสำเร็จ ⚡", "success");
+            await loadPk11Records();
+        } catch (err) {
+            console.error("Supabase delete PK11 error:", err);
+            showToast("เกิดข้อผิดพลาดในการลบรายการ", "error");
+        } finally {
+            setLoader(false);
         }
-    } catch (err) {
-        showToast("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์", "error");
-        console.error(err);
-    } finally {
-        setLoader(false);
     }
 };
 

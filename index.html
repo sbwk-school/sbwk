@@ -19,7 +19,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     
     <!-- Custom Style Sheet -->
-    <link rel="stylesheet" href="styles.css?v=update68">
+    <link rel="stylesheet" href="styles.css?v=supabase_clean_33">
 
     <!-- Essential JS Libraries -->
     <script src="https://kit.fontawesome.com/60907d6a5f.js" crossorigin="anonymous" defer></script>
@@ -1074,6 +1074,7 @@
                         <table class="min-table">
                             <thead>
                                 <tr>
+                                    <th style="width: 70px; text-align: center;">รหัส</th>
                                     <th>ชื่อครู</th>
                                     <th>รหัส PIN</th>
                                     <th>บทบาทการใช้งาน</th>
@@ -1095,20 +1096,21 @@
                 
                 <!-- แท็บ 3: จัดการระบบ -->
                 <div id="admin-content-maintenance" class="admin-tab-content">
-                    <h4 style="margin-top: 10px; margin-bottom: 10px; color: var(--color-primary);"><i class="fa-solid fa-arrows-rotate"></i> ซิงค์สถิติสะสมย้อนหลัง</h4>
-                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">คำนวณยอดรวม มา, ลา, ขาด, สาย ย้อนหลังใหม่ทั้งหมดจากชีทหลักเพื่ออัปเดตชีทสะสมและชีทขาดลาให้อัตโนมัติ (ใช้เมื่อปรับแก้ประวัติเก่าในชีท)</p>
-                    <button class="btn btn-outline" id="btn-rebuild-stats" style="margin-bottom: 15px; border-color: var(--color-primary); color: var(--color-primary);">
-                        <i class="fa-solid fa-arrows-rotate"></i> คำนวณสถิติสะสมย้อนหลังทั้งหมด
-                    </button>
-                    
-                    <h4 style="margin-top: 15px; margin-bottom: 10px; color: #d97706;"><i class="fa-solid fa-broom"></i> ปรับปรุงและลบประวัติซ้ำซ้อนในชีทหลัก</h4>
-                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">คัดลบแถวบันทึกซ้ำซ้อนในวันเดียวกันออกโดยเก็บเฉพาะบันทึกครั้งล่าสุด และเขียนจัดระเบียบใหม่ทันทีโดยไม่เหลือช่องว่าง</p>
-                    <button class="btn btn-outline" id="btn-clean-duplicates" style="margin-bottom: 25px; border-color: #d97706; color: #d97706;">
-                        <i class="fa-solid fa-broom"></i> ปรับปรุงลบประวัติซ้ำในชีทหลัก
-                    </button>
-                    
+                    <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 16px; margin-bottom: 20px;">
+                        <h4 style="margin-top: 0; margin-bottom: 6px; color: #1d4ed8;"><i class="fa-solid fa-server"></i> สถานะฐานข้อมูล Supabase</h4>
+                        <p style="font-size: 13px; color: #1e40af; margin-bottom: 0;">ระบบเชื่อมต่อกับ Online Database (Supabase Cloud) เรียบร้อยแล้ว ข้อมูลทั้งหมดได้รับการบันทึกแบบ Real-time และไร้ข้อจำกัดเรื่องความเร็ว</p>
+                    </div>
+
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; margin-top: 15px; margin-bottom: 15px;">
+                        <h4 style="margin-top: 0; margin-bottom: 6px; color: #0f172a;"><i class="fa-solid fa-cloud-arrow-up" style="color: #2563eb;"></i> จัดการพื้นที่จัดเก็บลายเซ็น (Cloud Storage)</h4>
+                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 10px;">แปลงลายเซ็น Base64 ในฐานข้อมูลขึ้น Supabase Storage (Bucket: signatures) เพื่อลดขนาดฐานข้อมูลลงกว่า 99%</p>
+                        <button class="btn btn-outline" onclick="migrateExistingSignaturesToStorage()" style="font-size: 13px; border-color: #2563eb; color: #2563eb; background: #eff6ff;">
+                            <i class="fa-solid fa-file-export"></i> แปลงลายเซ็นทั้งหมดขึ้น Storage (One-Time)
+                        </button>
+                    </div>
+
                     <h4 style="margin-top: 15px; margin-bottom: 10px; color: var(--color-danger);"><i class="fa-solid fa-triangle-exclamation"></i> ล้างข้อมูลเพื่อเริ่มเทอมใหม่</h4>
-                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">การล้างข้อมูลนี้จะลบ **บันทึกเวลาเรียน** ทั้งหมดในชีทออก โดยจะเหลือไว้เพียงแถวหัวข้อตาราง เพื่อให้พร้อมใช้งานสำหรับเทอมใหม่ (ข้อมูลรายชื่อนักเรียน ครู และวันหยุดจะไม่ถูกลบ)</p>
+                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">การล้างข้อมูลนี้จะลบ **บันทึกเวลาเรียน (att)** ทั้งหมดออก เพื่อให้พร้อมใช้งานสำหรับเทอมใหม่ (ข้อมูลรายชื่อนักเรียน ครู และวันหยุดจะไม่ถูกลบ)</p>
                     
                     <button class="btn btn-danger" id="btn-clear-attendance" style="background-color: var(--color-danger); border: none; margin-top: 5px;">
                         <i class="fa-solid fa-trash-can"></i> ล้างประวัติเวลาเรียนทั้งหมด
@@ -1239,10 +1241,17 @@
                     <canvas id="signature-pad" width="600" height="300" style="width: 100%; height: 180px; touch-action: none; cursor: crosshair; display: block;"></canvas>
                     <div style="position: absolute; bottom: 25px; left: 8%; right: 8%; border-bottom: 1px dashed #e2e8f0; pointer-events: none;"></div>
                 </div>
+
                 <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: nowrap;">
-                    <button type="button" class="btn btn-secondary" onclick="clearSignature()" style="white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 12px; font-size: 13px; border-radius: 10px; flex-shrink: 0;">
-                        <i class="fa-solid fa-eraser"></i> ล้าง
-                    </button>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <button type="button" class="btn btn-secondary" onclick="clearSignature()" style="white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 12px; font-size: 13px; border-radius: 10px; flex-shrink: 0;">
+                            <i class="fa-solid fa-eraser"></i> ล้าง
+                        </button>
+                        <button type="button" class="btn btn-outline" onclick="triggerSignatureUpload()" style="white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 12px; font-size: 13px; border-radius: 10px; flex-shrink: 0; color: #2563eb; border-color: #93c5fd; background: #eff6ff;" title="อัปโหลดรูปภาพลายเซ็นจากเครื่อง">
+                            <i class="fa-solid fa-image"></i> เพิ่มรูป
+                        </button>
+                        <input type="file" id="signature-upload-input" accept="image/*" style="display: none;" onchange="handleSignatureFileUpload(event)">
+                    </div>
                     <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
                         <button type="button" class="btn btn-secondary close-modal-trigger" onclick="closeSignatureModal()" style="white-space: nowrap; padding: 9px 14px; font-size: 13px; border-radius: 10px;">
                             ยกเลิก
@@ -1566,9 +1575,12 @@
     <!-- SignaturePad JS -->
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
     
+    <!-- Supabase JS SDK (v2) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <!-- Custom Frontend JavaScript -->
-    <script src="config.js?v=update46" charset="utf-8" defer></script>
-    <script src="documents.js?v=update46" charset="utf-8" defer></script>
-    <script src="app.js?v=update70" charset="utf-8" defer></script>
+    <script src="config.js?v=supabase_clean_33" charset="utf-8"></script>
+    <script src="documents.js?v=supabase_clean_33" charset="utf-8" defer></script>
+    <script src="app.js?v=supabase_clean_33" charset="utf-8" defer></script>
 </body>
 </html>

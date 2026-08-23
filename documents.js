@@ -145,7 +145,7 @@ function getPK8Template(studentInfo, signatureHtml, formattedDate) {
                                 <div style="white-space: nowrap;">ลงชื่อ</div>
                                 <div style="text-align: center; margin: 0 5px;">
                                     <div style="height: 35px; display: flex; align-items: flex-end; justify-content: center;">
-                                        ${studentInfo.hrSign ? `<img src="${studentInfo.hrSign}" style="max-height: 45px;">` : '...........................................'}
+                                        ${studentInfo.hrSign ? `<img src="${studentInfo.hrSign}" style="max-height: 35px; max-width: 140px; object-fit: contain;">` : '...........................................'}
                                     </div>
                                     <div>(${studentInfo.homeroomTeacher || '...........................................'})</div>
                                 </div>
@@ -156,7 +156,7 @@ function getPK8Template(studentInfo, signatureHtml, formattedDate) {
                                 <div style="white-space: nowrap;">ลงชื่อ</div>
                                 <div style="text-align: center; margin: 0 5px;">
                                     <div style="height: 35px; display: flex; align-items: flex-end; justify-content: center;">
-                                        ${studentInfo.saSign ? `<img src="${studentInfo.saSign}" style="max-height: 45px;">` : '...........................................'}
+                                        ${studentInfo.saSign ? `<img src="${studentInfo.saSign}" style="max-height: 35px; max-width: 140px; object-fit: contain;">` : '...........................................'}
                                     </div>
                                     <div>(${studentInfo.headOfStudentAffairs || '...........................................'})</div>
                                 </div>
@@ -194,7 +194,7 @@ function getPK8Template(studentInfo, signatureHtml, formattedDate) {
                                     <div style="white-space: nowrap;">ลงชื่อ</div>
                                     <div style="text-align: center; margin: 0 5px;">
                                         <div style="height: 35px; display: flex; align-items: flex-end; justify-content: center;">
-                                            ${(studentInfo.parentSign || studentInfo.parentSignature || studentInfo.signatureBase64 || studentInfo.tempSignature) ? `<img src="${studentInfo.parentSign || studentInfo.parentSignature || studentInfo.signatureBase64 || studentInfo.tempSignature}" style="max-height: 45px;" alt="ลายเซ็นผู้ปกครอง">` : '...........................................'}
+                                            ${(studentInfo.parentSign || studentInfo.parentSignature || studentInfo.signatureBase64 || studentInfo.tempSignature) ? `<img src="${studentInfo.parentSign || studentInfo.parentSignature || studentInfo.signatureBase64 || studentInfo.tempSignature}" style="max-height: 35px; max-width: 140px; object-fit: contain;" alt="ลายเซ็นผู้ปกครอง">` : '...........................................'}
                                         </div>
                                         <div>(${studentInfo.parentName || '...........................................'})</div>
                                     </div>
@@ -279,7 +279,7 @@ function getPK9Template(studentInfo, signatureHtml, formattedDate) {
                                 <div style="white-space: nowrap;">ลงชื่อ</div>
                                 <div style="text-align: center; margin: 0 5px;">
                                     <div style="height: 35px; display: flex; align-items: flex-end; justify-content: center;">
-                                        ${studentInfo.hrSign ? `<img src="${studentInfo.hrSign}" style="max-height: 45px;">` : '...........................................'}
+                                        ${studentInfo.hrSign ? `<img src="${studentInfo.hrSign}" style="max-height: 35px; max-width: 140px; object-fit: contain;">` : '...........................................'}
                                     </div>
                                     <div>(${studentInfo.homeroomTeacher || '...........................................'})</div>
                                 </div>
@@ -290,7 +290,7 @@ function getPK9Template(studentInfo, signatureHtml, formattedDate) {
                                 <div style="white-space: nowrap;">ลงชื่อ</div>
                                 <div style="text-align: center; margin: 0 5px;">
                                     <div style="height: 35px; display: flex; align-items: flex-end; justify-content: center;">
-                                        ${studentInfo.saSign ? `<img src="${studentInfo.saSign}" style="max-height: 45px;">` : '...........................................'}
+                                        ${studentInfo.saSign ? `<img src="${studentInfo.saSign}" style="max-height: 35px; max-width: 140px; object-fit: contain;">` : '...........................................'}
                                     </div>
                                     <div>(${studentInfo.headOfStudentAffairs || '...........................................'})</div>
                                 </div>
@@ -328,7 +328,7 @@ function getPK9Template(studentInfo, signatureHtml, formattedDate) {
                                     <div style="white-space: nowrap;">ลงชื่อ</div>
                                     <div style="text-align: center; margin: 0 5px;">
                                         <div style="height: 35px; display: flex; align-items: flex-end; justify-content: center;">
-                                            ${(studentInfo.parentSign || studentInfo.parentSignature || studentInfo.signatureBase64 || studentInfo.tempSignature) ? `<img src="${studentInfo.parentSign || studentInfo.parentSignature || studentInfo.signatureBase64 || studentInfo.tempSignature}" style="max-height: 45px;" alt="ลายเซ็นผู้ปกครอง">` : '...........................................'}
+                                            ${(studentInfo.parentSign || studentInfo.parentSignature || studentInfo.signatureBase64 || studentInfo.tempSignature) ? `<img src="${studentInfo.parentSign || studentInfo.parentSignature || studentInfo.signatureBase64 || studentInfo.tempSignature}" style="max-height: 35px; max-width: 140px; object-fit: contain;" alt="ลายเซ็นผู้ปกครอง">` : '...........................................'}
                                         </div>
                                         <div>(${studentInfo.parentName || '...........................................'})</div>
                                     </div>
@@ -658,8 +658,8 @@ function getPK11Template(data, formattedDate) {
                 <div style="border-bottom: 1px dashed #94a3b8; padding-bottom: 10px; margin-bottom: 12px;">
                     <div style="font-weight: bold; text-decoration: underline; font-size: 15px; margin-bottom: 6px;">ความเห็นครูที่ปรึกษา</div>
                     <div style="display: flex; font-size: 14px; margin-bottom: 6px; padding-left: 5px;">
-                        <div style="width: 180px;">[ ${data.hrStatus === 'ไม่เห็นควรอนุญาต' ? '&nbsp;&nbsp;' : '✓'} ] เห็นควรอนุญาต</div>
-                        <div>[ ${data.hrStatus === 'ไม่เห็นควรอนุญาต' ? '✓' : '&nbsp;&nbsp;'} ] ไม่เห็นควรอนุญาต</div>
+                        <div style="width: 180px;">[ ${ (hrSign || (data.hrStatus && data.hrStatus !== 'ไม่เห็นควรอนุญาต')) && (data.hrStatus === 'เห็นควรอนุญาต' || data.hrStatus === true || !data.hrStatus) && hrSign ? '✓' : '&nbsp;&nbsp;' } ] เห็นควรอนุญาต</div>
+                        <div>[ ${ (data.hrStatus === 'ไม่เห็นควรอนุญาต' || data.hrStatus === false) && hrSign ? '✓' : '&nbsp;&nbsp;' } ] ไม่เห็นควรอนุญาต</div>
                     </div>
                     <div style="display: flex; justify-content: flex-end; padding-right: 45px;">
                         <div style="text-align: center; width: 320px;">
@@ -679,8 +679,8 @@ function getPK11Template(data, formattedDate) {
                 <div>
                     <div style="font-weight: bold; text-decoration: underline; font-size: 15px; margin-bottom: 6px;">คำสั่ง / การพิจารณาอนุญาต</div>
                     <div style="display: flex; font-size: 14px; margin-bottom: 6px; padding-left: 5px;">
-                        <div style="width: 180px;">[ ${data.status === 'ไม่อนุญาต' ? '&nbsp;&nbsp;' : '✓'} ] <b>อนุญาต</b></div>
-                        <div>[ ${data.status === 'ไม่อนุญาต' ? '✓' : '&nbsp;&nbsp;'} ] <b>ไม่อนุญาต</b></div>
+                        <div style="width: 180px;">[ ${ (saSign || (data.status && data.status !== 'ไม่อนุญาต' && data.status !== 'รออนุมัติ')) && (data.status === 'อนุญาต' || data.status === true || !data.status) && saSign ? '✓' : '&nbsp;&nbsp;' } ] <b>อนุญาต</b></div>
+                        <div>[ ${ (data.status === 'ไม่อนุญาต' || data.status === false) && saSign ? '✓' : '&nbsp;&nbsp;' } ] <b>ไม่อนุญาต</b></div>
                     </div>
                     <div style="display: flex; justify-content: flex-end; padding-right: 45px;">
                         <div style="text-align: center; width: 320px;">
