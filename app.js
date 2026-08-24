@@ -1,17 +1,11 @@
 /**
  * Frontend JavaScript - ระบบเช็คชื่อนักเรียนออนไลน์
- * จัดการตรรกะหน้าจอและการเชื่อมต่อกับ Google Apps Script Web App
+ * เชื่อมต่อและทำงานผ่าน Supabase Cloud Database 100%
  */
-
-// ค่ากำหนดตั้งค่าเริ่มต้น
-const CONFIG_KEY = "school_attendance_config";
-const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1TY5QNusQpKayPX8MZXFvUcx--bae7B5Wty38FfzbW90/edit?usp=sharing";
 
 let config = {
     supabaseUrl: (typeof GLOBAL_CONFIG !== "undefined" && GLOBAL_CONFIG.supabaseUrl) ? GLOBAL_CONFIG.supabaseUrl : "https://lkpgexffxxyczxfevqkc.supabase.co",
     supabaseKey: (typeof GLOBAL_CONFIG !== "undefined" && GLOBAL_CONFIG.supabaseKey) ? GLOBAL_CONFIG.supabaseKey : "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrcGdleGZmeHh5Y3p4ZmV2cWtjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0NzA4ODgsImV4cCI6MjEwMzA0Njg4OH0.nZe6-3Hzw2ogcM_akBIK_w-JC9okXvp0r7GSjVj5YSM",
-    sheetUrl: (typeof GLOBAL_CONFIG !== "undefined" && GLOBAL_CONFIG.sheetUrl) ? GLOBAL_CONFIG.sheetUrl : DEFAULT_SHEET_URL,
-    scriptUrl: (typeof GLOBAL_CONFIG !== "undefined" && GLOBAL_CONFIG.scriptUrl) ? GLOBAL_CONFIG.scriptUrl : "",
     schoolName: "โรงเรียนซับบอนวิทยาคม",
     workGroup: "กลุ่มงานบริหารทั่วไป",
     semester: "ภาคเรียนที่ 1",
@@ -73,8 +67,6 @@ function loadConfig() {
     if (typeof GLOBAL_CONFIG !== "undefined") {
         if (GLOBAL_CONFIG.supabaseUrl) config.supabaseUrl = GLOBAL_CONFIG.supabaseUrl;
         if (GLOBAL_CONFIG.supabaseKey) config.supabaseKey = GLOBAL_CONFIG.supabaseKey;
-        if (GLOBAL_CONFIG.scriptUrl) config.scriptUrl = GLOBAL_CONFIG.scriptUrl;
-        if (GLOBAL_CONFIG.sheetUrl) config.sheetUrl = GLOBAL_CONFIG.sheetUrl;
         if (GLOBAL_CONFIG.schoolName) config.schoolName = GLOBAL_CONFIG.schoolName;
         if (GLOBAL_CONFIG.workGroup) config.workGroup = GLOBAL_CONFIG.workGroup;
         if (GLOBAL_CONFIG.semester) config.semester = GLOBAL_CONFIG.semester;
@@ -102,13 +94,6 @@ function applyMetadataToUI() {
     
     // ตั้งค่า Document Title ของหน้าเว็บ
     document.title = `${config.schoolName} - ระบบเช็คชื่อนักเรียนออนไลน์`;
-}
-
-// แยก Sheet ID จาก URL
-function extractSheetId(url) {
-    if (!url) return null;
-    const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
-    return match ? match[1] : url;
 }
 
 // ดึงวันที่ปัจจุบัน YYYY-MM-DD
@@ -416,8 +401,27 @@ async function loadInitialData() {
             const st = (typeof students !== 'undefined' && students) ? students.find(s => s.studentId === p.student_id) : null;
             const hrTeacher = (typeof users !== 'undefined' && users) ? users.find(u => u.code === p.hr_name || u.name === p.hr_name) : null;
             const saTeacher = (typeof users !== 'undefined' && users) ? users.find(u => u.code === p.sa_name || u.name === p.sa_name) : null;
+            
+            const hasSaSign = !!(p.sa_signature && p.sa_signature.length > 5);
+            const hasHrSign = !!(p.hr_signature && p.hr_signature.length > 5);
+            
             const hrApproved = (p.hr_status === true || p.hr_status === 'true' || p.hr_status === 'เห็นควรอนุญาต' || p.hr_status === 'TRUE');
+            const hrDisapproved = (p.hr_status === false || p.hr_status === 'false' || p.hr_status === 'ไม่เห็นควรอนุญาต');
+            
             const saApproved = (p.status === true || p.status === 'true' || p.status === 'อนุญาต' || p.status === 'TRUE');
+            const saDisapproved = (p.status === false || p.status === 'false' || p.status === 'ไม่อนุญาต');
+
+            let finalStatus = "รออนุมัติ";
+            if (saDisapproved && (hasSaSign || p.sa_name)) {
+                finalStatus = "ไม่อนุญาต";
+            } else if (hrDisapproved && (hasHrSign || p.hr_name)) {
+                finalStatus = "ไม่อนุญาต";
+            } else if (hasSaSign && saApproved) {
+                finalStatus = "อนุญาต";
+            } else {
+                finalStatus = "รออนุมัติ";
+            }
+
             return {
                 id: p.id,
                 targetDate: p.target_date,
@@ -434,8 +438,8 @@ async function loadInitialData() {
                 parentPhone: p.parent_phone,
                 hrName: hrTeacher ? hrTeacher.name : (p.hr_name || '-'),
                 saName: saTeacher ? saTeacher.name : (p.sa_name || '-'),
-                hrStatus: hrApproved ? "เห็นควรอนุญาต" : "ไม่เห็นควรอนุญาต",
-                status: saApproved ? "อนุญาต" : "ไม่อนุญาต",
+                hrStatus: hasHrSign ? (hrApproved ? "เห็นควรอนุญาต" : "ไม่เห็นควรอนุญาต") : (p.hr_status || "รอความเห็น"),
+                status: finalStatus,
                 studentSignature: p.student_signature || '',
                 parentSignature: p.parent_signature || '',
                 hrSignature: p.hr_signature || '',
@@ -526,47 +530,6 @@ async function fetchDeferredDataOnce(forceFresh = false) {
             console.warn("Supabase deferred data warning:", e);
         }
     }
-    
-    if (!config.scriptUrl) return;
-    if (deferredDataPromise && !forceFresh) return deferredDataPromise;
-    
-    deferredDataPromise = (async () => {
-        try {
-            const cacheBuster = forceFresh ? `&t=${Date.now()}` : '';
-            const data = await fetchJsonWithRetry(`${config.scriptUrl}?action=getDeferredData${cacheBuster}`, {}, 0, 15000);
-            if (data && data.success) {
-                documentsData = data.documents || [];
-                atRiskTeachersCache = data.atRiskTeachers || {};
-                exemptionsCache = data.exemptions || {};
-                isDeferredDataLoaded = true;
-                populateTeacherDropdowns();
-            }
-        } catch (e) {
-            console.warn("Deferred data load skipped:", e.message);
-            deferredDataPromise = null;
-        }
-    })();
-    return deferredDataPromise;
-}
-
-function translateAbbreviationToStatus(abbr) {
-    if (!abbr) return "มา";
-    const clean = String(abbr).trim();
-    const map = {
-        "ม": "มา", "ล": "ลา", "ข": "ขาด", "ส": "สาย", "ด": "โดด",
-        "มา": "มา", "ลา": "ลา", "ขาด": "ขาด", "สาย": "สาย", "โดด": "โดด"
-    };
-    return map[clean] || "มา";
-}
-
-function translateStatusToAbbreviation(st) {
-    if (!st) return "ม";
-    const clean = String(st).trim();
-    const map = {
-        "มา": "ม", "ลา": "ล", "ขาด": "ข", "สาย": "ส", "โดด": "ด",
-        "ม": "ม", "ล": "ล", "ข": "ข", "ส": "ส", "ด": "ด"
-    };
-    return map[clean] || "ม";
 }
 
 async function fetchAllSupabaseRows(db, table, select = '*', orderCol = 'date') {
@@ -592,7 +555,7 @@ async function fetchStatsDataOnce(forceFresh = false) {
     if (!db) return;
     
     try {
-        const rows = await fetchAllSupabaseRows(db, 'att', '*', 'date');
+        const rows = await fetchAllSupabaseRows(db, 'att', 'date,student_id,status,grade,room', 'date');
         const logs = [];
         const datesSet = new Set();
         const monthsSet = new Set();
@@ -1128,6 +1091,71 @@ function renderRooms() {
 }
 
 /**
+ * ฟังก์ชันสลับวันที่เช็คชื่อความเร็วสูง (Instant Date Switch)
+ * ดึงเฉพาะข้อมูลตาราง att ของวันที่เลือก ไม่ต้องโหลดตารางอื่นซ้ำ
+ */
+window.switchCheckingDate = async function(newDate, targetGrade = null, targetRoom = null) {
+    if (!newDate) return;
+    currentCheckingDate = newDate;
+    
+    // Sync Flatpickr instances
+    const homeDatePicker = document.getElementById("home-date-picker");
+    if (homeDatePicker) {
+        if (homeDatePicker._flatpickr) homeDatePicker._flatpickr.setDate(currentCheckingDate, false);
+        else homeDatePicker.value = currentCheckingDate;
+    }
+    const checkingDatePicker = document.getElementById("checking-date-picker");
+    if (checkingDatePicker) {
+        if (checkingDatePicker._flatpickr) checkingDatePicker._flatpickr.setDate(currentCheckingDate, false);
+        else checkingDatePicker.value = currentCheckingDate;
+    }
+    
+    updateHeaderDate();
+    checkTodayHoliday();
+    
+    const db = getSupabase();
+    if (db) {
+        setLoader(true);
+        try {
+            const { data, error } = await db.from('att').select('*').eq('date', currentCheckingDate);
+            if (error) throw error;
+            
+            todayLogs = {};
+            todayLogsDetails = {};
+            (data || []).forEach(r => {
+                const roomKey = `${r.grade}/${r.room}`;
+                if (!todayLogs[roomKey]) {
+                    todayLogs[roomKey] = { Present: 0, Leave: 0, Absent: 0, Late: 0, Cut: 0, Total: 0 };
+                }
+                const st = translateAbbreviationToStatus(r.status);
+                if (st === 'มา') todayLogs[roomKey].Present++;
+                else if (st === 'ลา') todayLogs[roomKey].Leave++;
+                else if (st === 'ขาด') todayLogs[roomKey].Absent++;
+                else if (st === 'สาย') todayLogs[roomKey].Late++;
+                else if (st === 'โดด') todayLogs[roomKey].Cut++;
+                todayLogs[roomKey].Total++;
+                
+                todayLogsDetails[r.student_id] = st;
+            });
+            
+            calculateOverallStats();
+            renderRooms();
+            
+            const g = targetGrade || (selectedRoom ? selectedRoom.grade : null);
+            const rm = targetRoom || (selectedRoom ? selectedRoom.room : null);
+            if (currentView === "attendance-check" && g && rm) {
+                openAttendanceCheck(g, rm);
+            }
+        } catch (e) {
+            console.error("switchCheckingDate error:", e);
+            showToast("เกิดข้อผิดพลาดในการโหลดข้อมูลวันที่เลือก", "error");
+        } finally {
+            setLoader(false);
+        }
+    }
+};
+
+/**
  * 3. หน้าลงเช็คชื่อรายห้อง (Check-in View) - มีการดึงประวัติมาแสดงคงสถานะเดิม
  */
 function openAttendanceCheck(grade, room) {
@@ -1143,34 +1171,9 @@ function openAttendanceCheck(grade, room) {
                 dateFormat: "Y-m-d",
                 defaultDate: currentCheckingDate,
                 position: "auto center",
+                disableMobile: true,
                 onChange: function(selectedDates, dateStr, instance) {
-                    currentCheckingDate = dateStr;
-                    const homeDatePicker = document.getElementById("home-date-picker");
-                    if (homeDatePicker && homeDatePicker._flatpickr) {
-                        homeDatePicker._flatpickr.setDate(currentCheckingDate);
-                    } else if (homeDatePicker) {
-                        homeDatePicker.value = currentCheckingDate;
-                    }
-                    
-                    updateHeaderDate();
-                    checkTodayHoliday();
-                    
-                    setLoader(true);
-                    fetch(`${config.scriptUrl}?action=init&date=${currentCheckingDate}`)
-                        .then(res => res.json())
-                        .then(data => {
-                            if (data.success) {
-                                todayLogs = data.todayLogs || {};
-                                todayLogsDetails = data.todayLogsDetails || {};
-                                for (let id in todayLogsDetails) {
-                                    todayLogsDetails[id] = translateAbbreviationToStatus(todayLogsDetails[id]);
-                                }
-                                calculateOverallStats(); // Sync home dashboard
-                                renderRooms(); // Sync home dashboard
-                                openAttendanceCheck(grade, room);
-                            }
-                        })
-                        .finally(() => setLoader(false));
+                    window.switchCheckingDate(dateStr, grade, room);
                 }
             });
             
@@ -1183,29 +1186,7 @@ function openAttendanceCheck(grade, room) {
         } else {
             checkingDatePicker.value = currentCheckingDate;
             checkingDatePicker.onchange = (e) => {
-                currentCheckingDate = e.target.value;
-                const homeDatePicker = document.getElementById("home-date-picker");
-                if (homeDatePicker) homeDatePicker.value = currentCheckingDate;
-                
-                updateHeaderDate();
-                checkTodayHoliday();
-                
-                setLoader(true);
-                fetch(`${config.scriptUrl}?action=init&date=${currentCheckingDate}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.success) {
-                            todayLogs = data.todayLogs || {};
-                            todayLogsDetails = data.todayLogsDetails || {};
-                            for (let id in todayLogsDetails) {
-                                todayLogsDetails[id] = translateAbbreviationToStatus(todayLogsDetails[id]);
-                            }
-                            calculateOverallStats();
-                            renderRooms();
-                            openAttendanceCheck(grade, room);
-                        }
-                    })
-                    .finally(() => setLoader(false));
+                window.switchCheckingDate(e.target.value, grade, room);
             };
         }
     }
@@ -1756,8 +1737,8 @@ async function verifyPinAndRun() {
     // ทำการยืนยันรหัส PIN บนเครื่องจากหน่วยความจำโดยตรง (Local Cache Verification) เพื่อผลการตรวจสอบแบบทันที
     let matchedUser = users.find(u => String(u.pin).trim() === String(pinDigits).trim());
     
-    // Master Bypass: ถ้าระบบยังไม่เชื่อมต่อกานข้อมูล หรือยังไม่มีผู้ใช้ ให้ใช้รหัส 9999 เข้าแอดมินได้
-    if (!matchedUser && (!config.scriptUrl || users.length === 0) && pinDigits === "9999") {
+    // Master Bypass: ถ้าระบบยังไม่มีผู้ใช้ ให้ใช้รหัส 9999 เข้าแอดมินได้
+    if (!matchedUser && users.length === 0 && pinDigits === "9999") {
         matchedUser = { name: "System Setup", role: "ADMIN", pin: "9999" };
     }
     
@@ -2308,14 +2289,13 @@ function renderDailyGridStats(logs, datesList, targetRoom, tableId = "stats-dail
  * 8. เมนูบันทึกความประพฤติ (Misconduct View)
  */
 async function fetchAndRenderMisconducts() {
-    if (!config.scriptUrl) return;
-    
     // โหลดความประพฤติจากเซิร์ฟเวอร์หากยังไม่มีประวัติในหน่วยความจำ
     if (misconductLogs.length === 0) {
         setLoader(true);
         try {
             await fetchMisconductDataOnce();
         } catch (e) {
+            console.error("fetchAndRenderMisconducts error:", e);
             showToast("ไม่สามารถโหลดระบบความประพฤติได้", "error");
         } finally {
             setLoader(false);
@@ -3007,7 +2987,41 @@ window.addHoliday = async function() {
 /**
  * 11. ฟังก์ชันเปลี่ยนหน้า (SPA View Switcher)
  */
-window.handleNoticeClick = function(studentId, fullName, gradeRoom, docType, fullDocType) {
+function extractNoticeCount(str, fallback = 1) {
+    if (str === null || str === undefined) return fallback;
+    if (typeof str === 'number') return isNaN(str) ? fallback : str;
+    const s = String(str).trim();
+    if (!s) return fallback;
+    
+    // 1. ตรวจหา "ครั้งที่ X" เช่น "ป.ค.9_ครั้งที่2" หรือ "ครั้งที่ 3"
+    const countMatch = s.match(/ครั้งที่\s*(\d+)/);
+    if (countMatch && countMatch[1]) return parseInt(countMatch[1], 10);
+    
+    // 2. ตรวจหาในวงเล็บ เช่น "ป.ค.9 (2)" หรือ "(3)"
+    const parenMatch = s.match(/\((\d+)\)/);
+    if (parenMatch && parenMatch[1]) return parseInt(parenMatch[1], 10);
+    
+    // 3. ตรวจหาหลังขีดล่างหรือขีดตั้ง เช่น "4309|ป.ค.9|2"
+    const parts = s.split(/[|_]/);
+    if (parts.length > 1) {
+        const last = parts[parts.length - 1].trim();
+        const lastNum = last.match(/\d+/);
+        if (lastNum && last !== 'ป.ค.8' && last !== 'ป.ค.9' && last !== 'pk8' && last !== 'pk9') {
+            return parseInt(lastNum[0], 10);
+        }
+    }
+    
+    // 4. ลบ ป.ค.8, ป.ค.9, ป.ค.11, PK8, PK9 ออกก่อน แล้วค่อยดูตัวเลขที่เหลือ
+    const stripped = s.replace(/ป\.?ค\.?\s*\d+/gi, '').replace(/PK\s*\d+/gi, '');
+    const remainNum = stripped.match(/\d+/);
+    if (remainNum && remainNum[0]) {
+        return parseInt(remainNum[0], 10);
+    }
+    
+    return fallback;
+}
+
+window.handleNoticeClick = function(studentId, fullName, gradeRoom, docType, fullDocType, explicitCount) {
     // 1. Check if already logged in (Admin or Teacher)
     let currentRole = null;
     let currentName = "";
@@ -3023,17 +3037,18 @@ window.handleNoticeClick = function(studentId, fullName, gradeRoom, docType, ful
     
     // 2. If logged in, proceed directly
     if (currentRole) {
-        processNoticeClick(studentId, fullName, gradeRoom, docType, fullDocType, currentRole, currentName);
+        processNoticeClick(studentId, fullName, gradeRoom, docType, fullDocType, currentRole, currentName, explicitCount);
     } else {
         // 3. If not logged in, request login
         requestLogin("ANY", (pin, name, role) => {
-            processNoticeClick(studentId, fullName, gradeRoom, docType, fullDocType, role, name);
+            processNoticeClick(studentId, fullName, gradeRoom, docType, fullDocType, role, name, explicitCount);
         });
     }
 };
 
-function processNoticeClick(studentId, fullName, gradeRoom, docType, fullDocType, role, name) {
-    const backendKey = `${studentId}|${docType}|ครั้งที่${fullDocType.split('_ครั้งที่')[1] || '1'}`;
+function processNoticeClick(studentId, fullName, gradeRoom, docType, fullDocType, role, name, explicitCount) {
+    const parsedNoticeCount = explicitCount ? parseInt(explicitCount, 10) : extractNoticeCount(fullDocType, 1);
+    const backendKey = `${studentId}|${docType}|ครั้งที่${parsedNoticeCount}`;
     
     let savedHr = "";
     let savedSa = "";
@@ -3065,7 +3080,7 @@ function processNoticeClick(studentId, fullName, gradeRoom, docType, fullDocType
             savedParentSign = existingDoc.signatureBase64;
         }
     }
-    
+
     // ข้ามไปพรีวิวทันที ถ้ามีชื่อครูที่ปรึกษาแล้ว
     if (savedHr) {
         currentSigningStudent = {
@@ -3075,6 +3090,7 @@ function processNoticeClick(studentId, fullName, gradeRoom, docType, fullDocType
             docType: docType,
             fullDocType: fullDocType,
             documentType: fullDocType,
+            noticeCount: parsedNoticeCount,
             backendKey: backendKey,
             homeroomTeacher: savedHr,
             headOfStudentAffairs: savedSa,
@@ -3089,7 +3105,7 @@ function processNoticeClick(studentId, fullName, gradeRoom, docType, fullDocType
         openDocumentPreview(currentSigningStudent);
     } else {
         // เปิดหน้าเลือกครู
-        openNoticeActionModal(studentId, fullName, gradeRoom, docType, fullDocType, role, backendKey);
+        openNoticeActionModal(studentId, fullName, gradeRoom, docType, fullDocType, role, backendKey, parsedNoticeCount);
     }
 }
 
@@ -3148,8 +3164,18 @@ window.handleTeacherSelectChange = function(role) {
     }
 };
 
-window.openNoticeActionModal = function(studentId, fullName, gradeRoom, docType, fullDocType, role, backendKey) {
-    currentSigningStudent = { studentId, fullName, gradeRoom, docType, fullDocType, backendKey };
+window.openNoticeActionModal = function(studentId, fullName, gradeRoom, docType, fullDocType, role, backendKey, explicitCount) {
+    const parsedNoticeCount = explicitCount ? parseInt(explicitCount, 10) : extractNoticeCount(fullDocType, 1);
+    currentSigningStudent = { 
+        studentId, 
+        fullName, 
+        gradeRoom, 
+        docType, 
+        fullDocType, 
+        documentType: fullDocType, 
+        noticeCount: parsedNoticeCount, 
+        backendKey: backendKey || `${studentId}|${docType}|ครั้งที่${parsedNoticeCount}` 
+    };
     
     document.getElementById("at-risk-action-title").innerText = `รายชื่อลงนาม`;
     document.getElementById("at-risk-action-subtitle").style.display = "none";
@@ -3279,27 +3305,8 @@ function isReasonTextStr(s) {
     if (!window.tempHrSign && hrSelect.value) handleTeacherSelectChange('hr');
     if (!window.tempSaSign && saSelect.value) handleTeacherSelectChange('sa');
     
-    document.getElementById("modal-at-risk-action").classList.add("active");
 };
 
-window.jumpToTracking = function(room) {
-    const roomFilterSelect = document.getElementById('at-risk-room-filter');
-    if (roomFilterSelect) {
-        // Ensure options exist if not populated yet
-        let optionExists = false;
-        for (let i = 0; i < roomFilterSelect.options.length; i++) {
-            if (roomFilterSelect.options[i].value === room) optionExists = true;
-        }
-        if (!optionExists) {
-            const opt = document.createElement('option');
-            opt.value = room;
-            opt.text = 'ชั้น ' + room;
-            roomFilterSelect.appendChild(opt);
-        }
-        roomFilterSelect.value = room;
-    }
-    switchView('at-risk');
-};
 function switchView(viewName) {
     currentView = viewName;
     window.scrollTo(0, 0);
@@ -3440,11 +3447,6 @@ window.renderAtRiskStudents = async function() {
     // ดึงข้อมูลสถิติล่าสุดสดๆ จากเซิร์ฟเวอร์เฉพาะกรณีที่ยังไม่มีข้อมูลในแรม
     if (!isAtRiskDataLoaded && (!allStatsData || !students || students.length === 0)) {
         container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);"><div class="empty-state" style="color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin" style="font-size: 30px; margin-bottom: 10px; color: var(--color-primary);"></i><p>กำลังดึงข้อมูลสถิติล่าสุดจากเซิร์ฟเวอร์...</p></div></div>';
-        
-        if (!config.scriptUrl) {
-            container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; background: white; border-radius: 12px;">โปรดตั้งค่าลิงก์ Apps Script ก่อน</div>';
-            return;
-        }
         
         try {
             await Promise.all([
@@ -3663,7 +3665,7 @@ window.renderAtRiskStudents = async function() {
                 }
             }
             
-            buttonsHtmlInner += `<button class="${btnClass}" style="${btnStyle}" onclick="handleNoticeClick('${s.studentId}', '${s.fullName}', '${s.grade}/${s.room}', '${docType}', '${fullDocType}')">
+            buttonsHtmlInner += `<button class="${btnClass}" style="${btnStyle}" onclick="handleNoticeClick('${s.studentId}', '${s.fullName}', '${s.grade}/${s.room}', '${docType}', '${fullDocType}', ${noticeCount})">
                 <i class="fa-solid ${icon}"></i> ${btnText}
             </button>`;
         });
@@ -3729,15 +3731,17 @@ window.renderAtRiskStudents = async function() {
     });
 };
 
-let currentActionRole = 'hr'; // 'hr' or 'sa'
-window.openPreviewDirectly = async function(studentId, fullName, gradeRoom, docType, fullDocType) {
+window.openPreviewDirectly = async function(studentId, fullName, gradeRoom, docType, fullDocType, explicitCount) {
+    const parsedNoticeCount = explicitCount ? parseInt(explicitCount, 10) : extractNoticeCount(fullDocType, 1);
     currentSigningStudent = {
         studentId: studentId,
         fullName: fullName,
         gradeRoom: gradeRoom,
         docType: docType,
         fullDocType: fullDocType,
-        backendKey: `${studentId}|${docType}|ครั้งที่${fullDocType.split('_ครั้งที่')[1] || '1'}`
+        documentType: fullDocType,
+        noticeCount: parsedNoticeCount,
+        backendKey: `${studentId}|${docType}|ครั้งที่${parsedNoticeCount}`
     };
     
     const backendKey = currentSigningStudent.backendKey;
@@ -3764,13 +3768,10 @@ window.openPreviewDirectly = async function(studentId, fullName, gradeRoom, docT
     currentSigningStudent.reason = saved.reason || "";
     currentSigningStudent.docDate = saved.docDate || "";
     
-    
     const docToPrint = { ...currentSigningStudent, documentType: currentSigningStudent.fullDocType };
     document.getElementById("modal-at-risk-action").classList.remove("active");
     await openDocumentPreview(docToPrint);
 };
-
-
 
 window.closeAtRiskActionModal = function() {
     document.getElementById("modal-at-risk-action").classList.remove("active");
@@ -3787,7 +3788,21 @@ window.saveAtRiskTeachers = async function() {
     const reasonVal = reasonInput ? reasonInput.value.trim() : "";
     const docDateInput = document.getElementById("action-doc-date");
     const docDateVal = docDateInput && docDateInput.value ? docDateInput.value : "";
-    const backendKey = currentSigningStudent.backendKey;
+    
+    const sId = currentSigningStudent.studentId;
+    const dType = currentSigningStudent.docType;
+    
+    let nCount = currentSigningStudent.noticeCount;
+    if (!nCount && currentSigningStudent.fullDocType) {
+        nCount = extractNoticeCount(currentSigningStudent.fullDocType);
+    }
+    if (!nCount && currentSigningStudent.backendKey) {
+        nCount = extractNoticeCount(currentSigningStudent.backendKey);
+    }
+    nCount = parseInt(nCount) || 1;
+    currentSigningStudent.noticeCount = nCount;
+    
+    const backendKey = currentSigningStudent.backendKey || `${sId}|${dType}|ครั้งที่${nCount}`;
     
     let saved = { hr: "", sa: "", hrSign: "", saSign: "", parentName: "", parentSign: "", docDate: "", reason: "" };
     if (atRiskTeachersCache && atRiskTeachersCache[backendKey]) {
@@ -3832,15 +3847,18 @@ window.saveAtRiskTeachers = async function() {
         saved.docDate = docDateVal;
     }
     
-    // บันทึกลง Cache เพื่อให้ UI เปลี่ยนทันที
+    // บันทึกลง Cache ให้ครบทุกรูปแบบคีย์เพื่อให้ UI สะท้อนผลทันที
     if (!atRiskTeachersCache) atRiskTeachersCache = {};
     atRiskTeachersCache[backendKey] = saved;
+    atRiskTeachersCache[`${sId}|${dType}|ครั้งที่${nCount}`] = saved;
+    atRiskTeachersCache[`${sId}|${dType}|${nCount}`] = saved;
+    atRiskTeachersCache[`${sId}|${dType}_ครั้งที่${nCount}`] = saved;
     
     // อัปเดต documentsData ด้วยเพื่อความสอดคล้อง
     if (typeof documentsData !== 'undefined' && documentsData) {
-        const fullDocType = currentSigningStudent.fullDocType;
+        const fullDocType = currentSigningStudent.fullDocType || `${dType}_ครั้งที่${nCount}`;
         const studentId = currentSigningStudent.studentId;
-        const docIdx = documentsData.findIndex(d => d.studentId === studentId && (d.documentType === fullDocType || d.documentType === currentSigningStudent.docType));
+        const docIdx = documentsData.findIndex(d => d.studentId === studentId && (d.documentType === fullDocType || d.documentType === dType));
         if (saved.parentSign && saved.parentSign.length > 50) {
             if (docIdx >= 0) {
                 documentsData[docIdx].signatureBase64 = saved.parentSign;
@@ -3867,10 +3885,6 @@ window.saveAtRiskTeachers = async function() {
             const hrCode = hrTeacher ? (hrTeacher.code || hrTeacher.name) : (saved.hr || '');
             const saCode = saTeacher ? (saTeacher.code || saTeacher.name) : (saved.sa || '');
 
-            const sId = currentSigningStudent.studentId;
-            const dType = currentSigningStudent.docType;
-            const nCount = parseInt(currentSigningStudent.noticeCount) || 1;
-
             // Upload signatures to Supabase Storage if they are in Base64 format
             const hrSignUrl = await uploadSignatureToSupabase(saved.hrSign, 'pk8_pk9', `${sId}_${dType}_${nCount}_hr`);
             const saSignUrl = await uploadSignatureToSupabase(saved.saSign, 'pk8_pk9', `${sId}_${dType}_${nCount}_sa`);
@@ -3895,7 +3909,7 @@ window.saveAtRiskTeachers = async function() {
                 parent_sign: parentSignUrl
             });
             if (dbErr) throw dbErr;
-            showToast("บันทึกข้อมูลและลายเซ็นลงฐานข้อมูลสำเร็จ ⚡", "success");
+            showToast(`บันทึกข้อมูล ${dType} (ครั้งที่ ${nCount}) ลงฐานข้อมูลสำเร็จ ⚡`, "success");
         } catch (err) {
             console.error("Supabase pk8_pk9 save error:", err);
             showToast("เกิดข้อผิดพลาดในการบันทึกข้อมูล", "error");
@@ -4186,7 +4200,7 @@ window.openSignatureFor = function(studentId, fullName, gradeRoom, docType) {
 
 window.openDocumentPreview = async function(studentInfo) {
     // ถ้ายังไม่มีสถิติรายละเอียดประวัติวันขาด/สาย ให้หมุนโหลดสั้นๆ เพื่อดึงวันที่ย้อนหลังมาแสดง
-    if (!allStatsData && config.scriptUrl) {
+    if (!allStatsData) {
         setLoader(true);
         try {
             await fetchStatsDataOnce();
@@ -4230,14 +4244,7 @@ window.openDocumentPreview = async function(studentInfo) {
     }
     
     // ตรวจสอบหมายเลขครั้งที่ (noticeCount)
-    let noticeCount = 1;
-    if (studentInfo.noticeCount) {
-        noticeCount = parseInt(studentInfo.noticeCount) || 1;
-    } else if (studentInfo.documentType && studentInfo.documentType.includes('ครั้งที่')) {
-        noticeCount = parseInt(studentInfo.documentType.split('ครั้งที่')[1]) || 1;
-    } else if (studentInfo.fullDocType && studentInfo.fullDocType.includes('ครั้งที่')) {
-        noticeCount = parseInt(studentInfo.fullDocType.split('ครั้งที่')[1]) || 1;
-    }
+    let noticeCount = extractNoticeCount(studentInfo.noticeCount || studentInfo.documentType || studentInfo.fullDocType, 1);
     studentInfo.noticeCount = noticeCount;
 
 function formatThaiDateString(dateInput) {
@@ -4648,13 +4655,23 @@ window.saveDocumentData = async function() {
     const studentId = currentSigningStudent.studentId;
     const sig = currentSigningStudent.tempSignature;
     
+    let docType = currentSigningStudent.docType || '';
+    if (!docType && actualDocTypeForSave) {
+        docType = actualDocTypeForSave.includes('ป.ค.8') ? 'ป.ค.8' : (actualDocTypeForSave.includes('ป.ค.9') ? 'ป.ค.9' : '');
+    }
+    
+    let noticeCount = currentSigningStudent.noticeCount;
+    if (!noticeCount && actualDocTypeForSave) {
+        noticeCount = extractNoticeCount(actualDocTypeForSave);
+    }
+    if (!noticeCount && currentSigningStudent.backendKey) {
+        noticeCount = extractNoticeCount(currentSigningStudent.backendKey);
+    }
+    noticeCount = parseInt(noticeCount) || 1;
+    
     const db = getSupabase();
     if (db) {
         try {
-            const parts = (actualDocTypeForSave || '').split('_');
-            const docType = parts[0] || currentSigningStudent.docType || '';
-            const noticeCount = parseInt((parts[1] || '').replace('ครั้งที่', '')) || 1;
-            
             const uploadedSigUrl = await uploadSignatureToSupabase(sig, 'pk8_pk9', `${studentId}_${docType}_${noticeCount}_parent`);
 
             const { error: dbErr } = await db.from('pk8_pk9').upsert({
@@ -4665,13 +4682,25 @@ window.saveDocumentData = async function() {
             });
             if (dbErr) throw dbErr;
             
-            showToast("บันทึกข้อมูลและลายเซ็นสำเร็จ! ⚡", "success");
+            showToast(`บันทึกลายเซ็นผู้ปกครอง ${docType} (ครั้งที่ ${noticeCount}) สำเร็จ ⚡`, "success");
             const btnSaveSig = document.getElementById("btn-save-signature");
             if (btnSaveSig) btnSaveSig.style.display = "none";
             
+            // อัปเดต Cache ให้ครบทุกคีย์
+            const backendKey = currentSigningStudent.backendKey || `${studentId}|${docType}|ครั้งที่${noticeCount}`;
+            if (!atRiskTeachersCache) atRiskTeachersCache = {};
+            if (!atRiskTeachersCache[backendKey]) {
+                atRiskTeachersCache[backendKey] = { hr: "", sa: "", hrSign: "", saSign: "", parentName: "", parentSign: "", docDate: "", reason: "" };
+            }
+            atRiskTeachersCache[backendKey].parentSign = uploadedSigUrl;
+            atRiskTeachersCache[backendKey].signatureBase64 = uploadedSigUrl;
+            atRiskTeachersCache[`${studentId}|${docType}|ครั้งที่${noticeCount}`] = atRiskTeachersCache[backendKey];
+            atRiskTeachersCache[`${studentId}|${docType}|${noticeCount}`] = atRiskTeachersCache[backendKey];
+            atRiskTeachersCache[`${studentId}|${docType}_ครั้งที่${noticeCount}`] = atRiskTeachersCache[backendKey];
+
             documentsData.push({
                 studentId: studentId,
-                documentType: actualDocTypeForSave,
+                documentType: `${docType}_ครั้งที่${noticeCount}`,
                 signatureBase64: uploadedSigUrl
             });
             if (typeof renderAtRiskStudents === 'function') {
@@ -4962,13 +4991,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 position: "auto center",
                 disableMobile: true,
                 onChange: function(selectedDates, dateStr, instance) {
-                    currentCheckingDate = dateStr;
-                    loadInitialData(); // โหลดข้อมูลสำหรับวันที่เลือกใหม่
-                    
-                    const checkingDatePicker = document.getElementById("checking-date-picker");
-                    if (checkingDatePicker && checkingDatePicker._flatpickr) {
-                        checkingDatePicker._flatpickr.setDate(currentCheckingDate);
-                    }
+                    window.switchCheckingDate(dateStr);
                 }
             });
             
@@ -4980,8 +5003,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         } else {
             homeDateInput.onchange = (e) => {
-                currentCheckingDate = e.target.value;
-                loadInitialData(); // โหลดข้อมูลสำหรับวันที่เลือกใหม่
+                window.switchCheckingDate(e.target.value);
             };
         }
     }
@@ -6249,57 +6271,6 @@ window.savePk11Record = async function() {
         } finally {
             setLoader(false);
         }
-    }
-    
-    try {
-        const payload = {
-            action: "savePK11",
-            id: recId,
-            studentId: window.currentPk11Student.studentId,
-            studentName: window.currentPk11Student.fullName,
-            gradeRoom: `${window.currentPk11Student.grade}/${window.currentPk11Student.room}`,
-            createdAt: targetDateVal,
-            targetDate: targetDateVal,
-            exitTime: recordData.exit_time,
-            returnTime: recordData.return_time,
-            location: recordData.location,
-            reason: recordData.reason,
-            studentPhone: recordData.student_phone,
-            parentName: recordData.parent_name,
-            relation: recordData.relation,
-            parentPhone: recordData.parent_phone,
-            hrName: recordData.hr_name,
-            saName: recordData.sa_name,
-            hrStatus: recordData.hr_status,
-            status: recordData.status,
-            studentSignature: recordData.student_signature,
-            parentSignature: recordData.parent_signature,
-            hrSignature: recordData.hr_signature,
-            saSignature: recordData.sa_signature
-        };
-        const res = await fetch(config.scriptUrl, {
-            method: "POST",
-            body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        if (data.success) {
-            showToast("บันทึกข้อมูล ป.ค.11 สำเร็จ", "success");
-            if (data.id) {
-                document.getElementById('pk11-record-id').value = data.id;
-            }
-            if (window.currentPk11Step < totalPk11Steps) {
-                goToPk11Step('next');
-            } else {
-                closePk11Wizard();
-            }
-            loadPk11Records();
-        } else {
-            showToast("เกิดข้อผิดพลาด: " + data.message, "error");
-        }
-    } catch (err) {
-        showToast("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์", "error");
-    } finally {
-        setLoader(false);
     }
 };
 

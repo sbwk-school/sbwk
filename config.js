@@ -9,13 +9,7 @@ const GLOBAL_CONFIG = {
     supabaseUrl: "https://lkpgexffxxyczxfevqkc.supabase.co",
     supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrcGdleGZmeHh5Y3p4ZmV2cWtjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0NzA4ODgsImV4cCI6MjEwMzA0Njg4OH0.nZe6-3Hzw2ogcM_akBIK_w-JC9okXvp0r7GSjVj5YSM",
 
-    // 2. ลิงก์ Apps Script (ลงท้ายด้วย /exec) สำหรับการเชื่อมต่อสำรอง/ซิงค์
-    scriptUrl: "https://script.google.com/macros/s/AKfycbwthYSx_Zu-VxYBzVmIFy5n-n4gOV_n1qxki2W05z-f-YJnS8rbXhAmhCk3oc7Jol0Inw/exec",
-    
-    // 3. ลิงก์ Google Sheet (Master Source)
-    sheetUrl: "https://docs.google.com/spreadsheets/d/1eoG8QH7dXLPW7GUNEBhOKXmEryQQ_fMhvow3sxJwdG0/edit?usp=sharing",
-
-    // 4. ข้อมูลพื้นฐานของโรงเรียน (ปรับเปลี่ยนตามปีการศึกษา/ภาคเรียนจริง)
+    // 2. ข้อมูลพื้นฐานของโรงเรียน (ปรับเปลี่ยนตามปีการศึกษา/ภาคเรียนจริง)
     schoolName: "โรงเรียนซับบอนวิทยาคม",
     workGroup: "กลุ่มงานบริหารทั่วไป",
     semester: "ภาคเรียนที่ 1",
