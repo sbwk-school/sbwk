@@ -3305,6 +3305,7 @@ function isReasonTextStr(s) {
     if (!window.tempHrSign && hrSelect.value) handleTeacherSelectChange('hr');
     if (!window.tempSaSign && saSelect.value) handleTeacherSelectChange('sa');
     
+    document.getElementById("modal-at-risk-action").classList.add("active");
 };
 
 function switchView(viewName) {
@@ -4362,6 +4363,10 @@ window.openSignatureFromPreview = function() {
 
 window.openTeacherModalFromPreview = function() {
     closeDocumentPreview();
+    if (!currentSigningStudent) {
+        console.warn("No currentSigningStudent found in openTeacherModalFromPreview");
+        return;
+    }
     const role = (loggedInUser && loggedInUser.role) ? loggedInUser.role : 
                  (authenticatedAdminPin ? "ADMIN" : "ANY");
     
@@ -4372,7 +4377,8 @@ window.openTeacherModalFromPreview = function() {
         currentSigningStudent.docType, 
         currentSigningStudent.fullDocType, 
         role, 
-        currentSigningStudent.backendKey
+        currentSigningStudent.backendKey,
+        currentSigningStudent.noticeCount
     );
 };
 
