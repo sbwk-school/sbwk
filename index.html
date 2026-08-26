@@ -18,7 +18,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     
     <!-- Custom Style Sheet -->
-    <link rel="stylesheet" href="styles.css?v=supabase_clean_37">
+    <link rel="stylesheet" href="styles.css?v=supabase_clean_45">
 
     <!-- Essential JS Libraries -->
     <script src="https://kit.fontawesome.com/60907d6a5f.js" crossorigin="anonymous" defer></script>
@@ -202,9 +202,9 @@
                 <i class="fa-solid fa-door-open" style="font-size: 18px; width: 24px; text-align: center; color: #10b981;"></i>
                 <span style="font-weight: 500; color: var(--text-main);">อนุญาตออกนอก</span>
             </div>
-            <div class="menu-item" style="cursor: pointer; font-size: 14px; padding: 10px 14px; margin-bottom: 2px;" onclick="alert('กำลังพัฒนา: ระบบคะแนนความประพฤติ');">
-                <i class="fa-solid fa-star" style="font-size: 18px; width: 24px; text-align: center; color: #fbbf24;"></i>
-                <span style="font-weight: 500; color: var(--text-main);">คะแนนประพฤติ</span>
+            <div class="menu-item" style="cursor: pointer; font-size: 14px; padding: 10px 14px; margin-bottom: 2px;" onclick="switchView('clean5s'); document.getElementById('dock-popup-student-affairs').style.display='none'; document.getElementById('sidebar-backdrop').style.display='none';">
+                <i class="fa-solid fa-clipboard-check" style="font-size: 18px; width: 24px; text-align: center; color: #06b6d4;"></i>
+                <span style="font-weight: 500; color: var(--text-main);">ประเมินความสะอาด (5ส.)</span>
             </div>
             <div class="menu-item" style="cursor: pointer; font-size: 14px; padding: 10px 14px; margin-bottom: 2px;" onclick="alert('กำลังพัฒนา: ค้นหาข้อมูลนักเรียน');">
                 <i class="fa-solid fa-id-card" style="font-size: 18px; width: 24px; text-align: center; color: #3b82f6;"></i>
@@ -283,8 +283,8 @@
                     <div id="submenu-student-affairs" style="display: none; flex-direction: column; padding: 4px 12px 4px 44px; gap: 6px; margin-bottom: 8px;">
                         <a href="#" style="font-size: 14px; color: var(--text-muted); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-muted)'" onclick="switchView('home'); document.getElementById('mobile-sidebar-close').click(); return false;"><i class="fa-solid fa-users" style="width: 16px; text-align: center;"></i> เช็คชื่อเข้าแถว</a>
                         <a href="#" style="font-size: 14px; color: var(--text-muted); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-muted)'" onclick="switchView('misconduct'); document.getElementById('mobile-sidebar-close').click(); return false;"><i class="fa-solid fa-clipboard-user" style="width: 16px; text-align: center;"></i> บันทึกพฤติกรรม</a>
-                        <a href="#" style="font-size: 14px; color: var(--text-muted); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-muted)'" onclick="switchView('pk11'); document.getElementById('mobile-sidebar-close').click(); return false;"><i class="fa-solid fa-door-open" style="width: 16px; text-align: center;"></i> ขออนุญาตออกนอก</a>
-                        <a href="#" style="font-size: 14px; color: var(--text-muted); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-muted)'" onclick="alert('กำลังพัฒนา: ระบบคะแนนความประพฤติ'); return false;"><i class="fa-solid fa-star" style="width: 16px; text-align: center;"></i> คะแนนความประพฤติ</a>
+                        <a href="#" style="font-size: 14px; color: var(--text-muted); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-muted)'" onclick="switchView('pk11'); document.getElementById('mobile-sidebar-close').click(); return false;"><i class="fa-solid fa-door-open" style="width: 16px; text-align: center; color: #10b981;"></i> ขออนุญาตออกนอก</a>
+                        <a href="#" style="font-size: 14px; color: var(--text-muted); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-muted)'" onclick="switchView('clean5s'); document.getElementById('mobile-sidebar-close').click(); return false;"><i class="fa-solid fa-clipboard-check" style="width: 16px; text-align: center; color: #06b6d4;"></i> ประเมินความสะอาด (5ส.)</a>
                         <a href="#" style="font-size: 14px; color: var(--text-muted); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-muted)'" onclick="alert('กำลังพัฒนา: ค้นหาข้อมูลนักเรียน'); return false;"><i class="fa-solid fa-id-card" style="width: 16px; text-align: center;"></i> ค้นหาข้อมูล นร.</a>
                         <a href="#" style="font-size: 14px; color: var(--text-muted); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-muted)'" onclick="alert('กำลังพัฒนา: รายงานสถิติ'); return false;"><i class="fa-solid fa-chart-pie" style="width: 16px; text-align: center;"></i> รายงานสถิติ</a>
                         <a href="#" style="font-size: 14px; color: var(--text-muted); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-muted)'" onclick="alert('กำลังพัฒนา: เกียรติบัตร/รางวัล'); return false;"><i class="fa-solid fa-award" style="width: 16px; text-align: center;"></i> เกียรติบัตร/รางวัล</a>
@@ -940,6 +940,122 @@
                     </div>
                 </div>
             </section>
+
+            <!-- SECTION 6: หน้าประเมินความสะอาด 5ส. (Cleanliness & 5S Evaluation) -->
+            <section id="view-clean5s" class="content-view" style="padding-bottom: 95px;">
+                <div class="view-header" style="margin-bottom: 12px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <button onclick="switchView('home')" class="btn-back-to-home" style="background: transparent; border: none; font-size: 20px; color: var(--color-primary); cursor: pointer;" title="กลับหน้าหลัก"><i class="fa-solid fa-arrow-left"></i></button>
+                            <h1 style="margin: 0; font-size: clamp(16px, 4vw, 22px); color: var(--text-main); font-weight: 700;">
+                                <i class="fa-solid fa-clipboard-check" style="color: #06b6d4; margin-right: 6px;"></i> ประเมินความสะอาด (5ส.)
+                            </h1>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="container-app-width" style="max-width: 650px; margin: 0 auto;">
+                    <!-- Top Info Card -->
+                    <div class="clean5s-top-bar">
+                        <div class="clean5s-top-title">
+                            <i class="fa-solid fa-broom" style="color: #FF6B8B;"></i>
+                            <span id="clean5s-header-title">ระบบบันทึกการทำความสะอาด</span>
+                        </div>
+                        <div style="display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin-top: 4px;">
+                            <div class="clean5s-top-badge">
+                                <i class="fa-solid fa-school" style="font-size: 12px;"></i>
+                                <span id="clean5s-school-name">โรงเรียนซับบอนวิทยาคม</span>
+                            </div>
+                            <div class="clean5s-top-badge" style="background: #E6F2FF; color: #1E40AF;">
+                                <i class="fa-solid fa-award" style="font-size: 12px;"></i>
+                                <span id="clean5s-term-text">ภาคเรียนที่ 1 ปีการศึกษา 2569</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sub Navigation Tabs -->
+                    <div class="clean5s-nav-tabs">
+                        <button type="button" class="clean5s-tab-btn active" id="clean5s-tab-classroom" onclick="switchClean5sTab('classroom')">
+                            <i class="fa-solid fa-chalkboard"></i>
+                            <span class="clean5s-tab-desktop">ห้องเรียน</span>
+                            <span class="clean5s-tab-mobile">ห้อง</span>
+                        </button>
+                        <button type="button" class="clean5s-tab-btn" id="clean5s-tab-service" onclick="switchClean5sTab('service')">
+                            <i class="fa-solid fa-broom"></i>
+                            <span class="clean5s-tab-desktop">เขตบริการ</span>
+                            <span class="clean5s-tab-mobile">เขต</span>
+                        </button>
+                        <button type="button" class="clean5s-tab-btn" id="clean5s-tab-daily" onclick="switchClean5sTab('daily')">
+                            <i class="fa-solid fa-calendar-day"></i>
+                            <span>ประจำวัน</span>
+                        </button>
+                        <button type="button" class="clean5s-tab-btn" id="clean5s-tab-summary" onclick="switchClean5sTab('summary')">
+                            <i class="fa-solid fa-trophy"></i>
+                            <span class="clean5s-tab-desktop">สรุปผล</span>
+                            <span class="clean5s-tab-mobile">สรุป</span>
+                        </button>
+                    </div>
+
+                    <!-- Date Picker Calendar Wrapper -->
+                    <div id="clean5s-date-picker-wrapper" class="clean5s-date-box" onclick="openClean5sDatePicker()" title="คลิกเพื่อเปิดปฏิทินเลือกวันที่">
+                        <div class="clean5s-date-icon-circle">
+                            <i class="fa-solid fa-calendar-day"></i>
+                        </div>
+                        <div style="flex: 1; text-align: center;">
+                            <span id="clean5s-date-display" class="clean5s-date-display-text">กำลังโหลดวันที่...</span>
+                        </div>
+                        <div class="clean5s-date-indicator">
+                            <i class="fa-solid fa-chevron-down" style="font-size: 13px; color: #FF7597;"></i>
+                        </div>
+                        <input type="text" id="clean5s-date-picker-input" style="position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0;">
+                    </div>
+
+                    <!-- TAB 1: บันทึกห้องเรียน -->
+                    <div id="clean5s-page-classroom" class="clean5s-page-content" style="display: block;">
+                        <div id="clean5s-classroom-container">
+                            <div style="text-align: center; padding: 30px; color: #64748B;">
+                                <div class="spinner-border text-primary" style="width: 2rem; height: 2rem; margin-bottom: 8px;"></div>
+                                <div>กำลังโหลดข้อมูลห้องเรียน...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: บันทึกเขตบริการ -->
+                    <div id="clean5s-page-service" class="clean5s-page-content" style="display: none;">
+                        <div id="clean5s-service-container">
+                            <div style="text-align: center; padding: 30px; color: #64748B;">
+                                <div class="spinner-border text-success" style="width: 2rem; height: 2rem; margin-bottom: 8px;"></div>
+                                <div>กำลังโหลดข้อมูลเขตบริการ...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: หน้ารายงานประจำวัน -->
+                    <div id="clean5s-page-daily" class="clean5s-page-content" style="display: none;">
+                        <div class="content-card" style="padding: 14px; background: white; border-radius: 14px; border: 1px solid #FFEBE6;">
+                            <div style="text-align: center; border-bottom: 1px solid #F1F5F9; padding-bottom: 8px; margin-bottom: 12px;">
+                                <h3 style="margin: 0; font-size: 1rem; color: #FF6B8B; font-weight: 700;">
+                                    <i class="fa-solid fa-list-check"></i> รายงานความสะอาดประจำวัน
+                                </h3>
+                            </div>
+                            <div id="clean5s-daily-list-container"></div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 4: หน้าสรุปผลคะแนนสะสม (Race Track) -->
+                    <div id="clean5s-page-summary" class="clean5s-page-content" style="display: none;">
+                        <div class="content-card" style="padding: 14px; background: white; border-radius: 14px; border: 1px solid #FFEBE6;">
+                            <div class="filter-section-box" style="display: flex; align-items: center; gap: 8px; background-color: #FFF5F7; padding: 8px 12px; border-radius: 10px; border: 1px dashed #FFB7B2; margin-bottom: 12px;">
+                                <i class="fa-solid fa-sliders" style="color: #FF6B8B;"></i>
+                                <span style="font-weight: 700; font-size: 0.88rem; color: #FF7597; white-space: nowrap;">ช่วงคะแนน:</span>
+                                <select id="clean5s-summary-period-filter" class="form-control" style="flex: 1; border: 1px solid #FFD1DC; border-radius: 8px; font-weight: 700; font-size: 0.88rem; padding: 4px 8px; background: white;" onchange="calculateClean5sAccumulatedScores()">
+                                </select>
+                            </div>
+                            <div id="clean5s-unified-summary-container"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 
@@ -1564,8 +1680,23 @@
             <div id="summary-folder-list"></div>
         </div>
     </div>
-    <!-- Floating Action Button (FAB) สำหรับผ่อนผันนักเรียน (ล่างขวา) - ซ่อนไว้เพราะมีปุ่มด้านบนแล้ว -->
-    <button id="fab-exemption" style="display: none !important;"></button>
+    <!-- Floating Action Button for Clean 5S -->
+    <button type="button" id="clean5s-fab-btn" class="clean5s-fab-btn" onclick="handleClean5sFabClick()" style="display: none;" title="บันทึก / ถ่ายภาพ">
+        <i id="clean5s-fab-icon" class="fa-solid fa-floppy-disk" style="font-size: 20px;"></i>
+    </button>
+
+    <!-- Hidden Rendering Box for HTML2Canvas -->
+    <div id="secretScreenshotBox" class="secret-screenshot-box"></div>
+
+    <!-- Preview Modal for Clean 5S Rendered Image -->
+    <div class="clean5s-preview-modal-overlay" id="clean5sImagePreviewModal">
+        <div class="clean5s-preview-canvas-render-area" id="clean5sModalRenderArea"></div>
+        <div class="clean5s-preview-bottom-action-bar">
+            <button type="button" class="btn-clean5s-preview-pill" onclick="closeClean5sPreviewModal()">
+                <i class="fa-solid fa-xmark"></i> ปิด
+            </button>
+        </div>
+    </div>
 
     <!-- Flatpickr JS & Thai Locale -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -1577,9 +1708,12 @@
     <!-- Supabase JS SDK (v2) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
+    <!-- html2canvas for Clean 5S Image Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
     <!-- Custom Frontend JavaScript -->
-    <script src="config.js?v=supabase_clean_38" charset="utf-8"></script>
-    <script src="documents.js?v=supabase_clean_38" charset="utf-8" defer></script>
-    <script src="app.js?v=supabase_clean_38" charset="utf-8" defer></script>
+    <script src="config.js?v=supabase_clean_45" charset="utf-8"></script>
+    <script src="documents.js?v=supabase_clean_45" charset="utf-8" defer></script>
+    <script src="app.js?v=supabase_clean_45" charset="utf-8" defer></script>
 </body>
 </html>
