@@ -18,10 +18,9 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     
     <!-- Custom Style Sheet -->
-    <link rel="stylesheet" href="styles.css?v=supabase_clean_45">
+    <link rel="stylesheet" href="styles.css?v=supabase_clean_227">
 
     <!-- Essential JS Libraries -->
-    <script src="https://kit.fontawesome.com/60907d6a5f.js" crossorigin="anonymous" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts" defer></script>
     
     <!-- CSS สำหรับควบคุมการปริ้นท์ให้สวยงามและสัดส่วนเป๊ะบนกระดาษ A4 -->
@@ -191,7 +190,7 @@
         </div>
         <div style="display: flex; flex-direction: column; gap: 8px; max-height: calc(70vh - 60px); overflow-y: auto; padding-right: 4px;">
             <div class="menu-item" style="cursor: pointer; font-size: 14px; padding: 10px 14px; margin-bottom: 2px;" onclick="switchView('home'); document.getElementById('dock-popup-student-affairs').style.display='none'; document.getElementById('sidebar-backdrop').style.display='none';">
-                <i class="fa-solid fa-users" style="font-size: 18px; width: 24px; text-align: center; color: var(--color-primary);"></i>
+                <i class="fa-solid fa-users" style="font-size: 18px; width: 24px; text-align: center; color: #4f46e5;"></i>
                 <span style="font-weight: 500; color: var(--text-main);">เช็คชื่อเข้าแถว</span>
             </div>
             <div class="menu-item" style="cursor: pointer; font-size: 14px; padding: 10px 14px; margin-bottom: 2px;" onclick="switchView('misconduct'); document.getElementById('dock-popup-student-affairs').style.display='none'; document.getElementById('sidebar-backdrop').style.display='none';">
@@ -200,35 +199,43 @@
             </div>
             <div class="menu-item" style="cursor: pointer; font-size: 14px; padding: 10px 14px; margin-bottom: 2px;" onclick="switchView('pk11'); document.getElementById('dock-popup-student-affairs').style.display='none'; document.getElementById('sidebar-backdrop').style.display='none';">
                 <i class="fa-solid fa-door-open" style="font-size: 18px; width: 24px; text-align: center; color: #10b981;"></i>
-                <span style="font-weight: 500; color: var(--text-main);">อนุญาตออกนอก</span>
+                <span style="font-weight: 500; color: var(--text-main);">ขออนุญาตออกนอก</span>
             </div>
             <div class="menu-item" style="cursor: pointer; font-size: 14px; padding: 10px 14px; margin-bottom: 2px;" onclick="switchView('clean5s'); document.getElementById('dock-popup-student-affairs').style.display='none'; document.getElementById('sidebar-backdrop').style.display='none';">
                 <i class="fa-solid fa-clipboard-check" style="font-size: 18px; width: 24px; text-align: center; color: #06b6d4;"></i>
                 <span style="font-weight: 500; color: var(--text-main);">ประเมินความสะอาด (5ส.)</span>
             </div>
-            <div class="menu-item" style="cursor: pointer; font-size: 14px; padding: 10px 14px; margin-bottom: 2px;" onclick="alert('กำลังพัฒนา: ค้นหาข้อมูลนักเรียน');">
-                <i class="fa-solid fa-id-card" style="font-size: 18px; width: 24px; text-align: center; color: #3b82f6;"></i>
-                <span style="font-weight: 500; color: var(--text-main);">ค้นหา นร.</span>
+            <div class="menu-item" style="cursor: pointer; font-size: 14px; padding: 10px 14px; margin-bottom: 2px;" onclick="switchView('haircut'); document.getElementById('dock-popup-student-affairs').style.display='none'; document.getElementById('sidebar-backdrop').style.display='none';">
+                <i class="fa-solid fa-scissors" style="font-size: 18px; width: 24px; text-align: center; color: #8b5cf6;"></i>
+                <span style="font-weight: 500; color: var(--text-main);">ตรวจทรงผม</span>
             </div>
-            <div class="menu-item" style="cursor: pointer; font-size: 14px; padding: 10px 14px; margin-bottom: 2px;" onclick="alert('กำลังพัฒนา: รายงานสถิติ');">
-                <i class="fa-solid fa-chart-pie" style="font-size: 18px; width: 24px; text-align: center; color: #8b5cf6;"></i>
-                <span style="font-weight: 500; color: var(--text-main);">รายงานสถิติ</span>
+            <div class="menu-item" style="cursor: pointer; font-size: 14px; padding: 10px 14px; margin-bottom: 2px;" onclick="switchView('mental-eval'); document.getElementById('dock-popup-student-affairs').style.display='none'; document.getElementById('sidebar-backdrop').style.display='none';">
+                <i class="fa-solid fa-brain" style="font-size: 18px; width: 24px; text-align: center; color: #6366f1;"></i>
+                <span style="font-weight: 500; color: var(--text-main);">ประเมินสุขภาพจิต</span>
             </div>
-            <div class="menu-item" style="cursor: pointer; font-size: 14px; padding: 10px 14px; margin-bottom: 2px;" onclick="alert('กำลังพัฒนา: เกียรติบัตร/รางวัล');">
-                <i class="fa-solid fa-award" style="font-size: 18px; width: 24px; text-align: center; color: #ef4444;"></i>
-                <span style="font-weight: 500; color: var(--text-main);">เกียรติบัตร</span>
+            <div class="menu-item" style="cursor: pointer; font-size: 14px; padding: 10px 14px; margin-bottom: 2px;" onclick="switchView('eval-report'); document.getElementById('dock-popup-student-affairs').style.display='none'; document.getElementById('sidebar-backdrop').style.display='none';">
+                <i class="fa-solid fa-chart-pie" style="font-size: 18px; width: 24px; text-align: center; color: #3b82f6;"></i>
+                <span style="font-weight: 500; color: var(--text-main);">รายงานผลการประเมิน</span>
             </div>
-            <div class="menu-item" style="cursor: pointer; font-size: 14px; padding: 10px 14px; margin-bottom: 2px;" onclick="alert('กำลังพัฒนา: คลินิกให้คำปรึกษา');">
-                <i class="fa-solid fa-hand-holding-heart" style="font-size: 18px; width: 24px; text-align: center; color: #ec4899;"></i>
-                <span style="font-weight: 500; color: var(--text-main);">คลินิก</span>
+            <div class="menu-item" style="cursor: pointer; font-size: 14px; padding: 10px 14px; margin-bottom: 2px; opacity: 0.75;" onclick="alert('กำลังพัฒนา: ระบบค้นหาข้อมูลนักเรียน');">
+                <i class="fa-solid fa-id-card" style="font-size: 18px; width: 24px; text-align: center; color: #94a3b8;"></i>
+                <span style="font-weight: 500; color: var(--text-muted);">ค้นหา นร.</span>
             </div>
-            <div class="menu-item" style="cursor: pointer; font-size: 14px; padding: 10px 14px; margin-bottom: 2px;" onclick="alert('กำลังพัฒนา: ติดตามกลุ่มเสี่ยง');">
-                <i class="fa-solid fa-triangle-exclamation" style="font-size: 18px; width: 24px; text-align: center; color: #f43f5e;"></i>
-                <span style="font-weight: 500; color: var(--text-main);">กลุ่มเสี่ยง</span>
+            <div class="menu-item" style="cursor: pointer; font-size: 14px; padding: 10px 14px; margin-bottom: 2px; opacity: 0.75;" onclick="alert('กำลังพัฒนา: ระบบออกเกียรติบัตร/รางวัล');">
+                <i class="fa-solid fa-award" style="font-size: 18px; width: 24px; text-align: center; color: #94a3b8;"></i>
+                <span style="font-weight: 500; color: var(--text-muted);">เกียรติบัตร</span>
             </div>
-            <div class="menu-item" style="cursor: pointer; font-size: 14px; padding: 10px 14px; margin-bottom: 2px;" onclick="alert('กำลังพัฒนา: แบบฟอร์มต่างๆ');">
-                <i class="fa-solid fa-file-signature" style="font-size: 18px; width: 24px; text-align: center; color: #64748b;"></i>
-                <span style="font-weight: 500; color: var(--text-main);">แบบฟอร์ม</span>
+            <div class="menu-item" style="cursor: pointer; font-size: 14px; padding: 10px 14px; margin-bottom: 2px; opacity: 0.75;" onclick="alert('กำลังพัฒนา: คลินิกให้คำปรึกษา');">
+                <i class="fa-solid fa-hand-holding-heart" style="font-size: 18px; width: 24px; text-align: center; color: #94a3b8;"></i>
+                <span style="font-weight: 500; color: var(--text-muted);">คลินิก</span>
+            </div>
+            <div class="menu-item" style="cursor: pointer; font-size: 14px; padding: 10px 14px; margin-bottom: 2px; opacity: 0.75;" onclick="alert('กำลังพัฒนา: ระบบติดตามกลุ่มเสี่ยง');">
+                <i class="fa-solid fa-triangle-exclamation" style="font-size: 18px; width: 24px; text-align: center; color: #94a3b8;"></i>
+                <span style="font-weight: 500; color: var(--text-muted);">กลุ่มเสี่ยง</span>
+            </div>
+            <div class="menu-item" style="cursor: pointer; font-size: 14px; padding: 10px 14px; margin-bottom: 2px; opacity: 0.75;" onclick="alert('กำลังพัฒนา: แบบฟอร์มต่างๆ');">
+                <i class="fa-solid fa-file-signature" style="font-size: 18px; width: 24px; text-align: center; color: #94a3b8;"></i>
+                <span style="font-weight: 500; color: var(--text-muted);">แบบฟอร์ม</span>
             </div>
         </div>
     </div>
@@ -281,16 +288,18 @@
                         <i id="sa-chevron" class="fa-solid fa-chevron-down" style="font-size: 12px; transition: transform 0.3s ease; color: var(--text-muted); margin-top: 4px;"></i>
                     </a>
                     <div id="submenu-student-affairs" style="display: none; flex-direction: column; padding: 4px 12px 4px 44px; gap: 6px; margin-bottom: 8px;">
-                        <a href="#" style="font-size: 14px; color: var(--text-muted); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-muted)'" onclick="switchView('home'); document.getElementById('mobile-sidebar-close').click(); return false;"><i class="fa-solid fa-users" style="width: 16px; text-align: center;"></i> เช็คชื่อเข้าแถว</a>
-                        <a href="#" style="font-size: 14px; color: var(--text-muted); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-muted)'" onclick="switchView('misconduct'); document.getElementById('mobile-sidebar-close').click(); return false;"><i class="fa-solid fa-clipboard-user" style="width: 16px; text-align: center;"></i> บันทึกพฤติกรรม</a>
-                        <a href="#" style="font-size: 14px; color: var(--text-muted); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-muted)'" onclick="switchView('pk11'); document.getElementById('mobile-sidebar-close').click(); return false;"><i class="fa-solid fa-door-open" style="width: 16px; text-align: center; color: #10b981;"></i> ขออนุญาตออกนอก</a>
-                        <a href="#" style="font-size: 14px; color: var(--text-muted); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-muted)'" onclick="switchView('clean5s'); document.getElementById('mobile-sidebar-close').click(); return false;"><i class="fa-solid fa-clipboard-check" style="width: 16px; text-align: center; color: #06b6d4;"></i> ประเมินความสะอาด (5ส.)</a>
-                        <a href="#" style="font-size: 14px; color: var(--text-muted); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-muted)'" onclick="alert('กำลังพัฒนา: ค้นหาข้อมูลนักเรียน'); return false;"><i class="fa-solid fa-id-card" style="width: 16px; text-align: center;"></i> ค้นหาข้อมูล นร.</a>
-                        <a href="#" style="font-size: 14px; color: var(--text-muted); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-muted)'" onclick="alert('กำลังพัฒนา: รายงานสถิติ'); return false;"><i class="fa-solid fa-chart-pie" style="width: 16px; text-align: center;"></i> รายงานสถิติ</a>
-                        <a href="#" style="font-size: 14px; color: var(--text-muted); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-muted)'" onclick="alert('กำลังพัฒนา: เกียรติบัตร/รางวัล'); return false;"><i class="fa-solid fa-award" style="width: 16px; text-align: center;"></i> เกียรติบัตร/รางวัล</a>
-                        <a href="#" style="font-size: 14px; color: var(--text-muted); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-muted)'" onclick="alert('กำลังพัฒนา: คลินิกให้คำปรึกษา'); return false;"><i class="fa-solid fa-hand-holding-heart" style="width: 16px; text-align: center;"></i> คลินิกให้คำปรึกษา</a>
-                        <a href="#" style="font-size: 14px; color: var(--text-muted); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-muted)'" onclick="alert('กำลังพัฒนา: ติดตามกลุ่มเสี่ยง'); return false;"><i class="fa-solid fa-triangle-exclamation" style="width: 16px; text-align: center;"></i> ติดตามกลุ่มเสี่ยง</a>
-                        <a href="#" style="font-size: 14px; color: var(--text-muted); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-muted)'" onclick="alert('กำลังพัฒนา: แบบฟอร์มต่างๆ'); return false;"><i class="fa-solid fa-file-signature" style="width: 16px; text-align: center;"></i> แบบฟอร์มต่างๆ</a>
+                        <a href="#" style="font-size: 14px; color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-main)'" onclick="switchView('home'); document.getElementById('mobile-sidebar-close').click(); return false;"><i class="fa-solid fa-users" style="width: 16px; text-align: center; color: #4f46e5;"></i> เช็คชื่อเข้าแถว</a>
+                        <a href="#" style="font-size: 14px; color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-main)'" onclick="switchView('misconduct'); document.getElementById('mobile-sidebar-close').click(); return false;"><i class="fa-solid fa-clipboard-user" style="width: 16px; text-align: center; color: #f59e0b;"></i> บันทึกพฤติกรรม</a>
+                        <a href="#" style="font-size: 14px; color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-main)'" onclick="switchView('pk11'); document.getElementById('mobile-sidebar-close').click(); return false;"><i class="fa-solid fa-door-open" style="width: 16px; text-align: center; color: #10b981;"></i> ขออนุญาตออกนอก</a>
+                        <a href="#" style="font-size: 14px; color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-main)'" onclick="switchView('clean5s'); document.getElementById('mobile-sidebar-close').click(); return false;"><i class="fa-solid fa-clipboard-check" style="width: 16px; text-align: center; color: #06b6d4;"></i> ประเมินความสะอาด (5ส.)</a>
+                        <a href="#" style="font-size: 14px; color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-main)'" onclick="switchView('haircut'); document.getElementById('mobile-sidebar-close').click(); return false;"><i class="fa-solid fa-scissors" style="width: 16px; text-align: center; color: #8b5cf6;"></i> ตรวจทรงผม</a>
+                        <a href="#" style="font-size: 14px; color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-main)'" onclick="switchView('mental-eval'); document.getElementById('mobile-sidebar-close').click(); return false;"><i class="fa-solid fa-brain" style="width: 16px; text-align: center; color: #6366f1;"></i> ประเมินสุขภาพจิต</a>
+                        <a href="#" style="font-size: 14px; color: var(--text-main); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.color='var(--color-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-main)'" onclick="switchView('eval-report'); document.getElementById('mobile-sidebar-close').click(); return false;"><i class="fa-solid fa-chart-pie" style="width: 16px; text-align: center; color: #3b82f6;"></i> รายงานผลการประเมิน</a>
+                        <a href="#" style="font-size: 14px; color: var(--text-muted); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s; opacity: 0.75;" onmouseover="this.style.background='rgba(148, 163, 184, 0.1)';" onmouseout="this.style.background='transparent';" onclick="alert('กำลังพัฒนา: ระบบค้นหาข้อมูลนักเรียน'); return false;"><i class="fa-solid fa-id-card" style="width: 16px; text-align: center; color: #94a3b8;"></i> ค้นหาข้อมูล นร.</a>
+                        <a href="#" style="font-size: 14px; color: var(--text-muted); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s; opacity: 0.75;" onmouseover="this.style.background='rgba(148, 163, 184, 0.1)';" onmouseout="this.style.background='transparent';" onclick="alert('กำลังพัฒนา: ระบบออกเกียรติบัตร/รางวัล'); return false;"><i class="fa-solid fa-award" style="width: 16px; text-align: center; color: #94a3b8;"></i> เกียรติบัตร/รางวัล</a>
+                        <a href="#" style="font-size: 14px; color: var(--text-muted); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s; opacity: 0.75;" onmouseover="this.style.background='rgba(148, 163, 184, 0.1)';" onmouseout="this.style.background='transparent';" onclick="alert('กำลังพัฒนา: คลินิกให้คำปรึกษา'); return false;"><i class="fa-solid fa-hand-holding-heart" style="width: 16px; text-align: center; color: #94a3b8;"></i> คลินิกให้คำปรึกษา</a>
+                        <a href="#" style="font-size: 14px; color: var(--text-muted); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s; opacity: 0.75;" onmouseover="this.style.background='rgba(148, 163, 184, 0.1)';" onmouseout="this.style.background='transparent';" onclick="alert('กำลังพัฒนา: ระบบติดตามกลุ่มเสี่ยง'); return false;"><i class="fa-solid fa-triangle-exclamation" style="width: 16px; text-align: center; color: #94a3b8;"></i> ติดตามกลุ่มเสี่ยง</a>
+                        <a href="#" style="font-size: 14px; color: var(--text-muted); text-decoration: none; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s; opacity: 0.75;" onmouseover="this.style.background='rgba(148, 163, 184, 0.1)';" onmouseout="this.style.background='transparent';" onclick="alert('กำลังพัฒนา: แบบฟอร์มต่างๆ'); return false;"><i class="fa-solid fa-file-signature" style="width: 16px; text-align: center; color: #94a3b8;"></i> แบบฟอร์มต่างๆ</a>
                     </div>
                 </div>
                 <div class="menu-separator"></div>
@@ -1056,6 +1065,372 @@
                     </div>
                 </div>
             </section>
+
+            <!-- SECTION 8: ระบบตรวจระเบียบทรงผม (Haircut Check - ถอดแบบภาพ media_1788190484692.png 100%) -->
+            <section id="view-haircut" class="content-view">
+                <!-- 1. Top Date Card -->
+                <div onclick="openHaircutCalendar()" style="background: white; border: 1px solid #e0e7ff; border-radius: 20px; padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 16px rgba(0,0,0,0.02); margin-bottom: 14px; cursor: pointer;">
+                    <div style="width: 44px; height: 44px; border-radius: 14px; background: #ede9fe; color: #6366f1; font-size: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <i class="fa-solid fa-calendar-days"></i>
+                    </div>
+
+                    <div style="font-weight: 800; font-size: 16px; color: #1e293b; text-align: center; flex: 1; padding: 0 10px;" id="haircut-date-text">
+                        วันอาทิตย์ที่ 30 สิงหาคม 2569
+                    </div>
+
+                    <div style="width: 36px; height: 36px; border-radius: 50%; background: #f5f3ff; color: #6366f1; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </div>
+                    <input type="text" id="haircut-date-input" style="position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0;">
+                </div>
+
+                <!-- 2. 3 Stat Cards Row (Compact) -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;">
+                    <div style="background: #fdfdfd; border: 1px solid #e9d5ff; border-radius: 14px; padding: 8px 6px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
+                        <div style="font-size: 18px; font-weight: 800; color: #6b21a8; line-height: 1.2;" id="haircut-stat-total-val">0</div>
+                        <div style="font-size: 11px; color: #6b21a8; font-weight: 600; margin-top: 2px; white-space: nowrap;">
+                            <i class="fa-solid fa-user-group"></i> นร. ทั้งหมด
+                        </div>
+                    </div>
+
+                    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 14px; padding: 8px 6px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
+                        <div style="font-size: 18px; font-weight: 800; color: #15803d; line-height: 1.2;" id="haircut-stat-pass-val">0 (100%)</div>
+                        <div style="font-size: 11px; color: #166534; font-weight: 600; margin-top: 2px; white-space: nowrap;">
+                            <i class="fa-solid fa-circle-check"></i> ตัดผมแล้ว / ผ่าน
+                        </div>
+                    </div>
+
+                    <div style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 14px; padding: 8px 6px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
+                        <div style="font-size: 18px; font-weight: 800; color: #c2410c; line-height: 1.2;" id="haircut-stat-fail-val">0</div>
+                        <div style="font-size: 11px; color: #9a3412; font-weight: 600; margin-top: 2px; white-space: nowrap;">
+                            <i class="fa-solid fa-triangle-exclamation"></i> ยังไม่ตัดผม ⚠️
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Search & Filter Card -->
+                <div style="background: white; border-radius: 20px; padding: 16px 18px; margin-bottom: 14px; border: 1px solid #f1f5f9; box-shadow: 0 4px 16px rgba(0,0,0,0.02);">
+                    <!-- Search Box -->
+                    <div style="display: flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 14px; padding: 10px 14px; margin-bottom: 14px;">
+                        <i class="fa-solid fa-magnifying-glass" style="color: #94a3b8; margin-right: 10px; font-size: 16px;"></i>
+                        <input type="text" id="haircut-search-input" placeholder="ค้นหาชื่อ, นามสกุล หรือรหัสนักเรียน..." oninput="renderHaircutList()" style="border: none; background: transparent; outline: none; width: 100%; font-size: 14px; font-family: inherit;">
+                    </div>
+
+                    <!-- Filter Rows -->
+                    <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+                        <!-- ชั้น -->
+                        <div style="display: flex; align-items: center; gap: 6px; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; scrollbar-width: none; -ms-overflow-style: none;" id="haircut-grade-pills">
+                            <span style="font-weight: 700; color: #1e293b; white-space: nowrap; flex-shrink: 0;"><i class="fa-solid fa-layer-group"></i> ชั้น:</span>
+                            <button type="button" class="haircut-pill active" onclick="setHaircutGradeFilter('ALL', this)">ทั้งหมด</button>
+                            <button type="button" class="haircut-pill" onclick="setHaircutGradeFilter('1', this)">ม.1</button>
+                            <button type="button" class="haircut-pill" onclick="setHaircutGradeFilter('2', this)">ม.2</button>
+                            <button type="button" class="haircut-pill" onclick="setHaircutGradeFilter('3', this)">ม.3</button>
+                            <button type="button" class="haircut-pill" onclick="setHaircutGradeFilter('4', this)">ม.4</button>
+                            <button type="button" class="haircut-pill" onclick="setHaircutGradeFilter('5', this)">ม.5</button>
+                            <button type="button" class="haircut-pill" onclick="setHaircutGradeFilter('6', this)">ม.6</button>
+                        </div>
+
+                        <!-- ห้อง -->
+                        <div style="display: flex; align-items: center; gap: 6px; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; scrollbar-width: none; -ms-overflow-style: none;">
+                            <span style="font-weight: 700; color: #1e293b; white-space: nowrap; flex-shrink: 0;"><i class="fa-solid fa-door-open"></i> ห้อง:</span>
+                            <div id="haircut-room-pills-container" style="display: flex; gap: 6px; flex-wrap: nowrap;">
+                                <button type="button" class="haircut-pill active" onclick="setHaircutRoomFilter('ALL', this)">ทุกห้อง</button>
+                            </div>
+                        </div>
+
+                        <div style="border-top: 1px dashed #e2e8f0; margin: 6px 0;"></div>
+
+                        <!-- เพศ -->
+                        <div style="display: flex; align-items: center; gap: 6px; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; scrollbar-width: none; -ms-overflow-style: none;" id="haircut-gender-pills">
+                            <span style="font-weight: 700; color: #1e293b; white-space: nowrap; flex-shrink: 0;">เพศ:</span>
+                            <button type="button" class="haircut-pill active" onclick="setHaircutGenderFilter('ALL', this)">ทั้งหมด</button>
+                            <button type="button" class="haircut-pill" onclick="setHaircutGenderFilter('MALE', this)">👦 ชาย</button>
+                            <button type="button" class="haircut-pill" onclick="setHaircutGenderFilter('FEMALE', this)">👧 หญิง</button>
+                        </div>
+
+                        <!-- สถานะ -->
+                        <div style="display: flex; align-items: center; gap: 6px; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; scrollbar-width: none; -ms-overflow-style: none;" id="haircut-status-pills">
+                            <span style="font-weight: 700; color: #1e293b; white-space: nowrap; flex-shrink: 0;">สถานะ:</span>
+                            <button type="button" class="haircut-pill active" onclick="setHaircutStatusFilter('ALL', this)">ทั้งหมด</button>
+                            <button type="button" class="haircut-pill" onclick="setHaircutStatusFilter('FAIL', this)">⚠️ ยังไม่ตัดผม</button>
+                            <button type="button" class="haircut-pill" onclick="setHaircutStatusFilter('PASS', this)">✅ ตัดแล้ว</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Student List Container -->
+                <div id="haircut-student-list"></div>
+            </section>
+
+            <!-- SECTION 9: ระบบประเมินสุขภาพจิต (3 หมวด: หมวด 1, หมวด 2, หมวด 3) -->
+            <section id="view-mental-eval" class="content-view">
+                <!-- Top Tabs Bar (หมวด 1, หมวด 2, หมวด 3) -->
+                <div class="mental-nav-tabs-wrapper" style="background: #f1f5f9; padding: 6px; border-radius: 20px; display: flex; gap: 6px; margin-bottom: 20px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.05); max-width: 500px; margin-left: auto; margin-right: auto;">
+                    <button type="button" class="mental-nav-tab active" data-cat="1" onclick="switchMentalCategory(1)" style="flex: 1; padding: 10px 14px; border-radius: 16px; border: none; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <i class="fa-solid fa-brain" style="color: #6366f1;"></i> หมวด 1
+                    </button>
+                    <button type="button" class="mental-nav-tab" data-cat="2" onclick="switchMentalCategory(2)" style="flex: 1; padding: 10px 14px; border-radius: 16px; border: none; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <i class="fa-solid fa-chart-pie" style="color: #4f46e5;"></i> หมวด 2
+                    </button>
+                    <button type="button" class="mental-nav-tab" data-cat="3" onclick="switchMentalCategory(3)" style="flex: 1; padding: 10px 14px; border-radius: 16px; border: none; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <i class="fa-solid fa-shield-halved" style="color: #dc2626;"></i> หมวด 3
+                    </button>
+                </div>
+
+                <!-- 1. ข้อมูลผู้รับการประเมิน (ใช้ร่วมกันทุกหมวด 1, 2, 3) -->
+                <div style="margin-bottom: 18px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-user-group" style="color: #334155;"></i> 1. ข้อมูลผู้รับการประเมิน
+                        </h3>
+                        <button type="button" onclick="clearSelectedMentalStudent()" style="border: 1px solid #cbd5e1; background: #f8fafc; color: #475569; border-radius: 8px; padding: 4px 10px; font-size: 12px; font-weight: 600; cursor: pointer;">
+                            <i class="fa-solid fa-rotate"></i> เปลี่ยนคน
+                        </button>
+                    </div>
+
+                    <!-- Search Box if not selected -->
+                    <div id="mental-search-section" style="position: relative;">
+                        <div style="display: flex; align-items: center; background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 8px 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
+                            <i class="fa-solid fa-magnifying-glass" style="color: #94a3b8; margin-right: 10px; font-size: 15px;"></i>
+                            <input type="text" id="mental-student-search-input" placeholder="พิมพ์ชื่อ, นามสกุล หรือรหัสประจำตัวนักเรียน..." oninput="onMentalStudentSearch(this.value)" style="border: none; outline: none; width: 100%; font-size: 14px; font-family: inherit;">
+                        </div>
+                        <div id="mental-student-dropdown" style="display: none; position: absolute; top: 105%; left: 0; right: 0; background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 100; max-height: 250px; overflow-y: auto;"></div>
+                    </div>
+
+                    <!-- Selected Student Card (Compact Single Row for Mobile) -->
+                    <div id="mental-selected-card-section" style="display: none; background: #f8faff; border: 1px solid #c7d2fe; border-radius: 16px; padding: 10px 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                            <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;">
+                                <div id="mental-card-avatar" style="width: 38px; height: 38px; border-radius: 12px; background: white; border: 1px solid #e0e7ff; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.04);">
+                                    👦
+                                </div>
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-weight: 700; font-size: 14px; color: #1e293b; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="mental-card-name">-</div>
+                                    <div style="display: flex; gap: 4px; margin-top: 3px; white-space: nowrap; overflow-x: auto; scrollbar-width: none;">
+                                        <span style="background: white; color: #4f46e5; border: 1px solid #c7d2fe; padding: 2px 6px; border-radius: 6px; font-size: 11px; font-weight: 700; flex-shrink: 0;" id="mental-card-grade">-</span>
+                                        <span style="background: white; color: #4f46e5; border: 1px solid #c7d2fe; padding: 2px 6px; border-radius: 6px; font-size: 11px; font-weight: 700; flex-shrink: 0;" id="mental-card-no">-</span>
+                                        <span style="background: white; color: #64748b; border: 1px solid #e2e8f0; padding: 2px 6px; border-radius: 6px; font-size: 11px; font-weight: 600; flex-shrink: 0;" id="mental-card-id">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" onclick="openStudentHistoryModal()" style="border: 1px solid #818cf8; background: #6366f1; color: white; border-radius: 20px; padding: 6px 12px; font-size: 11px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; white-space: nowrap; box-shadow: 0 2px 6px rgba(99,102,241,0.25);">
+                                <i class="fa-solid fa-clock-rotate-left"></i> ดูประวัติ
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 1. หมวด 1: แบบประเมินความเครียดและอารมณ์ซึมเศร้า (13 ข้อ) -->
+                <div id="mental-cat-1-view">
+                    <!-- Title Box Compact for Mobile -->
+                    <div style="background: white; border-radius: 18px; padding: 12px 14px; margin-bottom: 14px; border: 1px solid #eef2f6; box-shadow: 0 2px 8px rgba(0,0,0,0.02); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;">
+                            <div style="width: 36px; height: 36px; border-radius: 12px; background: #ede9fe; color: #6366f1; font-size: 17px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                <i class="fa-solid fa-brain"></i>
+                            </div>
+                            <div style="font-size: 14px; font-weight: 800; color: #1e293b; line-height: 1.3;">
+                                แบบประเมินความเครียดและอารมณ์ซึมเศร้า
+                            </div>
+                        </div>
+                        <button type="button" onclick="openCriteriaModal()" style="border: 1px solid #c7d2fe; background: #f5f7ff; color: #4f46e5; border-radius: 20px; padding: 5px 12px; font-size: 11px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                            <i class="fa-solid fa-circle-question"></i> เกณฑ์คะแนน
+                        </button>
+                    </div>
+
+                    <!-- 2. ข้อคำถามประเมินตนเอง -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                        <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-list-check" style="color: #6366f1;"></i> ข้อคำถามประเมินตนเอง
+                        </h3>
+                        <span id="mental-counter-badge-cat1" style="background: white; border: 1px solid #e2e8f0; color: #475569; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">
+                            ตอบแล้ว 0 / 13 ข้อ
+                        </span>
+                    </div>
+
+                    <!-- Questions List Container -->
+                    <div id="mental-questions-cat1-container"></div>
+
+                    <!-- Floating Submit Button Bottom (Icon Only) -->
+                    <div style="position: sticky; bottom: 20px; z-index: 50; margin-top: 20px; display: flex; justify-content: flex-end;">
+                        <button type="button" onclick="submitMentalCat1()" title="ส่งแบบประเมิน" style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; border: none; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(99,102,241,0.45); transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
+                            <i class="fa-solid fa-paper-plane" style="margin-left: -2px; margin-top: 1px;"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. หมวด 2: แบบประเมิน SDQ (25 ข้อ) -->
+                <div id="mental-cat-2-view" style="display: none;">
+                    <div style="background: white; border-radius: 18px; padding: 12px 14px; margin-bottom: 14px; border: 1px solid #eef2f6; box-shadow: 0 2px 8px rgba(0,0,0,0.02); display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 36px; height: 36px; border-radius: 12px; background: #e0e7ff; color: #4338ca; font-size: 17px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i class="fa-solid fa-chart-pie"></i>
+                        </div>
+                        <div style="font-size: 14px; font-weight: 800; color: #1e293b; line-height: 1.3;">
+                            แบบประเมิน SDQ (จุดแข็งและจุดอ่อน 25 ข้อ)
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                        <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-list-check" style="color: #4338ca;"></i> ข้อคำถามประเมินตนเอง
+                        </h3>
+                        <span id="mental-counter-badge-cat2" style="background: white; border: 1px solid #e2e8f0; color: #475569; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">
+                            ตอบแล้ว 0 / 25 ข้อ
+                        </span>
+                    </div>
+
+                    <div id="mental-questions-cat2-container"></div>
+
+                    <!-- Floating Submit Button Bottom (Icon Only) -->
+                    <div style="position: sticky; bottom: 20px; z-index: 50; margin-top: 20px; display: flex; justify-content: flex-end;">
+                        <button type="button" onclick="submitMentalCat2()" title="ส่งแบบประเมิน SDQ" style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); color: white; border: none; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(79,70,229,0.45); transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
+                            <i class="fa-solid fa-paper-plane" style="margin-left: -2px; margin-top: 1px;"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3. หมวด 3: แบบประเมินความเสี่ยงต่อการทำร้ายตนเอง (ข้อ 14 นำมาเป็นข้อ 1 + 8Q) -->
+                <div id="mental-cat-3-view" style="display: none;">
+                    <div style="background: white; border-radius: 18px; padding: 12px 14px; margin-bottom: 14px; border: 1px solid #fee2e2; box-shadow: 0 2px 8px rgba(220,38,38,0.03); display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 36px; height: 36px; border-radius: 12px; background: #fee2e2; color: #dc2626; font-size: 17px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i class="fa-solid fa-shield-heart"></i>
+                        </div>
+                        <div style="font-size: 14px; font-weight: 800; color: #991b1b; line-height: 1.3;">
+                            แบบประเมินความเสี่ยงต่อการทำร้ายตนเอง
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                        <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-list-check" style="color: #dc2626;"></i> ข้อคำถามประเมินความเสี่ยง
+                        </h3>
+                        <span id="mental-counter-badge-cat3" style="background: white; border: 1px solid #fee2e2; color: #dc2626; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">
+                            ตอบแล้ว 0 / 9 ข้อ
+                        </span>
+                    </div>
+
+                    <div id="mental-questions-cat3-container"></div>
+
+                    <!-- Floating Submit Button Bottom (Icon Only) -->
+                    <div style="position: sticky; bottom: 20px; z-index: 50; margin-top: 20px; display: flex; justify-content: flex-end;">
+                        <button type="button" onclick="submitMentalCat3()" title="ส่งแบบประเมินความเสี่ยง" style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(220,38,38,0.45); transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
+                            <i class="fa-solid fa-paper-plane" style="margin-left: -2px; margin-top: 1px;"></i>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 10: รายงานผลการประเมิน (Evaluation Report & Dashboard) -->
+            <section id="view-eval-report" class="content-view">
+                <div style="background: white; border-radius: 20px; padding: 22px; margin-bottom: 20px; border: 1px solid #eef2f6; box-shadow: 0 4px 16px rgba(0,0,0,0.03);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 16px; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 44px; height: 44px; border-radius: 14px; background: #eff6ff; color: #2563eb; font-size: 22px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                <i class="fa-solid fa-chart-pie"></i>
+                            </div>
+                            <h2 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: #1e293b;">รายงานผลการประเมินสุขภาพจิต & SDQ</h2>
+                        </div>
+                    </div>
+
+                    <!-- Filters Row -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 18px;">
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;"><i class="fa-solid fa-filter"></i> ระดับชั้น:</label>
+                            <select id="report-grade-select" class="form-control" onchange="renderReportDashboard()" style="font-size: 13px; border-radius: 10px;">
+                                <option value="ALL">ทุกระดับชั้น</option>
+                                <option value="1">ม.1</option>
+                                <option value="2">ม.2</option>
+                                <option value="3">ม.3</option>
+                                <option value="4">ม.4</option>
+                                <option value="5">ม.5</option>
+                                <option value="6">ม.6</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;"><i class="fa-solid fa-door-open"></i> ห้อง:</label>
+                            <select id="report-room-select" class="form-control" onchange="renderReportDashboard()" style="font-size: 13px; border-radius: 10px;">
+                                <option value="ALL">ทุกห้อง</option>
+                                <option value="1">ห้อง 1</option>
+                                <option value="2">ห้อง 2</option>
+                                <option value="3">ห้อง 3</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;"><i class="fa-solid fa-chart-line"></i> ผลประเมินรวม:</label>
+                            <select id="report-risk-select" class="form-control" onchange="renderReportDashboard()" style="font-size: 13px; border-radius: 10px;">
+                                <option value="ALL">ทุกระดับผลประเมิน</option>
+                                <option value="NORMAL">ปกติ / ไม่มีเสี่ยง</option>
+                                <option value="RISK">กลุ่มเสี่ยง</option>
+                                <option value="PROBLEM">กลุ่มมีปัญหา / วิกฤต</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;"><i class="fa-solid fa-magnifying-glass"></i> ค้นหา:</label>
+                            <input type="text" id="report-search-input" class="form-control" placeholder="ชื่อ, นามสกุล หรือรหัส..." oninput="renderReportDashboard()" style="font-size: 13px; border-radius: 10px;">
+                        </div>
+                    </div>
+
+                    <!-- 4 Summary Stat Cards -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;">
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px 14px; display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 36px; height: 36px; border-radius: 10px; background: #e0f2fe; color: #0284c7; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+                                <i class="fa-solid fa-user-group"></i>
+                            </div>
+                            <div>
+                                <div style="font-size: 18px; font-weight: 800; color: #1e293b;" id="report-card-total-val">0</div>
+                                <div style="font-size: 11px; color: #64748b;">ประเมินแล้วทั้งหมด</div>
+                            </div>
+                        </div>
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px 14px; display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 36px; height: 36px; border-radius: 10px; background: #dcfce7; color: #16a34a; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+                                <i class="fa-solid fa-circle-check"></i>
+                            </div>
+                            <div>
+                                <div style="font-size: 18px; font-weight: 800; color: #16a34a;" id="report-card-normal-val">0</div>
+                                <div style="font-size: 11px; color: #64748b;">กลุ่มปกติ</div>
+                            </div>
+                        </div>
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px 14px; display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 36px; height: 36px; border-radius: 10px; background: #fef3c7; color: #d97706; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                            </div>
+                            <div>
+                                <div style="font-size: 18px; font-weight: 800; color: #d97706;" id="report-card-risk-val">0</div>
+                                <div style="font-size: 11px; color: #64748b;">กลุ่มเสี่ยง</div>
+                            </div>
+                        </div>
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px 14px; display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 36px; height: 36px; border-radius: 10px; background: #fee2e2; color: #dc2626; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                            </div>
+                            <div>
+                                <div style="font-size: 18px; font-weight: 800; color: #dc2626;" id="report-card-problem-val">0</div>
+                                <div style="font-size: 11px; color: #64748b;">กลุ่มมีปัญหา / วิกฤต</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Records Table -->
+                <div style="background: white; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 16px rgba(0,0,0,0.02); margin-bottom: 30px;">
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                            <thead style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                                <tr style="font-size: 12px; color: #64748b; font-weight: 700;">
+                                    <th style="padding: 12px 14px; text-align: center;">ลำดับ</th>
+                                    <th style="padding: 12px 14px;">วันที่ประเมิน</th>
+                                    <th style="padding: 12px 14px;">รหัส นร.</th>
+                                    <th style="padding: 12px 14px;">ชื่อ - นามสกุล</th>
+                                    <th style="padding: 12px 14px;">ชั้น/ห้อง</th>
+                                    <th style="padding: 12px 14px;">ผลประเมินรวม</th>
+                                    <th style="padding: 12px 14px;">สัมพันธภาพ (จุดแข็ง)</th>
+                                    <th style="padding: 12px 14px; text-align: center;">จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="report-table-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 
@@ -1670,6 +2045,130 @@
         </div>
     </div>
 
+    <!-- Modal สรุปผลการประเมินสุขภาพจิต -->
+    <div id="modal-eval-result" class="modal-overlay" style="z-index: 2400;">
+        <div class="modal-box" style="max-width: 480px; padding: 24px; border-radius: 18px; text-align: center;">
+            <div style="width: 56px; height: 56px; border-radius: 50%; background: #e0e7ff; color: #4f46e5; display: inline-flex; align-items: center; justify-content: center; font-size: 26px; margin-bottom: 12px;">
+                <i class="fa-solid fa-square-poll-vertical"></i>
+            </div>
+            <h3 style="margin: 0 0 6px 0; font-size: 1.25rem; font-weight: 700; color: #1e293b;">สรุปผลการประเมินสุขภาพจิต</h3>
+            <p id="eval-res-student" style="font-size: 14px; color: var(--text-muted); margin: 0 0 16px 0;">-</p>
+
+            <div style="background: #f8fafc; border-radius: 14px; padding: 16px; border: 1px solid #e2e8f0; margin-bottom: 16px; text-align: left;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="font-size: 13px; color: var(--text-muted);" id="eval-res-type">แบบประเมิน: -</span>
+                    <span style="font-size: 15px; font-weight: 800; color: #1e293b;">คะแนน: <strong id="eval-res-score" style="color: #4f46e5; font-size: 18px;">0</strong></span>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">ระดับผลการประเมิน:</div>
+                    <span id="eval-res-badge" style="display: inline-block; padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 13px; background: #16a34a; color: white;">ปกติ</span>
+                </div>
+                <div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">คำแนะนำ / แนวทางดูแล:</div>
+                    <div id="eval-res-recommendation" style="font-size: 13px; color: #334155; line-height: 1.5; background: white; padding: 10px 12px; border-radius: 8px; border: 1px solid #cbd5e1;">-</div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button type="button" class="btn btn-secondary" onclick="closeEvalResultModal()" style="padding: 10px 20px; font-weight: 600; border-radius: 10px; flex: 1;">ปิดหน้าต่าง</button>
+                <button type="button" class="btn btn-primary" onclick="closeEvalResultModal(); switchView('eval-report');" style="padding: 10px 20px; font-weight: 600; border-radius: 10px; flex: 1; background: #4f46e5; border: none;">
+                    <i class="fa-solid fa-chart-pie"></i> ดูรายงานทั้งหมด
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal คำชี้แจงเกณฑ์คะแนน (ตามภาพ media_1788074983567.png) -->
+    <div id="modal-mental-criteria" class="modal-overlay" style="z-index: 3000;">
+        <div class="modal-box" style="max-width: 440px; padding: 24px 20px; border-radius: 24px; text-align: center; background: #f8fafc;">
+            <div style="width: 56px; height: 56px; border-radius: 18px; background: #6366f1; color: white; display: inline-flex; align-items: center; justify-content: center; font-size: 26px; margin-bottom: 12px; box-shadow: 0 4px 14px rgba(99,102,241,0.35);">
+                <i class="fa-solid fa-brain"></i>
+            </div>
+            <h3 style="margin: 0 0 4px 0; font-size: 1.25rem; font-weight: 800; color: #1e293b;">คำชี้แจงในการทำแบบประเมิน</h3>
+            <p style="margin: 0 0 16px 0; font-size: 13px; color: #64748b;">แบบประเมินความเครียดและอารมณ์ซึมเศร้า</p>
+
+            <div style="background: white; border-radius: 18px; padding: 16px; border: 1px solid #e2e8f0; margin-bottom: 18px; text-align: left;">
+                <div style="font-size: 13px; color: #334155; font-weight: 600; margin-bottom: 12px; display: flex; align-items: flex-start; gap: 6px;">
+                    <i class="fa-solid fa-circle-info" style="color: #6366f1; margin-top: 2px;"></i>
+                    <span>ในช่วง 2 สัปดาห์ที่ผ่านมา รวมทั้งวันนี้ ท่านมีอาการเหล่านี้บ่อยแค่ไหน:</span>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px;">
+                    <div style="display: flex; align-items: center; gap: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px 12px; font-size: 13px;">
+                        <span style="width: 24px; height: 24px; border-radius: 50%; background: #e2e8f0; color: #475569; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px;">0</span>
+                        <span style="color: #334155; font-weight: 500;">ไม่มีเลย / แทบไม่มี</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px 12px; font-size: 13px;">
+                        <span style="width: 24px; height: 24px; border-radius: 50%; background: #fef3c7; color: #d97706; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px;">1</span>
+                        <span style="color: #334155; font-weight: 500;">มีบางครั้ง / บางวัน (1-7 วัน)</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px 12px; font-size: 13px;">
+                        <span style="width: 24px; height: 24px; border-radius: 50%; background: #fed7aa; color: #c2410c; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px;">2</span>
+                        <span style="color: #334155; font-weight: 500;">มีบ่อยครั้ง / บ่อย (&gt; 7 วัน)</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px 12px; font-size: 13px;">
+                        <span style="width: 24px; height: 24px; border-radius: 50%; background: #fee2e2; color: #dc2626; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px;">3</span>
+                        <span style="color: #334155; font-weight: 500;">มีเป็นประจำ / ทุกวัน</span>
+                    </div>
+                </div>
+
+                <div style="background: #eff6ff; border-radius: 10px; padding: 10px 12px; font-size: 12px; color: #1e40af; line-height: 1.4; display: flex; gap: 8px;">
+                    <i class="fa-solid fa-shield-heart" style="color: #3b82f6; font-size: 14px; margin-top: 2px;"></i>
+                    <span>โปรดตอบตามความรู้สึกจริงของท่าน โดยไม่มีคำตอบที่ถูกหรือผิด ข้อมูลจะถูกเก็บเป็นความลับเพื่อการดูแลช่วยเหลืออย่างเหมาะสม</span>
+                </div>
+            </div>
+
+            <button type="button" onclick="closeCriteriaModal()" style="width: 100%; padding: 12px; border-radius: 14px; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; border: none; font-weight: 700; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 14px rgba(99,102,241,0.35);">
+                เริ่มทำแบบประเมิน <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal ประวัติการประเมินแต่ละรอบ (ตามภาพ media_1788183952422.png) -->
+    <div id="modal-mental-student-history" class="modal-overlay" style="z-index: 3000;">
+        <div class="modal-box" style="max-width: 440px; padding: 0; border-radius: 24px; overflow: hidden; background: white;">
+            <div style="padding: 16px 20px; border-bottom: 1px solid #eef2f6; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-clock-rotate-left" style="color: #6366f1;"></i> ประวัติการประเมินแต่ละรอบ
+                </h3>
+                <button type="button" onclick="closeStudentHistoryModal()" style="background: none; border: none; font-size: 16px; color: #64748b; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div style="padding: 20px;">
+                <!-- Student Card Header -->
+                <div style="text-align: center; margin-bottom: 14px;">
+                    <div style="width: 50px; height: 50px; border-radius: 50%; background: #f1f5f9; display: inline-flex; align-items: center; justify-content: center; font-size: 26px; margin-bottom: 6px;">
+                        👦
+                    </div>
+                    <div style="font-weight: 800; font-size: 16px; color: #1e293b;" id="modal-history-name">-</div>
+                    <div style="font-size: 12px; color: #64748b; margin-top: 2px;" id="modal-history-meta">-</div>
+                </div>
+
+                <!-- Category Filter Tabs inside History Modal (หมวดใครหมวดมัน) -->
+                <div id="modal-history-tabs-bar" style="display: flex; gap: 4px; background: #f1f5f9; padding: 4px; border-radius: 12px; margin-bottom: 12px;">
+                    <button type="button" class="modal-history-tab" data-hcat="1" onclick="setModalHistoryCat(1)" style="flex: 1; padding: 6px 2px; border-radius: 8px; border: none; font-size: 11px; font-weight: 700; cursor: pointer; background: transparent; color: #64748b;">หมวด 1</button>
+                    <button type="button" class="modal-history-tab" data-hcat="2" onclick="setModalHistoryCat(2)" style="flex: 1; padding: 6px 2px; border-radius: 8px; border: none; font-size: 11px; font-weight: 700; cursor: pointer; background: transparent; color: #64748b;">หมวด 2</button>
+                    <button type="button" class="modal-history-tab" data-hcat="3" onclick="setModalHistoryCat(3)" style="flex: 1; padding: 6px 2px; border-radius: 8px; border: none; font-size: 11px; font-weight: 700; cursor: pointer; background: transparent; color: #64748b;">หมวด 3</button>
+                    <button type="button" class="modal-history-tab" data-hcat="ALL" onclick="setModalHistoryCat('ALL')" style="flex: 1; padding: 6px 2px; border-radius: 8px; border: none; font-size: 11px; font-weight: 700; cursor: pointer; background: transparent; color: #64748b;">ทั้งหมด</button>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 12px; color: #475569; font-weight: 700;" id="modal-history-round-count">ประวัติการประเมิน (0 รอบ)</span>
+                </div>
+
+                <div id="modal-history-list-container" style="max-height: 320px; overflow-y: auto; padding-right: 2px;">
+                    <!-- Injected by JS -->
+                </div>
+
+                <div style="margin-top: 14px; text-align: center;">
+                    <button type="button" onclick="closeStudentHistoryModal()" style="width: 100%; padding: 10px; border-radius: 12px; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; font-weight: 700; font-size: 14px; cursor: pointer;">
+                        <i class="fa-solid fa-xmark"></i> ปิดหน้าต่าง
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Folder Style Modal (Replaces old tooltip) -->
     <div id="summary-folder-modal" class="folder-modal-backdrop">
         <div class="folder-modal-content">
@@ -1712,8 +2211,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <!-- Custom Frontend JavaScript -->
-    <script src="config.js?v=supabase_clean_45" charset="utf-8"></script>
-    <script src="documents.js?v=supabase_clean_45" charset="utf-8" defer></script>
-    <script src="app.js?v=supabase_clean_45" charset="utf-8" defer></script>
+    <script src="config.js?v=supabase_clean_227" charset="utf-8"></script>
+    <script src="documents.js?v=supabase_clean_227" charset="utf-8" defer></script>
+    <script src="app.js?v=supabase_clean_227" charset="utf-8" defer></script>
+    <script src="features.js?v=supabase_clean_227" charset="utf-8" defer></script>
 </body>
 </html>

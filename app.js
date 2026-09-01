@@ -3335,6 +3335,12 @@ function switchView(viewName) {
             pageTitleEl.innerText = "ขออนุญาตออกนอกบริเวณ (ป.ค.11)";
         } else if (viewName === "clean5s") {
             pageTitleEl.innerText = "ประเมินความสะอาด (5ส.)";
+        } else if (viewName === "haircut") {
+            pageTitleEl.innerText = "ตรวจระเบียบทรงผม";
+        } else if (viewName === "mental-eval") {
+            pageTitleEl.innerText = "แบบประเมินสุขภาพจิตนักเรียน";
+        } else if (viewName === "eval-report") {
+            pageTitleEl.innerText = "รายงานผลการประเมิน";
         } else if (viewName === "attendance-check") {
             pageTitleEl.innerText = `เช็คชื่อห้อง ${selectedRoom ? selectedRoom.grade + '/' + selectedRoom.room : ''}`;
         }
@@ -3358,7 +3364,7 @@ function switchView(viewName) {
     const backBtn = document.getElementById("shortcut-back");
     const backSep = document.getElementById("mobile-back-separator");
     if (backBtn && backSep) {
-        if (viewName === "attendance-check" || viewName === "stats" || viewName === "misconduct" || viewName === "at-risk" || viewName === "pk11" || viewName === "clean5s") {
+        if (viewName === "attendance-check" || viewName === "stats" || viewName === "misconduct" || viewName === "at-risk" || viewName === "pk11" || viewName === "clean5s" || viewName === "haircut" || viewName === "mental-eval" || viewName === "eval-report") {
             backBtn.style.setProperty("display", "flex", "important");
             backSep.style.setProperty("display", "block", "important");
             backBtn.classList.add("show-on-mobile");
@@ -3374,22 +3380,22 @@ function switchView(viewName) {
     }
     
     if (viewName === "home") {
-        document.getElementById("menu-home").classList.add("active");
-        document.getElementById("view-home").classList.add("active");
+        document.getElementById("menu-home")?.classList.add("active");
+        document.getElementById("view-home")?.classList.add("active");
         renderRooms();
     } else if (viewName === "stats") {
-        document.getElementById("menu-stats").classList.add("active");
-        document.getElementById("view-stats").classList.add("active");
+        document.getElementById("menu-stats")?.classList.add("active");
+        document.getElementById("view-stats")?.classList.add("active");
         
         populateStatsRoomDropdown();
         fetchAndRenderStats();
     } else if (viewName === "misconduct") {
-        document.getElementById("menu-misconduct").classList.add("active");
-        document.getElementById("view-misconduct").classList.add("active");
+        document.getElementById("menu-misconduct")?.classList.add("active");
+        document.getElementById("view-misconduct")?.classList.add("active");
         fetchAndRenderMisconducts();
     } else if (viewName === "at-risk") {
-        document.getElementById("menu-at-risk").classList.add("active");
-        document.getElementById("view-at-risk").classList.add("active");
+        document.getElementById("menu-at-risk")?.classList.add("active");
+        document.getElementById("view-at-risk")?.classList.add("active");
         
         // รีเซ็ตตัวกรองห้องและประเภทกลับเป็นแสดงทั้งหมด (ALL) เมื่อเข้าสู่หน้าติดตาม นร
         const roomFilterSelect = document.getElementById('at-risk-room-filter');
@@ -3404,13 +3410,22 @@ function switchView(viewName) {
         
         renderAtRiskStudents();
     } else if (viewName === "pk11") {
-        document.getElementById("view-pk11").classList.add("active");
+        document.getElementById("view-pk11")?.classList.add("active");
         if (typeof loadPk11Records === "function") loadPk11Records();
     } else if (viewName === "clean5s") {
-        document.getElementById("view-clean5s").classList.add("active");
+        document.getElementById("view-clean5s")?.classList.add("active");
         if (typeof initClean5sView === "function") initClean5sView();
+    } else if (viewName === "haircut") {
+        document.getElementById("view-haircut")?.classList.add("active");
+        if (typeof initHaircutView === "function") initHaircutView();
+    } else if (viewName === "mental-eval") {
+        document.getElementById("view-mental-eval")?.classList.add("active");
+        if (typeof switchMentalCategory === "function") switchMentalCategory(window.currentMentalCategory || 1);
+    } else if (viewName === "eval-report") {
+        document.getElementById("view-eval-report")?.classList.add("active");
+        if (typeof initReportView === "function") initReportView();
     } else if (viewName === "attendance-check") {
-        document.getElementById("view-attendance-check").classList.add("active");
+        document.getElementById("view-attendance-check")?.classList.add("active");
     }
     
     // เปิด/ปิด FAB ผ่อนผันเฉพาะเมื่อเปิดหน้าติดตาม นร
@@ -7501,157 +7516,6 @@ window.renderClean5sDailyReport = function(data) {
     }
 };
 
-window.calculateClean5sAccumulatedScores = function() {
-    const filterSelect = document.getElementById("clean5s-summary-period-filter");
-    const filterMode = filterSelect ? filterSelect.value : "all";
-
-    const summaryMap = {};
-    const roomIncidentMap = {};
-
-    clean5sRoomsArray.forEach(room => {
-        summaryMap[room] = 0;
-        roomIncidentMap[room] = { fan: 0, brd: 0, tsh: 0, chr: 0, tls: 0 };
-    });
-
-    if (clean5sCachedRawRecords && clean5sCachedRawRecords.length > 0) {
-        clean5sCachedRawRecords.forEach(record => {
-            if (filterMode !== "all" && record.monthKey !== filterMode) return;
-
-            if (record.roomsData && Array.isArray(record.roomsData)) {
-                record.roomsData.forEach(rData => {
-                    const rName = rData.roomName;
-                    if (summaryMap[rName] !== undefined) {
-                        summaryMap[rName] += parseInt(rData.totalScore, 10) || 0;
-                    }
-
-                    if (roomIncidentMap[rName] !== undefined && rData.missedList && Array.isArray(rData.missedList)) {
-                        rData.missedList.forEach(txt => {
-                            if (!txt) return;
-                            const str = txt.toString();
-                            if (str.includes("พัดลม") || str.includes("ไฟ")) roomIncidentMap[rName].fan++;
-                            else if (str.includes("กระดาน")) roomIncidentMap[rName].brd++;
-                            else if (str.includes("ขยะ")) roomIncidentMap[rName].tsh++;
-                            else if (str.includes("เก้าอี้")) roomIncidentMap[rName].chr++;
-                            else if (str.includes("อุปกรณ์") || str.includes("เก็บของ")) roomIncidentMap[rName].tls++;
-                        });
-                    }
-                });
-            }
-        });
-    }
-
-    const scoredRoomsList = [];
-    let maxScore = 1;
-
-    clean5sRoomsArray.forEach(room => {
-        const scr = summaryMap[room] || 0;
-        if (scr > maxScore) maxScore = scr;
-
-        scoredRoomsList.push({
-            roomName: room,
-            score: scr,
-            stat: roomIncidentMap[room]
-        });
-    });
-
-    scoredRoomsList.sort((a, b) => b.score - a.score);
-
-    let currentRank = 1;
-    for (let i = 0; i < scoredRoomsList.length; i++) {
-        if (i > 0 && scoredRoomsList[i].score < scoredRoomsList[i - 1].score) {
-            currentRank = i + 1;
-        }
-        scoredRoomsList[i].rank = currentRank;
-    }
-
-    const mainContainer = document.getElementById("clean5s-unified-summary-container");
-    if (!mainContainer) return scoredRoomsList;
-    mainContainer.innerHTML = "";
-
-    const trackCard = document.createElement("div");
-    trackCard.className = "race-stadium-card";
-
-    let trackHtml = `
-        <div class="stadium-title">
-            <i class="fa-solid fa-flag-checkered"></i> สรุปคะแนนความสะอาดสะสม
-        </div>
-        <div class="stadium-controls">
-            <button type="button" class="stadium-btn-toggle-all" id="clean5sMasterToggleLanesBtn" onclick="toggleAllClean5sLanesVisibility()">📂 แสดงข้อมูลทั้งหมด</button>
-        </div>
-    `;
-
-    clean5sRoomsArray.forEach((roomName, index) => {
-        const currentRoomObj = scoredRoomsList.find(x => x.roomName === roomName);
-        const currentScore = currentRoomObj ? currentRoomObj.score : 0;
-        const currentRankNum = currentRoomObj ? currentRoomObj.rank : "-";
-        const currentStatObj = currentRoomObj ? currentRoomObj.stat : { fan: 0, brd: 0, tsh: 0, chr: 0, tls: 0 };
-
-        let runPercent = Math.floor((currentScore / maxScore) * 100);
-        if (runPercent < 0) runPercent = 0;
-        if (runPercent > 100) runPercent = 100;
-
-        let badgeRankText = "";
-        if (currentRankNum === 1) badgeRankText = "🥇";
-        else if (currentRankNum === 2) badgeRankText = "🥈";
-        else if (currentRankNum === 3) badgeRankText = "🥉";
-        else {
-            badgeRankText = `<span class="other-rank-circle">${currentRankNum}</span>`;
-        }
-
-        const laneColorIdx = index % 6;
-
-        trackHtml += `
-            <div class="lane-accordion-group">
-                <div class="single-lane lane-color-${laneColorIdx}" onclick="toggleClean5sLaneDetails('${roomName}')">
-                    <div class="lane-lane-line"></div>
-                    <div class="lane-finish-flag"></div>
-                    <div class="lane-runner-flow">
-                        <div class="lane-spacer-drive" style="width: ${runPercent}%;"></div>
-                        <div class="lane-car-badge">
-                            <div class="runner-line-rank">${badgeRankText}</div>
-                            <div class="runner-line-room">${roomName} (${currentScore})</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="lane-collapsed-details" id="clean5s_details_lane_${roomName}">
-                    <div class="sc-horizontal-badge-row">
-                        <div class="sc-badge-unit">
-                            <span class="sc-badge-circle ${currentStatObj.fan > 0 ? 'circle-orange' : 'circle-grey'}">💡</span>
-                            <span class="sc-badge-label">ไม่ปิดไฟ (<span class="sum-orange-num">${currentStatObj.fan}</span>)</span>
-                        </div>
-                        <div class="sc-badge-unit">
-                            <span class="sc-badge-circle ${currentStatObj.brd > 0 ? 'circle-orange' : 'circle-grey'}">📋</span>
-                            <span class="sc-badge-label">ไม่ลบกระดาน (<span class="sum-orange-num">${currentStatObj.brd}</span>)</span>
-                        </div>
-                        <div class="sc-badge-unit">
-                            <span class="sc-badge-circle ${currentStatObj.tsh > 0 ? 'circle-orange' : 'circle-grey'}">🗑️</span>
-                            <span class="sc-badge-label">ไม่เทขยะ (<span class="sum-orange-num">${currentStatObj.tsh}</span>)</span>
-                        </div>
-                        <div class="sc-badge-unit">
-                            <span class="sc-badge-circle ${currentStatObj.chr > 0 ? 'circle-orange' : 'circle-grey'}">🪑</span>
-                            <span class="sc-badge-label">ไม่เก็บเก้าอี้ (<span class="sum-orange-num">${currentStatObj.chr}</span>)</span>
-                        </div>
-                        <div class="sc-badge-unit">
-                            <span class="sc-badge-circle ${currentStatObj.tls > 0 ? 'circle-orange' : 'circle-grey'}">🧹</span>
-                            <span class="sc-badge-label">ไม่เก็บอุปกรณ์ (<span class="sum-orange-num">${currentStatObj.tls}</span>)</span>
-                        </div>
-                        
-                        <div class="sc-badge-unit">
-                            <span class="sc-badge-circle circle-green-star">⭐</span>
-                            <span class="sc-badge-label label-green-star">คะแนนสะสม (<strong>${currentScore}</strong>)</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    });
-    trackCard.innerHTML = trackHtml;
-    mainContainer.appendChild(trackCard);
-
-    clean5sAllExpandedState = false;
-    return scoredRoomsList;
-};
 
 window.toggleClean5sLaneDetails = function(roomName) {
     const element = document.getElementById("clean5s_details_lane_" + roomName);

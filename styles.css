@@ -4231,3 +4231,94 @@ table.at-risk-table {
     cursor: pointer;
 }
 
+/* =========================================================================
+   Mental Health & Evaluation Custom Styles (Replicated from original design)
+   ========================================================================= */
+.mental-nav-tab {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    color: #64748b;
+    background: transparent;
+}
+.mental-nav-tab.active {
+    background: #ffffff !important;
+    color: #4338ca !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+}
+.mental-dropdown-item:hover {
+    background: #f8fafc;
+}
+/* =========================================================================
+   Haircut Inspection Custom Styles (Replicated from media_1788190484692.png)
+   ========================================================================= */
+.haircut-pill {
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    flex-shrink: 0;
+    outline: none;
+}
+.haircut-pill:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+.haircut-pill.active {
+    background: #5850ec !important;
+    color: #ffffff !important;
+    border-color: #5850ec !important;
+    box-shadow: 0 2px 8px rgba(88, 80, 236, 0.35) !important;
+}
+#haircut-grade-pills::-webkit-scrollbar,
+#haircut-room-pills-container::-webkit-scrollbar,
+#haircut-gender-pills::-webkit-scrollbar,
+#haircut-status-pills::-webkit-scrollbar {
+    display: none;
+}
+.haircut-item-card {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    -webkit-tap-highlight-color: transparent !important;
+}
+.haircut-item-card:hover {
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Haircut Switch Styles - Zero Delay, No Grey Highlight */
+.haircut-toggle-switch {
+    -webkit-tap-highlight-color: transparent !important;
+    -webkit-touch-callout: none !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    outline: none !important;
+    border: none !important;
+}
+.haircut-toggle-switch * {
+    -webkit-tap-highlight-color: transparent !important;
+    outline: none !important;
+}
+.haircut-toggle-switch input {
+    position: absolute !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    pointer-events: none !important;
+}
+.haircut-slider {
+    -webkit-tap-highlight-color: transparent !important;
+    outline: none !important;
+    border: none !important;
+}
+.haircut-badge-btn {
+    -webkit-tap-highlight-color: transparent !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    outline: none !important;
+}
+
