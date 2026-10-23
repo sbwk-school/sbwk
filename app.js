@@ -289,16 +289,14 @@ async function loadInitialData() {
             usersRes,
             attendanceRes,
             trackingRes,
-            exemptionsRes,
-            pk11Res
+            exemptionsRes
         ] = await Promise.all([
             db.from('std').select('*').order('grade').order('room').order('no'),
             db.from('hol').select('*').order('date'),
             db.from('usr').select('*').order('id'),
             db.from('att').select('*').eq('date', currentCheckingDate),
             db.from('pk8_pk9').select('*'),
-            db.from('exm').select('*'),
-            db.from('pk11').select('*').order('target_date', { ascending: false })
+            db.from('exm').select('*')
         ]);
         
         // 1. Students (std)
@@ -396,56 +394,8 @@ async function loadInitialData() {
             };
         });
         
-        // 7. PK11 Records (pk11)
-        window.pk11Records = (pk11Res.data || []).map(p => {
-            const st = (typeof students !== 'undefined' && students) ? students.find(s => s.studentId === p.student_id) : null;
-            const hrTeacher = (typeof users !== 'undefined' && users) ? users.find(u => u.code === p.hr_name || u.name === p.hr_name) : null;
-            const saTeacher = (typeof users !== 'undefined' && users) ? users.find(u => u.code === p.sa_name || u.name === p.sa_name) : null;
-            
-            const hasSaSign = !!(p.sa_signature && p.sa_signature.length > 5);
-            const hasHrSign = !!(p.hr_signature && p.hr_signature.length > 5);
-            
-            const hrApproved = (p.hr_status === true || p.hr_status === 'true' || p.hr_status === 'เห็นควรอนุญาต' || p.hr_status === 'TRUE');
-            const hrDisapproved = (p.hr_status === false || p.hr_status === 'false' || p.hr_status === 'ไม่เห็นควรอนุญาต');
-            
-            const saApproved = (p.status === true || p.status === 'true' || p.status === 'อนุญาต' || p.status === 'TRUE');
-            const saDisapproved = (p.status === false || p.status === 'false' || p.status === 'ไม่อนุญาต');
-
-            let finalStatus = "รออนุมัติ";
-            if (saDisapproved && (hasSaSign || p.sa_name)) {
-                finalStatus = "ไม่อนุญาต";
-            } else if (hrDisapproved && (hasHrSign || p.hr_name)) {
-                finalStatus = "ไม่อนุญาต";
-            } else if (hasSaSign && saApproved) {
-                finalStatus = "อนุญาต";
-            } else {
-                finalStatus = "รออนุมัติ";
-            }
-
-            return {
-                id: p.id,
-                targetDate: p.target_date,
-                studentId: p.student_id,
-                studentName: st ? st.fullName : '-',
-                gradeRoom: st ? `${st.grade}/${st.room}` : '-',
-                exitTime: p.exit_time,
-                returnTime: p.return_time,
-                location: p.location,
-                reason: p.reason,
-                studentPhone: p.student_phone,
-                parentName: p.parent_name,
-                relation: p.relation,
-                parentPhone: p.parent_phone,
-                hrName: hrTeacher ? hrTeacher.name : (p.hr_name || '-'),
-                saName: saTeacher ? saTeacher.name : (p.sa_name || '-'),
-                hrStatus: hasHrSign ? (hrApproved ? "เห็นควรอนุญาต" : "ไม่เห็นควรอนุญาต") : (p.hr_status || "รอความเห็น"),
-                status: finalStatus,
-                studentSignature: p.student_signature || '',
-                parentSignature: p.parent_signature || '',
-                hrSignature: p.hr_signature || '',
-                saSignature: p.sa_signature || ''
-            };
-        });
+        // 7. PK11 Records (แยกไปจัดการที่หน้า pk11.html แล้ว เพื่อเพิ่มความเร็วหน้าแรก)
+        window.pk11Records = window.pk11Records || [];
         
         isDeferredDataLoaded = true;
         if (typeof populateTeacherDropdowns === 'function') populateTeacherDropdowns();
@@ -1665,6 +1615,7 @@ function verifyLoginPin(pin) {
     const user = users.find(u => String(u.pin) === String(pin));
     if (user) {
         loggedInUser = user;
+        if (window.SBWK_SESSION) window.SBWK_SESSION.setUser(user);
         document.getElementById("login-section").classList.add("hidden");
         document.getElementById("main-app").classList.remove("hidden");
         showMainApp();
@@ -1759,6 +1710,7 @@ async function verifyPinAndRun() {
         
         if (isAuthorized) {
             loggedInUser = matchedUser; // Set global session
+            if (window.SBWK_SESSION) window.SBWK_SESSION.setUser(matchedUser);
             updateUserSessionUI();
             document.getElementById("modal-pin").classList.remove("active");
             if (pinCallback) pinCallback(pinDigits, userName, userRole);
@@ -1821,8 +1773,25 @@ window.updateUserSessionUI = function() {
 
 window.logout = function() {
     loggedInUser = null;
+    if (window.SBWK_SESSION) window.SBWK_SESSION.clearUser();
+    sessionStorage.removeItem("sbwk_admin_auth");
+    sessionStorage.removeItem("sbwk_admin_user");
     updateUserSessionUI();
     showToast("ออกจากระบบเรียบร้อยแล้ว");
+};
+
+window.triggerAdminFlow = function(e) {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    if (sessionStorage.getItem("sbwk_admin_auth") === "true") {
+        window.location.href = "admin.html";
+        return;
+    }
+    requestLogin("ADMIN", (pin, name) => {
+        if (window.SBWK_SESSION) window.SBWK_SESSION.setUser({ name: name || "Admin", role: "ADMIN", pin: pin });
+        sessionStorage.setItem("sbwk_admin_auth", "true");
+        sessionStorage.setItem("sbwk_admin_user", name || "Admin");
+        window.location.href = "admin.html";
+    });
 };
 
 /**
@@ -2703,6 +2672,7 @@ function renderAdminTeachers() {
         const roleSelectHtml = `
             <select class="admin-role-select" data-name="${u.name}">
                 <option value="TEACHER" ${u.role === 'TEACHER' ? 'selected' : ''}>TEACHER</option>
+                <option value="ACADEMIC" ${u.role === 'ACADEMIC' ? 'selected' : ''}>ACADEMIC (ครูวิชาการ)</option>
                 <option value="STUDENT_AFFAIRS" ${u.role === 'STUDENT_AFFAIRS' ? 'selected' : ''}>STUDENT_AFFAIRS</option>
                 <option value="ADMIN" ${u.role === 'ADMIN' ? 'selected' : ''}>ADMIN</option>
             </select>
@@ -3390,9 +3360,8 @@ function switchView(viewName) {
         populateStatsRoomDropdown();
         fetchAndRenderStats();
     } else if (viewName === "misconduct") {
-        document.getElementById("menu-misconduct")?.classList.add("active");
-        document.getElementById("view-misconduct")?.classList.add("active");
-        fetchAndRenderMisconducts();
+        window.location.href = "misconduct.html";
+        return;
     } else if (viewName === "at-risk") {
         document.getElementById("menu-at-risk")?.classList.add("active");
         document.getElementById("view-at-risk")?.classList.add("active");
@@ -3410,20 +3379,20 @@ function switchView(viewName) {
         
         renderAtRiskStudents();
     } else if (viewName === "pk11") {
-        document.getElementById("view-pk11")?.classList.add("active");
-        if (typeof loadPk11Records === "function") loadPk11Records();
+        window.location.href = "pk11.html";
+        return;
     } else if (viewName === "clean5s") {
-        document.getElementById("view-clean5s")?.classList.add("active");
-        if (typeof initClean5sView === "function") initClean5sView();
+        window.location.href = "clean5s.html";
+        return;
     } else if (viewName === "haircut") {
-        document.getElementById("view-haircut")?.classList.add("active");
-        if (typeof initHaircutView === "function") initHaircutView();
+        window.location.href = "haircut.html";
+        return;
     } else if (viewName === "mental-eval") {
-        document.getElementById("view-mental-eval")?.classList.add("active");
-        if (typeof switchMentalCategory === "function") switchMentalCategory(window.currentMentalCategory || 1);
+        window.location.href = "mental.html?tab=eval";
+        return;
     } else if (viewName === "eval-report") {
-        document.getElementById("view-eval-report")?.classList.add("active");
-        if (typeof initReportView === "function") initReportView();
+        window.location.href = "mental.html?tab=report";
+        return;
     } else if (viewName === "attendance-check") {
         document.getElementById("view-attendance-check")?.classList.add("active");
     }
@@ -5116,7 +5085,8 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".close-modal-trigger").forEach(trigger => {
         trigger.onclick = () => {
             document.querySelectorAll(".modal-overlay").forEach(m => m.classList.remove("active"));
-            document.getElementById("misconduct-student-dropdown").classList.remove("active");
+            const dd = document.getElementById("misconduct-student-dropdown");
+            if (dd) dd.classList.remove("active");
             authenticatedAdminPin = null; // ล้างรหัสผ่านแอดมินเมื่อปิดโมดอลเพื่อความปลอดภัย
         };
     });
@@ -5163,12 +5133,16 @@ document.addEventListener("DOMContentLoaded", () => {
     
     const triggerAdminFlow = (e) => {
         if (e) e.preventDefault();
-        requestLogin("ADMIN", (pinCode) => {
+        requestLogin("ADMIN", (pinCode, userName, role) => {
             authenticatedAdminPin = pinCode;
-            loadHolidaysInAdmin();
-            document.getElementById("modal-admin").classList.add("active");
+            if (window.SBWK_SESSION) window.SBWK_SESSION.setUser({ name: userName || "Admin", role: "ADMIN", pin: pinCode });
+            sessionStorage.setItem("sbwk_admin_auth", "true");
+            sessionStorage.setItem("sbwk_admin_user", userName || "Admin");
+            sessionStorage.setItem("sbwk_admin_pin", pinCode || "9999");
+            window.location.href = "admin.html";
         });
     };
+    window.triggerAdminFlow = triggerAdminFlow;
     
     document.getElementById("menu-admin").onclick = triggerAdminFlow;
     if (document.getElementById("shortcut-shortcut-admin") || document.getElementById("shortcut-admin")) {
@@ -5216,32 +5190,40 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     
-    document.getElementById("btn-open-add-misconduct").onclick = () => {
-        document.getElementById("misconduct-date-input").value = getLocalDateString();
-        document.getElementById("modal-add-misconduct").classList.add("active");
-    };
+    const btnOpenMisconduct = document.getElementById("btn-open-add-misconduct");
+    if (btnOpenMisconduct) {
+        btnOpenMisconduct.onclick = () => {
+            if (document.getElementById("misconduct-date-input")) document.getElementById("misconduct-date-input").value = getLocalDateString();
+            if (document.getElementById("modal-add-misconduct")) document.getElementById("modal-add-misconduct").classList.add("active");
+        };
+    }
     
     if (document.getElementById("misconduct-filter-select")) {
         document.getElementById("misconduct-filter-select").onchange = () => {
-            renderMisconductTable();
+            if (typeof renderMisconductTable === "function") renderMisconductTable();
         };
     }
     
     const misconductSearchInput = document.getElementById("misconduct-student-search");
-    misconductSearchInput.oninput = (e) => {
-        handleMisconductSearch(e.target.value);
-    };
-    misconductSearchInput.onfocus = (e) => {
-        if (e.target.value.trim()) {
-            handleMisconductSearch(e.target.value);
-        }
-    };
+    if (misconductSearchInput) {
+        misconductSearchInput.oninput = (e) => {
+            if (typeof handleMisconductSearch === "function") handleMisconductSearch(e.target.value);
+        };
+        misconductSearchInput.onfocus = (e) => {
+            if (e.target.value.trim() && typeof handleMisconductSearch === "function") {
+                handleMisconductSearch(e.target.value);
+            }
+        };
+    }
     
-    document.getElementById("btn-submit-misconduct").onclick = () => {
-        requestLogin("ANY", (pinCode, userName, role) => {
-            submitMisconduct(pinCode, userName);
-        });
-    };
+    const btnSubmitMisconduct = document.getElementById("btn-submit-misconduct");
+    if (btnSubmitMisconduct) {
+        btnSubmitMisconduct.onclick = () => {
+            requestLogin("ANY", (pinCode, userName, role) => {
+                if (typeof submitMisconduct === "function") submitMisconduct(pinCode, userName);
+            });
+        };
+    }
     
     document.addEventListener("click", (e) => {
         const container = document.querySelector(".searchable-select-container");
@@ -5266,6 +5248,18 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    if (!loggedInUser && window.SBWK_SESSION) {
+        const saved = window.SBWK_SESSION.getUser();
+        if (saved) {
+            loggedInUser = saved;
+            const loginSec = document.getElementById("login-section");
+            const mainApp = document.getElementById("main-app");
+            if (loginSec && mainApp) {
+                loginSec.classList.add("hidden");
+                mainApp.classList.remove("hidden");
+            }
+        }
+    }
     updateUserSessionUI();
     loadInitialData();
 });

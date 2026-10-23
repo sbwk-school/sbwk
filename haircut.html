@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบตรวจระเบียบทรงผม - โรงเรียนซับบอนวิทยาคม</title>
+    
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    
+    <!-- Google Fonts (Outfit & Sarabun) -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Flatpickr CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    
+    <!-- Main Style Sheet -->
+    <link rel="stylesheet" href="styles.css?v=sbwk_clean">
+    
+    <style>
+        body {
+            background: var(--bg-main, #f8fafc);
+            font-family: 'Sarabun', sans-serif;
+            margin: 0;
+            padding: 0;
+            color: var(--text-main, #1e293b);
+        }
+        
+        .haircut-navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 68px;
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color, #e2e8f0);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+        }
+
+        .haircut-nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+        }
+
+        .haircut-nav-logo {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+        }
+
+        .haircut-nav-title h3 {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-main, #1e293b);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .haircut-nav-title p {
+            margin: 0;
+            font-size: 11px;
+            color: var(--text-muted, #64748b);
+        }
+
+        .nav-back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 12px;
+            background: #f1f5f9;
+            color: #475569;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 700;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s;
+        }
+
+        .nav-back-btn:hover {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+
+        .haircut-main-wrapper {
+            max-width: 680px;
+            margin: 88px auto 40px auto;
+            padding: 0 16px;
+        }
+
+        /* Toast Styles */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .toast {
+            background: white;
+            color: #1e293b;
+            padding: 12px 20px;
+            border-radius: 14px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            border-left: 5px solid #10b981;
+            pointer-events: auto;
+            animation: toastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .toast.error {
+            border-left-color: #ef4444;
+        }
+
+        @keyframes toastIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* Loader Overlay */
+        .loader-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 99999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .spinner {
+            width: 44px;
+            height: 44px;
+            border: 4px solid #e2e8f0;
+            border-top: 4px solid #6366f1;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Navbar -->
+    <header class="haircut-navbar">
+        <a href="index.html" class="haircut-nav-brand">
+            <img src="logo.png" alt="Logo" class="haircut-nav-logo">
+            <div class="haircut-nav-title">
+                <h3><i class="fa-solid fa-scissors" style="color: #8b5cf6;"></i> ตรวจระเบียบทรงผม</h3>
+                <p>โรงเรียนซับบอนวิทยาคม</p>
+            </div>
+        </a>
+
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <a href="index.html" class="nav-back-btn">
+                <i class="fa-solid fa-arrow-left"></i>
+                <span>กลับระบบหลัก</span>
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="haircut-main-wrapper">
+        <!-- 1. Top Date Card -->
+        <div onclick="openHaircutCalendar()" style="background: white; border: 1px solid #e0e7ff; border-radius: 20px; padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 16px rgba(0,0,0,0.02); margin-bottom: 14px; cursor: pointer;">
+            <div style="width: 44px; height: 44px; border-radius: 14px; background: #ede9fe; color: #6366f1; font-size: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <i class="fa-solid fa-calendar-days"></i>
+            </div>
+
+            <div style="font-weight: 800; font-size: 16px; color: #1e293b; text-align: center; flex: 1; padding: 0 10px;" id="haircut-date-text">
+                กำลังโหลดวันที่...
+            </div>
+
+            <div style="width: 36px; height: 36px; border-radius: 50%; background: #f5f3ff; color: #6366f1; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">
+                <i class="fa-solid fa-chevron-down"></i>
+            </div>
+            <input type="text" id="haircut-date-input" style="position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0;">
+        </div>
+
+        <!-- 2. 3 Stat Cards Row (Compact) -->
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;">
+            <div style="background: #fdfdfd; border: 1px solid #e9d5ff; border-radius: 14px; padding: 8px 6px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
+                <div style="font-size: 18px; font-weight: 800; color: #6b21a8; line-height: 1.2;" id="haircut-stat-total-val">0</div>
+                <div style="font-size: 11px; color: #6b21a8; font-weight: 600; margin-top: 2px; white-space: nowrap;">
+                    <i class="fa-solid fa-user-group"></i> นร. ทั้งหมด
+                </div>
+            </div>
+
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 14px; padding: 8px 6px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
+                <div style="font-size: 18px; font-weight: 800; color: #15803d; line-height: 1.2;" id="haircut-stat-pass-val">0 (100%)</div>
+                <div style="font-size: 11px; color: #166534; font-weight: 600; margin-top: 2px; white-space: nowrap;">
+                    <i class="fa-solid fa-circle-check"></i> ตัดผมแล้ว / ผ่าน
+                </div>
+            </div>
+
+            <div style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 14px; padding: 8px 6px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
+                <div style="font-size: 18px; font-weight: 800; color: #c2410c; line-height: 1.2;" id="haircut-stat-fail-val">0</div>
+                <div style="font-size: 11px; color: #9a3412; font-weight: 600; margin-top: 2px; white-space: nowrap;">
+                    <i class="fa-solid fa-triangle-exclamation"></i> ยังไม่ตัดผม ⚠️
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Search & Filter Card -->
+        <div style="background: white; border-radius: 20px; padding: 16px 18px; margin-bottom: 14px; border: 1px solid #f1f5f9; box-shadow: 0 4px 16px rgba(0,0,0,0.02);">
+            <!-- Search Box -->
+            <div style="display: flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 14px; padding: 10px 14px; margin-bottom: 14px;">
+                <i class="fa-solid fa-magnifying-glass" style="color: #94a3b8; margin-right: 10px; font-size: 16px;"></i>
+                <input type="text" id="haircut-search-input" placeholder="ค้นหาชื่อ, นามสกุล หรือรหัสนักเรียน..." oninput="renderHaircutList()" style="border: none; background: transparent; outline: none; width: 100%; font-size: 14px; font-family: inherit;">
+            </div>
+
+            <!-- Filter Rows -->
+            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+                <!-- ชั้น -->
+                <div style="display: flex; align-items: center; gap: 6px; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; scrollbar-width: none; -ms-overflow-style: none;" id="haircut-grade-pills">
+                    <span style="font-weight: 700; color: #1e293b; white-space: nowrap; flex-shrink: 0;"><i class="fa-solid fa-layer-group"></i> ชั้น:</span>
+                    <button type="button" class="haircut-pill active" onclick="setHaircutGradeFilter('ALL', this)">ทั้งหมด</button>
+                    <button type="button" class="haircut-pill" onclick="setHaircutGradeFilter('1', this)">ม.1</button>
+                    <button type="button" class="haircut-pill" onclick="setHaircutGradeFilter('2', this)">ม.2</button>
+                    <button type="button" class="haircut-pill" onclick="setHaircutGradeFilter('3', this)">ม.3</button>
+                    <button type="button" class="haircut-pill" onclick="setHaircutGradeFilter('4', this)">ม.4</button>
+                    <button type="button" class="haircut-pill" onclick="setHaircutGradeFilter('5', this)">ม.5</button>
+                    <button type="button" class="haircut-pill" onclick="setHaircutGradeFilter('6', this)">ม.6</button>
+                </div>
+
+                <!-- ห้อง -->
+                <div style="display: flex; align-items: center; gap: 6px; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; scrollbar-width: none; -ms-overflow-style: none;">
+                    <span style="font-weight: 700; color: #1e293b; white-space: nowrap; flex-shrink: 0;"><i class="fa-solid fa-door-open"></i> ห้อง:</span>
+                    <div id="haircut-room-pills-container" style="display: flex; gap: 6px; flex-wrap: nowrap;">
+                        <button type="button" class="haircut-pill active" onclick="setHaircutRoomFilter('ALL', this)">ทุกห้อง</button>
+                    </div>
+                </div>
+
+                <div style="border-top: 1px dashed #e2e8f0; margin: 6px 0;"></div>
+
+                <!-- เพศ -->
+                <div style="display: flex; align-items: center; gap: 6px; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; scrollbar-width: none; -ms-overflow-style: none;" id="haircut-gender-pills">
+                    <span style="font-weight: 700; color: #1e293b; white-space: nowrap; flex-shrink: 0;">เพศ:</span>
+                    <button type="button" class="haircut-pill active" onclick="setHaircutGenderFilter('ALL', this)">ทั้งหมด</button>
+                    <button type="button" class="haircut-pill" onclick="setHaircutGenderFilter('MALE', this)">👦 ชาย</button>
+                    <button type="button" class="haircut-pill" onclick="setHaircutGenderFilter('FEMALE', this)">👧 หญิง</button>
+                </div>
+
+                <!-- สถานะ -->
+                <div style="display: flex; align-items: center; gap: 6px; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; scrollbar-width: none; -ms-overflow-style: none;" id="haircut-status-pills">
+                    <span style="font-weight: 700; color: #1e293b; white-space: nowrap; flex-shrink: 0;">สถานะ:</span>
+                    <button type="button" class="haircut-pill active" onclick="setHaircutStatusFilter('ALL', this)">ทั้งหมด</button>
+                    <button type="button" class="haircut-pill" onclick="setHaircutStatusFilter('FAIL', this)">⚠️ ยังไม่ตัดผม</button>
+                    <button type="button" class="haircut-pill" onclick="setHaircutStatusFilter('PASS', this)">✅ ตัดแล้ว</button>
+                </div>
+            </div>
+
+            <div id="haircut-count-summary-text" style="font-size: 12px; color: #64748b; font-weight: 600; margin-top: 12px; text-align: right;"></div>
+        </div>
+
+        <!-- 4. Student List Container -->
+        <div id="haircut-student-list"></div>
+    </main>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Loader -->
+    <div id="loader-overlay" class="loader-overlay">
+        <div class="spinner"></div>
+        <div style="font-weight: 700; color: #1e293b; font-size: 14px;">กำลังโหลดข้อมูล...</div>
+    </div>
+
+    <!-- Flatpickr JS -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/th.js"></script>
+
+    <!-- Essential Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js?v=sbwk_clean" charset="utf-8"></script>
+    
+    <script>
+        // Standalone Core Helpers for haircut.html
+        window.getSupabase = function() {
+            if (!window._supabaseInstance && typeof window.supabase !== "undefined" && typeof GLOBAL_CONFIG !== "undefined") {
+                window._supabaseInstance = window.supabase.createClient(GLOBAL_CONFIG.supabaseUrl, GLOBAL_CONFIG.supabaseKey);
+            }
+            return window._supabaseInstance;
+        };
+
+        window.showToast = function(message, type = "success") {
+            const container = document.getElementById("toast-container");
+            if (!container) return;
+            const toast = document.createElement("div");
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<i class="fa-solid ${type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i> <span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        };
+
+        window.setLoader = function(isLoading) {
+            const el = document.getElementById("loader-overlay");
+            if (el) el.style.display = isLoading ? "flex" : "none";
+        };
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            if (typeof initHaircutView === 'function') {
+                await initHaircutView();
+            }
+        });
+    </script>
+
+    <!-- Load standalone logic for haircut -->
+    <script src="haircut.js?v=sbwk_clean" charset="utf-8"></script>
+</body>
+</html>

@@ -1,0 +1,2534 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบทะเบียนนักเรียน - โรงเรียนซับบอนวิทยาคม</title>
+    
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    
+    <!-- Google Fonts (Outfit & Sarabun) -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Main Style Sheet -->
+    <link rel="stylesheet" href="styles.css?v=sbwk_clean">
+    
+    <style>
+        body {
+            background: var(--bg-main, #f8fafc);
+            font-family: 'Sarabun', sans-serif;
+            margin: 0;
+            padding: 0;
+            color: var(--text-main, #1e293b);
+        }
+        
+        .students-navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 68px;
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color, #e2e8f0);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+            box-sizing: border-box;
+        }
+
+        .students-nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            min-width: 0;
+            flex-shrink: 1;
+        }
+
+        .students-nav-logo {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+
+        .students-nav-title {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .students-nav-title h3 {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-main, #1e293b);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+            line-height: 1.25;
+        }
+
+        .students-nav-title p {
+            margin: 2px 0 0 0;
+            font-size: 11px;
+            color: var(--text-muted, #64748b);
+            white-space: nowrap;
+            line-height: 1.2;
+        }
+
+        .students-nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .nav-back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 12px;
+            background: #f1f5f9;
+            color: #475569;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 700;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .nav-back-btn:hover {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+
+        .students-container {
+            padding-top: 85px;
+            padding-bottom: 60px;
+            max-width: 1160px;
+            margin: 0 auto;
+            padding-left: 16px;
+            padding-right: 16px;
+        }
+
+        /* Filter Pills */
+        .filter-pill {
+            padding: 6px 14px;
+            border-radius: 20px;
+            background: #f1f5f9;
+            color: #475569;
+            font-size: 13px;
+            font-weight: 600;
+            border: 1px solid #e2e8f0;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .filter-pill:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+
+        .filter-pill.active {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
+        }
+
+        /* Status Toggle Button (เข้า / ออก) */
+        .btn-status-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            user-select: none;
+            border: 1.5px solid transparent;
+        }
+
+        .btn-status-toggle.status-in {
+            background: #ecfdf5;
+            color: #047857;
+            border-color: #a7f3d0;
+        }
+        .btn-status-toggle.status-in:hover {
+            background: #d1fae5;
+            transform: scale(1.03);
+        }
+
+        .btn-status-toggle.status-out {
+            background: #fef2f2;
+            color: #b91c1c;
+            border-color: #fecaca;
+        }
+        .btn-status-toggle.status-out:hover {
+            background: #fee2e2;
+            transform: scale(1.03);
+        }
+
+        /* Student Card / Table */
+        .student-item-row {
+            background: white;
+            border: 1px solid #f1f5f9;
+            border-radius: 16px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            transition: all 0.2s;
+        }
+
+        .student-item-row:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.04);
+        }
+
+        .student-item-row.is-out {
+            opacity: 0.65;
+            background: #f8fafc;
+            border-style: dashed;
+        }
+
+        /* Google Sheet-like Grid Table */
+        .sheet-table-wrapper {
+            background: white;
+            border-radius: 16px;
+            border: 1.5px solid #cbd5e1;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+            overflow-x: auto;
+            position: relative;
+            margin-bottom: 24px;
+        }
+
+        .sheet-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            min-width: 860px;
+            text-align: left;
+        }
+
+        .sheet-table thead th {
+            background: #f8fafc;
+            color: #334155;
+            font-weight: 700;
+            padding: 11px 12px;
+            border: 1px solid #cbd5e1;
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            user-select: none;
+            letter-spacing: 0.2px;
+        }
+
+        .sheet-table tbody td {
+            padding: 7px 10px;
+            border: 1px solid #e2e8f0;
+            vertical-align: middle;
+            color: #1e293b;
+            background: white;
+        }
+
+        .sheet-table tbody tr:hover td {
+            background: #f8fafc;
+        }
+
+        .sheet-table tbody tr.is-out td {
+            background: #fff5f5 !important;
+            color: #991b1b;
+        }
+
+        /* 1. ไฮไลท์แถวที่กำลังทำงานหรือโฟกัสอยู่ (Working / Active Row Highlight) */
+        .sheet-table tbody tr:focus-within td,
+        .sheet-table tbody tr.is-active-row td {
+            background: #fffbeb !important; /* สีเหลืองอำพันนวลตา พรีเมียม เห็นชัดว่ากำลังแก้แถวนี้ */
+            border-top: 2px solid #f59e0b !important;
+            border-bottom: 2px solid #f59e0b !important;
+        }
+        .sheet-table tbody tr:focus-within td:first-child,
+        .sheet-table tbody tr.is-active-row td:first-child {
+            border-left: 6px solid #f59e0b !important;
+        }
+        .sheet-table tbody tr:focus-within td:last-child,
+        .sheet-table tbody tr.is-active-row td:last-child {
+            border-right: 2px solid #f59e0b !important;
+        }
+
+        /* 2. ไฮไลท์แถวที่เพิ่งแทรกใหม่บนสุด (New Row at Top) */
+        .sheet-table tbody tr.is-new-row td {
+            background: #fefce8 !important; /* สีเหลืองอ่อนสะดุดตา ให้รู้ว่าเป็นแถวใหม่ */
+            border-top: 2px dashed #f59e0b !important;
+            border-bottom: 2px dashed #f59e0b !important;
+        }
+        .sheet-table tbody tr.is-new-row td:first-child {
+            border-left: 6px solid #f59e0b !important;
+        }
+        .sheet-table tbody tr.is-new-row td:last-child {
+            border-right: 2px dashed #f59e0b !important;
+        }
+
+        /* เมื่อกำลังกรอกข้อมูลในแถวใหม่ ให้สีเด่นชัดยิ่งขึ้น */
+        .sheet-table tbody tr.is-new-row:focus-within td,
+        .sheet-table tbody tr.is-new-row.is-active-row td {
+            background: #fef9c3 !important;
+            border-top: 2px solid #d97706 !important;
+            border-bottom: 2px solid #d97706 !important;
+        }
+        .sheet-table tbody tr.is-new-row:focus-within td:first-child,
+        .sheet-table tbody tr.is-new-row.is-active-row td:first-child {
+            border-left: 6px solid #d97706 !important;
+        }
+        .sheet-table tbody tr.is-new-row:focus-within td:last-child,
+        .sheet-table tbody tr.is-new-row.is-active-row td:last-child {
+            border-right: 2px solid #d97706 !important;
+        }
+
+        /* ช่องกรอกข้อมูลในแถวที่กำลังทำงาน */
+        .sheet-table tbody tr:focus-within .sheet-input:focus,
+        .sheet-table tbody tr:focus-within .sheet-select:focus {
+            border-color: #f59e0b !important;
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25) !important;
+            background: #ffffff !important;
+        }
+
+        /* แอนิเมชันเปิดตัวแถวใหม่บนสุด */
+        @keyframes highlightNewTopRow {
+            0% {
+                background-color: #fde047;
+                transform: translateY(-6px);
+            }
+            100% {
+                transform: translateY(0);
+            }
+        }
+        .sheet-table tbody tr.is-new-row {
+            animation: highlightNewTopRow 0.35s ease-out;
+        }
+
+        /* 3. แถวที่แก้ไขแบบ Inline ในโหมดปกติ */
+        .sheet-table tbody tr.is-inline-editing td {
+            background: #f0f7ff !important;
+            border-top: 2px solid #4f46e5 !important;
+            border-bottom: 2px solid #4f46e5 !important;
+        }
+        .sheet-table tbody tr.is-inline-editing td:first-child {
+            border-left: 6px solid #4f46e5 !important;
+        }
+        .sheet-table tbody tr.is-inline-editing td:last-child {
+            border-right: 2px solid #4f46e5 !important;
+        }
+
+        .action-icon-btn.btn-save-inline:hover {
+            background: #059669 !important;
+            border-color: #059669 !important;
+            transform: scale(1.08);
+        }
+
+        .action-icon-btn.btn-cancel-inline:hover {
+            background: #e2e8f0 !important;
+            color: #1e293b !important;
+            transform: scale(1.08);
+        }
+
+        /* Sheet Mode Inline Inputs */
+        .sheet-input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 6px 10px;
+            border: 1.5px solid #94a3b8;
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: inherit;
+            background: #ffffff;
+            color: #0f172a;
+            outline: none;
+            transition: all 0.15s ease;
+        }
+
+        .sheet-input:focus {
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.18);
+            background: #ffffff;
+        }
+
+        .sheet-input.sheet-input-id {
+            font-family: monospace;
+            font-weight: 700;
+        }
+
+        .sheet-select {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 6px 8px;
+            border: 1.5px solid #94a3b8;
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: inherit;
+            background: #ffffff;
+            color: #0f172a;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .sheet-select:focus {
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.18);
+        }
+
+        /* Big Edit Button (โหมดแก้ไขใหญ่) */
+        .btn-big-edit {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 20px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 800;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
+            transition: all 0.2s ease;
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+        .btn-big-edit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.45);
+        }
+
+        .btn-big-save {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 22px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 800;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+            transition: all 0.2s ease;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+        .btn-big-save:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.48);
+        }
+
+        /* Banner when in sheet mode */
+        .sheet-mode-banner {
+            background: linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%);
+            border: 1.5px solid #bfdbfe;
+            border-radius: 16px;
+            padding: 14px 20px;
+            margin-bottom: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            box-shadow: 0 2px 10px rgba(79, 70, 229, 0.06);
+            animation: fadeIn 0.2s ease;
+        }
+
+        /* Action Buttons */
+        .action-icon-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #e2e8f0;
+            background: white;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .action-icon-btn:hover {
+            background: #f8fafc;
+            color: #0f172a;
+            border-color: #cbd5e1;
+        }
+        .action-icon-btn.btn-delete:hover {
+            background: #fef2f2;
+            color: #dc2626;
+            border-color: #fca5a5;
+        }
+
+        /* Filter Card Balanced Layout */
+        .filter-card {
+            background: white;
+            border-radius: 18px;
+            padding: 14px 18px;
+            border: 1.5px solid #cbd5e1;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+            margin-bottom: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .filter-main-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+        }
+
+        .filter-search-box {
+            display: flex;
+            align-items: center;
+            background: #f8fafc;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 8px 14px;
+            flex: 1;
+            min-width: 0;
+            transition: all 0.2s ease;
+        }
+
+        .filter-search-box:focus-within {
+            border-color: #4f46e5;
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+        }
+
+        .filter-search-box i {
+            color: #94a3b8;
+            margin-right: 10px;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .filter-search-box input {
+            border: none;
+            background: transparent;
+            outline: none;
+            width: 100%;
+            font-size: 13.5px;
+            font-family: inherit;
+            color: #1e293b;
+        }
+
+        .filter-classroom-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .filter-classroom-box label {
+            font-weight: 700;
+            font-size: 13px;
+            color: #1e293b;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .filter-classroom-box label i {
+            color: #4f46e5;
+        }
+
+        .filter-classroom-box select {
+            padding: 8px 16px;
+            border-radius: 12px;
+            border: 1.5px solid #cbd5e1;
+            background: #ffffff;
+            font-size: 13px;
+            font-weight: 700;
+            color: #1e293b;
+            cursor: pointer;
+            outline: none;
+            font-family: inherit;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            transition: all 0.2s ease;
+        }
+
+        .filter-classroom-box select:focus {
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+        }
+
+        /* 📋 Table Header Toolbar (แทรกหัวตาราง: เพิ่ม นร กับ แก้ไข) */
+        .table-toolbar-row th {
+            background: #f8fafc !important;
+            padding: 8px 14px !important;
+            border: 1px solid #cbd5e1 !important;
+            border-bottom: 2px solid #cbd5e1 !important;
+            text-align: left !important;
+            font-weight: normal !important;
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 12 !important;
+        }
+
+        .table-columns-header-row th {
+            position: sticky !important;
+            top: 45px !important;
+            z-index: 11 !important;
+        }
+
+        .btn-table-header-add {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 9px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            background: #4f46e5;
+            color: white;
+            box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);
+            transition: all 0.15s ease;
+            font-family: inherit;
+        }
+        .btn-table-header-add:hover {
+            background: #4338ca;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(79, 70, 229, 0.35);
+        }
+
+        .btn-table-header-edit {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 9px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            box-shadow: 0 2px 6px rgba(245, 158, 11, 0.25);
+            transition: all 0.15s ease;
+            font-family: inherit;
+        }
+        .btn-table-header-edit:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(245, 158, 11, 0.35);
+        }
+
+        .btn-table-header-upload,
+        .btn-table-header-export {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 9px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            background: #10b981;
+            color: white;
+            box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);
+            transition: all 0.15s ease;
+            font-family: inherit;
+        }
+        .btn-table-header-upload:hover,
+        .btn-table-header-export:hover {
+            background: #059669;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(16, 185, 129, 0.35);
+        }
+
+        .btn-table-header-save {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 16px;
+            border-radius: 9px;
+            font-size: 13px;
+            font-weight: 800;
+            cursor: pointer;
+            border: none;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
+            transition: all 0.15s ease;
+            font-family: inherit;
+        }
+        .btn-table-header-save:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(16, 185, 129, 0.45);
+        }
+
+        .btn-table-header-add-row {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 9px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1.5px solid #4f46e5;
+            background: white;
+            color: #4f46e5;
+            transition: all 0.15s ease;
+            font-family: inherit;
+        }
+        .btn-table-header-add-row:hover {
+            background: #eef2ff;
+        }
+
+        .btn-table-header-cancel {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 9px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            background: #64748b;
+            color: white;
+            transition: all 0.15s ease;
+            font-family: inherit;
+        }
+        .btn-table-header-cancel:hover {
+            background: #475569;
+        }
+
+        .filter-sub-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            border-top: 1px dashed #e2e8f0;
+            padding-top: 10px;
+        }
+
+        .filter-status-pills {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .filter-count-text {
+            font-size: 12.5px;
+            color: #64748b;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        /* 🏷️ Top Main Tab Switcher (แดชบอร์ด | ทะเบียน | ครู) */
+        .students-tab-nav-wrapper {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+
+        .students-tab-nav {
+            display: inline-flex;
+            background: #e2e8f0;
+            padding: 5px;
+            border-radius: 16px;
+            gap: 6px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
+            width: 100%;
+            max-width: 520px;
+        }
+
+        .students-tab-btn {
+            flex: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 18px;
+            border-radius: 12px;
+            border: none;
+            background: transparent;
+            color: #475569;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            font-family: inherit;
+            white-space: nowrap;
+        }
+
+        .students-tab-btn:hover {
+            color: #0f172a;
+            background: rgba(255,255,255,0.5);
+        }
+
+        .students-tab-btn.active {
+            background: #ffffff;
+            color: #4f46e5;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
+        }
+
+        .students-tab-btn.active i {
+            color: #4f46e5;
+        }
+
+        .tab-pane {
+            animation: fadeIn 0.25s ease;
+        }
+
+        /* 📊 Dashboard Styles */
+        .dashboard-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+
+        .kpi-card {
+            background: white;
+            border-radius: 18px;
+            padding: 16px 18px;
+            border: 1px solid #f1f5f9;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.03);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            transition: all 0.2s ease;
+        }
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+        }
+
+        /* 🧑‍🏫 Advisors Room Card */
+        .advisor-room-card {
+            background: white;
+            border-radius: 16px;
+            border: 1.5px solid #e2e8f0;
+            padding: 14px 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            transition: all 0.15s ease;
+        }
+        .advisor-room-card:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        /* 📱 Responsive Mobile Mode (จัดความบาลานซ์สำหรับโหมดโทรศัพท์โดยเฉพาะ) */
+        @media (max-width: 680px) {
+            .students-container {
+                padding-left: 10px !important;
+                padding-right: 10px !important;
+                padding-top: 70px !important;
+            }
+
+            .students-tab-nav {
+                max-width: 100% !important;
+                gap: 4px !important;
+                padding: 4px !important;
+            }
+            .students-tab-btn {
+                padding: 9px 8px !important;
+                font-size: 13px !important;
+                gap: 5px !important;
+            }
+            .dashboard-kpi-grid {
+                grid-template-columns: 1fr !important;
+            }
+
+            .filter-card {
+                padding: 12px 14px;
+                gap: 10px;
+                border-radius: 16px;
+            }
+
+            .filter-main-row {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+
+            .filter-search-box {
+                width: 100%;
+                box-sizing: border-box;
+                padding: 8px 12px;
+            }
+
+            .filter-classroom-box {
+                width: 100%;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .filter-classroom-box label {
+                font-size: 12.5px;
+                flex-shrink: 0;
+            }
+
+            .filter-classroom-box select {
+                flex: 1;
+                width: 100%;
+                box-sizing: border-box;
+                padding: 8px 12px;
+                font-size: 13px;
+            }
+            .filter-sub-row {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+                padding-top: 8px;
+            }
+
+            .filter-status-pills {
+                display: grid;
+                grid-template-columns: 1fr 1.3fr 1fr;
+                gap: 6px;
+                width: 100%;
+            }
+
+            .filter-status-pills .filter-pill {
+                text-align: center;
+                justify-content: center;
+                display: flex;
+                align-items: center;
+                padding: 7px 4px;
+                font-size: 12px;
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            .filter-count-text {
+                text-align: center;
+                width: 100%;
+                font-size: 12px;
+            }
+
+            /* ปุ่มในแถบการจัดการบนมือถือ */
+            .action-header-bar {
+                padding: 12px 14px !important;
+            }
+            #normal-mode-actions {
+                width: 100%;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+            /* เคลียร์ปุ่มแก้ไขซ้ำซ้อนในโหมดโทรศัพท์ (ทศ) ออกทั้งหมด */
+            #sheet-mode-actions {
+                display: none !important;
+            }
+            #sheet-grade-cards-grid {
+                grid-template-columns: 1fr !important;
+            }
+        }
+
+        /* A4 Official Page Sheet (หน้าละ 1 ห้อง ยืดเต็มแผ่น) */
+        .a4-official-page {
+            background: white;
+            width: 794px;
+            min-height: 1120px;
+            padding: 8mm 8mm 6mm 8mm;
+            box-sizing: border-box;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+            border-radius: 4px;
+            margin-bottom: 24px;
+            font-family: 'Sarabun', sans-serif;
+            color: black;
+            page-break-after: always;
+            break-after: page;
+            page-break-inside: avoid;
+            break-inside: avoid;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        .a4-official-page:last-child {
+            margin-bottom: 0;
+            page-break-after: auto;
+            break-after: auto;
+        }
+
+        .a4-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            border: 1px solid black;
+            font-family: 'Sarabun', sans-serif;
+        }
+
+        .a4-table th, .a4-table td {
+            border: 0.6px solid black;
+            box-sizing: border-box;
+        }
+
+        /* Print Media Styling (สำหรับพิมพ์ หรือ Save as PDF แบบ Vector แท้ 100% คมชัดเหมือนพรีวิว) */
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 0; /* ล้างระยะขอบเครื่องพิมพ์ออก เพื่อให้ใช้ระยะขอบจาก CSS เป๊ะ 100% */
+            }
+            html, body {
+                width: 210mm !important;
+                height: auto !important;
+                background: white !important;
+                color: black !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: visible !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            /* ซ่อนส่วนอื่นๆ ของเว็บทั้งหมด เหลือเฉพาะพื้นที่พรีวิว A4 */
+            body > :not(#modal-print-preview) {
+                display: none !important;
+            }
+            #modal-print-preview {
+                position: static !important;
+                display: block !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                background: transparent !important;
+                backdrop-filter: none !important;
+                box-shadow: none !important;
+                overflow: visible !important;
+                max-height: none !important;
+                width: 210mm !important;
+            }
+            #modal-print-preview .modal-box {
+                position: static !important;
+                display: block !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                background: transparent !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                max-width: none !important;
+                max-height: none !important;
+                overflow: visible !important;
+                width: 210mm !important;
+            }
+            #printable-a4-area {
+                position: static !important;
+                width: 210mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: transparent !important;
+                box-shadow: none !important;
+                border: none !important;
+                display: block !important;
+            }
+            .a4-official-page {
+                width: 210mm !important;
+                min-height: 297mm !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                border: none !important;
+                page-break-after: always !important;
+                break-after: page !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                box-sizing: border-box !important;
+                background: white !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .a4-official-page:last-child {
+                page-break-after: auto !important;
+                break-after: auto !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+
+        /* PDF Modal Redesigned Compact Chips */
+        .btn-quick-room {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1.5px solid #cbd5e1;
+            background: white;
+            color: #334155;
+            transition: all 0.15s ease;
+            font-family: inherit;
+        }
+        .btn-quick-room:hover {
+            border-color: #4f46e5;
+            color: #4f46e5;
+            background: #f8fafc;
+        }
+        .btn-quick-room.text-danger:hover {
+            border-color: #ef4444;
+            color: #ef4444;
+            background: #fef2f2;
+        }
+
+        .pdf-grade-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 0;
+            border-bottom: 1px dashed #e2e8f0;
+        }
+        .pdf-grade-row:last-child {
+            border-bottom: none;
+        }
+        .pdf-grade-badge {
+            width: auto;
+            min-width: 92px;
+            padding: 5px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            text-align: center;
+            border: 1.5px solid #cbd5e1;
+            background: #f1f5f9;
+            color: #334155;
+            transition: all 0.15s ease;
+            user-select: none;
+            white-space: nowrap;
+        }
+        .pdf-grade-badge:hover {
+            border-color: #4f46e5;
+            background: #eef2ff;
+            color: #4f46e5;
+        }
+
+        .pdf-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            border-radius: 8px;
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.12s ease;
+            border: 1.5px solid #cbd5e1;
+            background: #ffffff;
+            color: #475569;
+        }
+        .pdf-chip:hover {
+            border-color: #818cf8;
+            background: #f8fafc;
+        }
+        .pdf-chip.active {
+            background: #4f46e5 !important;
+            border-color: #4f46e5 !important;
+            color: #ffffff !important;
+            box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);
+        }
+        .pdf-chip .chip-icon {
+            font-size: 11px;
+            font-weight: 900;
+            display: inline-block;
+            line-height: 1;
+        }
+        .pdf-chip.active .chip-count {
+            color: #c7d2fe !important;
+        }
+        .pdf-chip .chip-count {
+            font-size: 11px;
+            font-weight: 500;
+            color: #94a3b8;
+        }
+
+        /* 🏷️ สไตล์สำหรับแท็ก/ป้ายกำกับสถานะย้ายออกหลังชื่อนักเรียน เช่น (ย้าย รร 20 ก.ย. 2569) */
+        .student-out-badge {
+            display: inline-block;
+            color: #dc2626;
+            background: #fef2f2;
+            border: 1px solid #fca5a5;
+            padding: 1px 7px;
+            border-radius: 6px;
+            font-size: 11.5px;
+            font-weight: 700;
+            margin-left: 6px;
+            letter-spacing: 0.1px;
+            vertical-align: middle;
+            box-shadow: 0 1px 2px rgba(220, 38, 38, 0.08);
+            line-height: 1.3;
+        }
+
+        /* 🔘 ชิปเลือกสาเหตุการออกด่วน */
+        .btn-out-chip {
+            padding: 4px 10px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            color: #475569;
+            font-size: 11.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-family: inherit;
+        }
+        .btn-out-chip:hover {
+            background: #fee2e2;
+            color: #ef4444;
+            border-color: #fca5a5;
+        }
+
+        /* ✨ แอนิเมชันเปิดตัว Modal ให้เด้งนุ่มนวล สวยงามระดับพรีเมียม */
+        @keyframes modalPopIn {
+            0% {
+                opacity: 0;
+                transform: scale(0.92) translateY(12px);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        /* 🔒/🔓 Status Badge in Navbar (Apple Glass Security Pill) */
+        .btn-auth-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            border-radius: 12px;
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1.5px solid #cbd5e1;
+            background: #ffffff;
+            color: #475569;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+            font-family: inherit;
+            white-space: nowrap;
+            user-select: none;
+        }
+        .btn-auth-status:hover {
+            border-color: #4f46e5;
+            color: #4f46e5;
+            background: #f8fafc;
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(79, 70, 229, 0.12);
+        }
+        .btn-auth-status.is-locked i {
+            color: #64748b;
+        }
+        .btn-auth-status .auth-unlock-hint {
+            color: #4f46e5;
+            font-size: 11px;
+            font-weight: 700;
+            margin-left: 2px;
+        }
+        .btn-auth-status .auth-hint-desktop {
+            display: inline;
+        }
+        .btn-auth-status .auth-hint-mobile {
+            display: none;
+        }
+
+        .auth-unlocked-container {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 10px 5px 12px;
+            border-radius: 12px;
+            background: #ecfdf5;
+            border: 1.5px solid #a7f3d0;
+            font-size: 12px;
+            font-weight: 700;
+            color: #065f46;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15);
+            white-space: nowrap;
+            animation: fadeIn 0.2s ease;
+        }
+        .auth-unlocked-container .btn-lock-action {
+            background: #ffffff;
+            border: 1px solid #a7f3d0;
+            color: #059669;
+            padding: 3px 8px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-family: inherit;
+        }
+        .auth-unlocked-container .btn-lock-action:hover {
+            background: #fee2e2;
+            border-color: #fca5a5;
+            color: #dc2626;
+        }
+
+        /* 🧑‍🏫 Teacher Session Container (Logged In - Read Only View) */
+        .auth-teacher-container {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 10px 5px 12px;
+            border-radius: 12px;
+            background: #eef2ff;
+            border: 1.5px solid #c7d2fe;
+            font-size: 12px;
+            font-weight: 700;
+            color: #3730a3;
+            box-shadow: 0 1px 4px rgba(79, 70, 229, 0.08);
+            white-space: nowrap;
+            animation: fadeIn 0.2s ease;
+        }
+        .auth-teacher-container .btn-upgrade-auth {
+            background: #ffffff;
+            border: 1px solid #c7d2fe;
+            color: #4f46e5;
+            padding: 3px 8px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-family: inherit;
+        }
+        .auth-teacher-container .btn-upgrade-auth:hover {
+            background: #4f46e5;
+            color: #ffffff;
+        }
+        .auth-teacher-container .btn-lock-action {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            color: #64748b;
+            padding: 3px 6px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            font-family: inherit;
+        }
+        .auth-teacher-container .btn-lock-action:hover {
+            background: #fee2e2;
+            border-color: #fca5a5;
+            color: #dc2626;
+        }
+
+        /* PIN Pad Modal Tweaks */
+        #modal-student-auth-pin.active {
+            display: flex !important;
+        }
+        #modal-student-auth-pin .pin-pad-container {
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(25px) saturate(180%);
+            -webkit-backdrop-filter: blur(25px) saturate(180%);
+            border-radius: 24px;
+            padding: 26px 24px 20px;
+            width: 320px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.8) inset;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+        }
+
+        @media (max-width: 680px) {
+            .students-navbar {
+                height: 58px;
+                padding: 0 10px;
+            }
+
+            .students-nav-brand {
+                gap: 8px;
+                min-width: 0;
+            }
+
+            .students-nav-logo {
+                width: 32px;
+                height: 32px;
+            }
+
+            .students-nav-title {
+                min-width: 0;
+            }
+
+            .students-nav-title h3 {
+                font-size: 13.5px;
+                gap: 5px;
+                white-space: nowrap;
+                line-height: 1.2;
+            }
+
+            .students-nav-title h3 i {
+                font-size: 13px;
+            }
+
+            .students-nav-title p {
+                font-size: 10px;
+                margin-top: 1px;
+                white-space: nowrap;
+                line-height: 1.2;
+            }
+
+            .brand-school-extra {
+                display: none !important;
+            }
+
+            .students-nav-actions {
+                gap: 6px;
+            }
+
+            .btn-auth-status {
+                padding: 5px 8px;
+                font-size: 11.5px;
+                border-radius: 10px;
+                gap: 4px;
+            }
+
+            .btn-auth-status .auth-label-full {
+                display: none;
+            }
+
+            .btn-auth-status .auth-hint-desktop {
+                display: none !important;
+            }
+
+            .btn-auth-status .auth-hint-mobile {
+                display: inline !important;
+            }
+
+            .auth-unlocked-container {
+                padding: 4px 8px;
+                font-size: 11px;
+                border-radius: 10px;
+                gap: 5px;
+            }
+
+            .auth-unlocked-container .auth-user-role {
+                display: none;
+            }
+
+            .auth-unlocked-container .auth-user-name {
+                max-width: 75px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                display: inline-block;
+                vertical-align: middle;
+            }
+
+            .auth-unlocked-container .btn-lock-action {
+                padding: 2px 6px;
+                font-size: 10.5px;
+                border-radius: 6px;
+            }
+
+            .auth-teacher-container {
+                padding: 4px 7px;
+                font-size: 11px;
+                gap: 4px;
+                border-radius: 10px;
+            }
+            .auth-teacher-container .auth-user-role {
+                display: none;
+            }
+            .auth-teacher-container .auth-user-name {
+                max-width: 70px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                display: inline-block;
+                vertical-align: middle;
+            }
+            .auth-teacher-container .btn-upgrade-auth {
+                padding: 2px 6px;
+                font-size: 10.5px;
+                border-radius: 6px;
+            }
+            .auth-teacher-container .btn-upgrade-auth .upgrade-text {
+                display: none;
+            }
+            .auth-teacher-container .btn-lock-action {
+                padding: 2px 5px;
+                font-size: 10.5px;
+                border-radius: 6px;
+            }
+
+            .nav-back-btn {
+                padding: 5px 9px;
+                font-size: 11.5px;
+                border-radius: 10px;
+                gap: 5px;
+                white-space: nowrap;
+            }
+        }
+
+        @media (max-width: 375px) {
+            .students-navbar {
+                padding: 0 6px;
+            }
+
+            .students-nav-brand {
+                gap: 6px;
+            }
+
+            .students-nav-logo {
+                width: 28px;
+                height: 28px;
+            }
+
+            .students-nav-title h3 {
+                font-size: 12.5px;
+            }
+
+            .students-nav-title p {
+                font-size: 9.5px;
+            }
+
+            .nav-back-btn span {
+                display: none;
+            }
+
+            .nav-back-btn {
+                padding: 6px 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1. Top Navbar (ดีไซน์เดียวกับหน้าหลัก 100%) -->
+    <header class="app-header">
+        <div class="header-left">
+            <a href="index.html" class="header-logo" title="กลับหน้าแรก" style="text-decoration: none;">
+                <img src="logo.png" alt="Logo">
+            </a>
+            <div class="header-titles">
+                <span class="header-title" id="header-school-name">โรงเรียนซับบอนวิทยาคม</span>
+                <span class="header-divider">/</span>
+                <span class="header-subtitle" id="header-page-title">ทะเบียน นร.</span>
+            </div>
+        </div>
+        
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <!-- User Session Banner inside header (เหมือนหน้าหลัก 100%) -->
+            <div id="user-session-banner" class="header-session">
+                <span id="session-logged-out" style="display: flex; align-items: center;">
+                    <i class="fa-solid fa-user-circle" style="color: var(--text-muted, #64748b); margin-right: 4px; font-size: 15px;"></i> 
+                    <button type="button" onclick="handleStudentAuthClick()" style="background: none; border: none; color: var(--color-primary, #4f46e5); cursor: pointer; font-size: inherit; font-weight: bold; text-decoration: underline; padding: 0; font-family: inherit;">เข้าสู่ระบบ</button>
+                </span>
+                <span id="session-logged-in" style="display: none; align-items: center;">
+                    <i class="fa-solid fa-user-circle" style="color: var(--color-primary, #4f46e5); margin-right: 4px; font-size: 15px;"></i> 
+                    <span style="color: var(--text-main, #1e293b); font-weight: 500; margin-right: 8px;" id="user-session-name"></span>
+                    <button type="button" onclick="handleStudentLogoutClick()" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: inherit; text-decoration: underline; padding: 0; font-family: inherit;">ออกจากระบบ</button>
+                </span>
+            </div>
+
+            <!-- ปุ่มคัดลอกลิงก์หน้านี้เพื่อส่งแชร์ -->
+            <button type="button" onclick="copyCurrentPageLink()" title="คัดลอกลิงก์หน้านี้เพื่อส่งแชร์" style="display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.7); border: 1px solid rgba(226, 232, 240, 0.8); color: #4f46e5; font-size: 12.5px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.03); flex-shrink: 0;">
+                <i class="fa-solid fa-share-nodes"></i>
+            </button>
+
+            <!-- ปุ่มกลับหน้าแรก -->
+            <a href="index.html" class="header-home-btn" title="กลับหน้าแรก" style="display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.7); border: 1px solid rgba(226, 232, 240, 0.8); color: #475569; text-decoration: none; font-size: 12.5px; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.03); flex-shrink: 0;">
+                <i class="fa-solid fa-house"></i>
+            </a>
+        </div>
+    </header>
+
+    <!-- 2. Main Page Container -->
+    <main class="students-container">
+
+        <!-- 🏷️ Tab Switcher Navigation Bar (แดชบอร์ด | ทะเบียน | ครู) -->
+        <div class="students-tab-nav-wrapper">
+            <div class="students-tab-nav">
+                <button type="button" class="students-tab-btn active" id="tab-btn-dashboard" onclick="switchStudentsMainTab('dashboard')">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>แดชบอร์ด</span>
+                </button>
+                <button type="button" class="students-tab-btn" id="tab-btn-roster" onclick="switchStudentsMainTab('roster')">
+                    <i class="fa-solid fa-address-book"></i>
+                    <span>ทะเบียน</span>
+                </button>
+                <button type="button" class="students-tab-btn" id="tab-btn-teachers" onclick="switchStudentsMainTab('teachers')">
+                    <i class="fa-solid fa-chalkboard-user"></i>
+                    <span>ครู</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- TAB 1: 📊 แดชบอร์ด (Student Analytics Dashboard)                  -->
+        <!-- ================================================================= -->
+        <section id="tab-content-dashboard" class="tab-pane">
+            <!-- 1. Header Bar for Dashboard -->
+            <div class="dashboard-header-bar" style="background: white; border-radius: 18px; padding: 16px 20px; border: 1px solid #f1f5f9; box-shadow: 0 2px 10px rgba(0,0,0,0.02); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 14px; margin-bottom: 16px;">
+                <div>
+                    <h3 style="margin: 0; font-size: 17px; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-chart-pie" style="color: #4f46e5;"></i> แดชบอร์ดสถิตินักเรียน (Student Analytics)
+                    </h3>
+                    <p style="margin: 3px 0 0; font-size: 12.5px; color: #64748b;">
+                        สถิติจำนวนนักเรียน ชาย-หญิง ช่วงชั้น ม.ต้น / ม.ปลาย และจำแนกรายห้องเรียน Real-time
+                    </p>
+                </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-outline" onclick="printDashboardA4Report()" style="display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 12px; font-weight: 700; font-size: 13px; background: white; border: 1.5px solid #cbd5e1; color: #1e293b; cursor: pointer; transition: all 0.15s ease;">
+                        <i class="fa-solid fa-file-pdf" style="color: #ef4444;"></i> บันทึก PDF
+                    </button>
+                    <button type="button" class="btn btn-outline" onclick="exportDashboardSummaryExcel()" style="display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 12px; font-weight: 700; font-size: 13px; background: white; border: 1.5px solid #cbd5e1; color: #1e293b; cursor: pointer; transition: all 0.15s ease;">
+                        <i class="fa-solid fa-file-excel" style="color: #10b981;"></i> บันทึก Excel
+                    </button>
+                </div>
+            </div>
+
+            <!-- 2. KPI Summary Cards Grid -->
+            <div class="dashboard-kpi-grid">
+                <!-- Card 1: รวมทั้งหมด -->
+                <div class="kpi-card">
+                    <div style="width: 52px; height: 52px; border-radius: 14px; background: #eef2ff; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0;">
+                        <i class="fa-solid fa-users"></i>
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase;">นักเรียนทั้งหมด</div>
+                        <div id="dash-kpi-total" style="font-size: 26px; font-weight: 900; color: #1e293b; line-height: 1.2;">0 <span style="font-size: 14px; font-weight: 600; color: #64748b;">คน</span></div>
+                        <div style="display: flex; gap: 6px; margin-top: 4px; font-size: 11px; font-weight: 700;">
+                            <span style="color: #16a34a; background: #dcfce7; padding: 1px 6px; border-radius: 5px;">🟢 เข้า: <span id="dash-kpi-in">0</span></span>
+                            <span style="color: #dc2626; background: #fee2e2; padding: 1px 6px; border-radius: 5px;">🔴 ออก: <span id="dash-kpi-out">0</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 2: สัดส่วนเพศ ชาย/หญิง -->
+                <div class="kpi-card">
+                    <div style="width: 52px; height: 52px; border-radius: 14px; background: #faf5ff; color: #9333ea; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0;">
+                        <i class="fa-solid fa-venus-mars"></i>
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase;">สัดส่วนเพศ (ชาย / หญิง)</div>
+                        <div style="font-size: 15.5px; font-weight: 800; color: #1e293b; margin-top: 2px; display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+                            <span style="color: #2563eb; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;">
+                                <span>👦</span> <span id="dash-kpi-male">0</span> <span style="font-size: 12px; font-weight: 600; color: #64748b;">คน</span>
+                            </span>
+                            <span style="color: #cbd5e1; font-weight: 400;">|</span>
+                            <span style="color: #ea580c; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;">
+                                <span>👧</span> <span id="dash-kpi-female">0</span> <span style="font-size: 12px; font-weight: 600; color: #64748b;">คน</span>
+                            </span>
+                        </div>
+                        <div style="height: 6px; width: 100%; background: #fed7aa; border-radius: 4px; overflow: hidden; margin-top: 6px; display: flex;">
+                            <div id="dash-gender-bar-male" style="width: 50%; background: #3b82f6; height: 100%; transition: width 0.3s ease;"></div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748b; margin-top: 3px; font-weight: 700;">
+                            <span id="dash-kpi-male-pct" style="color: #2563eb;">ชาย 0%</span>
+                            <span id="dash-kpi-female-pct" style="color: #ea580c;">หญิง 0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 3: มัธยมศึกษาตอนต้น -->
+                <div class="kpi-card">
+                    <div style="width: 52px; height: 52px; border-radius: 14px; background: #ecfdf5; color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0;">
+                        <i class="fa-solid fa-school"></i>
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase;">ม.ต้น (ม.1 - ม.3)</div>
+                        <div id="dash-kpi-junior-total" style="font-size: 24px; font-weight: 900; color: #065f46; line-height: 1.2;">0 <span style="font-size: 13px; font-weight: 600; color: #64748b;">คน</span></div>
+                        <div style="font-size: 11.5px; color: #047857; margin-top: 3px; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                            <span style="white-space: nowrap;">👦 ชาย <span id="dash-kpi-junior-m">0</span></span>
+                            <span style="color: #a7f3d0;">•</span>
+                            <span style="white-space: nowrap;">👧 หญิง <span id="dash-kpi-junior-f">0</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 4: มัธยมศึกษาตอนปลาย -->
+                <div class="kpi-card">
+                    <div style="width: 52px; height: 52px; border-radius: 14px; background: #fffbeb; color: #f59e0b; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0;">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase;">ม.ปลาย (ม.4 - ม.6)</div>
+                        <div id="dash-kpi-senior-total" style="font-size: 24px; font-weight: 900; color: #92400e; line-height: 1.2;">0 <span style="font-size: 13px; font-weight: 600; color: #64748b;">คน</span></div>
+                        <div style="font-size: 11.5px; color: #b45309; margin-top: 3px; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                            <span style="white-space: nowrap;">👦 ชาย <span id="dash-kpi-senior-m">0</span></span>
+                            <span style="color: #fde68a;">•</span>
+                            <span style="white-space: nowrap;">👧 หญิง <span id="dash-kpi-senior-f">0</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Detailed Official Breakdown Matrix Table -->
+            <div style="background: white; border-radius: 18px; border: 1.5px solid #cbd5e1; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.03); margin-bottom: 24px;">
+                <div style="padding: 14px 20px; background: #f8fafc; border-bottom: 1.5px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                    <div>
+                        <div style="font-weight: 800; font-size: 14.5px; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-table-list" style="color: #4f46e5;"></i> ตารางสถิติจำนวนนักเรียนและครูที่ปรึกษาแยกตามห้องเรียน
+                        </div>
+                        <div style="font-size: 11.5px; color: #64748b; margin-top: 2px;">
+                            แสดงยอดรวม ชาย-หญิง กำลังศึกษา และย้ายออก พร้อมครูประจำชั้น
+                        </div>
+                    </div>
+                </div>
+                <div class="sheet-table-wrapper" style="overflow-x: auto;">
+                    <table class="sheet-table" style="width: 100%; table-layout: fixed; border-collapse: collapse; min-width: 820px;">
+                        <thead>
+                            <tr style="position: sticky; top: 0; z-index: 10; background: #f8fafc; border-bottom: 2px solid #cbd5e1;">
+                                <th style="padding: 12px 10px; text-align: center; font-weight: 800; color: #334155; width: 16%; white-space: nowrap;">ระดับชั้น / ห้อง</th>
+                                <th style="padding: 12px 8px; text-align: center; font-weight: 800; color: #2563eb; width: 10%;">👦 ชาย</th>
+                                <th style="padding: 12px 8px; text-align: center; font-weight: 800; color: #ea580c; width: 10%;">👧 หญิง</th>
+                                <th style="padding: 12px 8px; text-align: center; font-weight: 800; color: #16a34a; width: 13%;">🟢 กำลังศึกษา</th>
+                                <th style="padding: 12px 8px; text-align: center; font-weight: 800; color: #dc2626; width: 9%;">🔴 ออก</th>
+                                <th style="padding: 12px 8px; text-align: center; font-weight: 900; color: #1e293b; width: 12%;">รวมทั้งสิ้น</th>
+                                <th style="padding: 12px 16px; text-align: left; font-weight: 800; color: #334155; width: 30%;">ครูที่ปรึกษา</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dash-matrix-tbody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- TAB 2: 📋 ทะเบียน (Students Roster & Management)                  -->
+        <!-- ================================================================= -->
+        <section id="tab-content-roster" class="tab-pane" style="display: none;">
+            <!-- Action Header Bar (ปุ่มเพิ่ม, นำเข้า, ปริ้นท์, ส่งออก และปุ่มแก้ไขใหญ่) -->
+            <div class="action-header-bar" style="background: white; border-radius: 18px; padding: 14px 18px; border: 1px solid #f1f5f9; box-shadow: 0 2px 10px rgba(0,0,0,0.02); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px;">
+                <div style="font-weight: 700; font-size: 16px; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-address-book" style="color: #4f46e5;"></i> ทะเบียนนักเรียน (เรียงตามหลังบ้าน)
+                </div>
+
+                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+                    <!-- Normal Mode Action Group -->
+                    <div id="normal-mode-actions" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+                        <!-- Dropdown Popover สำหรับ Excel & Sheet (ป็อปอัพเล็กๆ ขึ้นตรงปุ่ม) -->
+                        <div style="position: relative; display: inline-block;">
+                            <button type="button" class="btn btn-outline" id="btn-excel-sheet" onclick="toggleExcelSheetPopover(event)" title="เปิด Google Sheet หรือดาวน์โหลดไฟล์ Excel" style="display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 12px; font-weight: 700; font-size: 13px; background: white; border: 1.5px solid #cbd5e1; color: #1e293b; cursor: pointer; transition: all 0.15s ease;">
+                                <i class="fa-solid fa-file-excel" style="color: #10b981;"></i> Excel & Sheet
+                                <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: #64748b; margin-left: 2px;"></i>
+                            </button>
+
+                            <!-- Popover กล่องเล็กแสดงตรงปุ่ม -->
+                            <div id="excel-sheet-popover" style="display: none; position: absolute; top: calc(100% + 6px); left: 0; min-width: 195px; background: white; border-radius: 14px; box-shadow: 0 10px 25px rgba(0,0,0,0.12), 0 4px 10px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; padding: 6px; z-index: 1000;">
+                                <!-- ตัวเลือกที่ 1: เปิด Google Sheet -->
+                                <button type="button" onclick="handleChoiceOpenSheet(event)" style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; border: none; background: transparent; border-radius: 10px; text-align: left; cursor: pointer; transition: background 0.15s ease; color: #1e293b; font-family: inherit;" onmouseover="this.style.background='#f0fdf4'" onmouseout="this.style.background='transparent'">
+                                    <div style="width: 32px; height: 32px; border-radius: 8px; background: #ecfdf5; color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">
+                                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <div style="font-weight: 700; font-size: 13.5px; color: #065f46; line-height: 1.2;">เปิด</div>
+                                        <div style="font-size: 11px; color: #047857; margin-top: 2px; line-height: 1.2;">Google Sheet</div>
+                                    </div>
+                                </button>
+
+                                <div style="height: 1px; background: #f1f5f9; margin: 4px 6px;"></div>
+
+                                <!-- ตัวเลือกที่ 2: โหลดไฟล์ Excel -->
+                                <button type="button" onclick="handleChoiceDownloadExcel(event)" style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; border: none; background: transparent; border-radius: 10px; text-align: left; cursor: pointer; transition: background 0.15s ease; color: #1e293b; font-family: inherit;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                                    <div style="width: 32px; height: 32px; border-radius: 8px; background: #eff6ff; color: #3b82f6; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">
+                                        <i class="fa-solid fa-cloud-arrow-down"></i>
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <div style="font-weight: 700; font-size: 13.5px; color: #1e293b; line-height: 1.2;">โหลด</div>
+                                        <div style="font-size: 11px; color: #64748b; margin-top: 2px; line-height: 1.2;">ไฟล์ Excel (.xlsx)</div>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn btn-outline" onclick="openSelectPdfRoomsModal()" style="display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 12px; font-weight: 700; font-size: 13px; background: white; border: 1.5px solid #cbd5e1; color: #1e293b; cursor: pointer; transition: all 0.15s ease;">
+                            <i class="fa-solid fa-file-pdf" style="color: #ef4444;"></i> พิมพ์ใบรายชื่อ PDF
+                        </button>
+                    </div>
+
+                    <!-- Sheet Edit Mode Action Group (จะแสดงเมื่อเปิดโหมดตารางแก้ไข) -->
+                    <div id="sheet-mode-actions" style="display: none; align-items: center; flex-wrap: wrap; gap: 8px;">
+                        <button type="button" class="btn-big-save" onclick="saveAllSheetChanges()" title="บันทึกการแก้ไขทั้งหมดลงฐานข้อมูล">
+                            <i class="fa-solid fa-floppy-disk"></i> บันทึกทั้งหมด (Save All)
+                        </button>
+
+                        <button type="button" class="btn btn-outline" onclick="autoSortAndRenumberStudents()" title="จัดเรียงเลขที่ในตารางตามเพศและรหัสนักเรียน" style="display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 12px; font-weight: 700; font-size: 13px; background: white; border: 1.5px solid #cbd5e1; color: #1e293b; cursor: pointer;">
+                            <i class="fa-solid fa-arrow-down-1-9" style="color: #4f46e5;"></i> เรียงเลขที่ในตาราง
+                        </button>
+
+                        <button type="button" class="btn btn-outline" onclick="addNewSheetRow()" style="display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 12px; font-weight: 700; font-size: 13px; background: white; border: 1.5px solid #cbd5e1; color: #1e293b; cursor: pointer;">
+                            <i class="fa-solid fa-plus"></i> แทรกแถวใหม่ (+ Row)
+                        </button>
+
+                        <button type="button" class="btn btn-secondary" onclick="toggleSheetEditMode()" style="display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 12px; font-weight: 700; font-size: 13px; background: #64748b; border: none; color: white; cursor: pointer;">
+                            <i class="fa-solid fa-xmark"></i> ออกจากโหมดแก้ไข
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter & Search Section (บาลานซ์สวยงามทั้งจอคอมและจอโทรศัพท์) -->
+            <div class="filter-card">
+                <!-- Row 1: ช่องค้นหา + ดรอปดาวน์ชั้น/ห้อง (เช่น ม.1/1) -->
+                <div class="filter-main-row">
+                    <!-- ช่องค้นหา -->
+                    <div class="filter-search-box">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="student-search-input" placeholder="ค้นหาชื่อ, นามสกุล หรือรหัสนักเรียน..." oninput="handleStudentSearchInput(this)">
+                    </div>
+
+                    <!-- ชั้น/ห้อง (ดรอปดาวน์ เช่น ม.1/1) -->
+                    <div class="filter-classroom-box">
+                        <label for="class-room-select">
+                            <i class="fa-solid fa-graduation-cap"></i> ชั้น/ห้อง:
+                        </label>
+                        <select id="class-room-select" onchange="onClassRoomFilterChange(this.value)">
+                            <option value="ALL">🏫 ทุกระดับชั้น / ทุกห้อง</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Row 2: สถานะ (เข้า/ออก) + จำนวนนับสรุป (บาลานซ์เต็มแถว) -->
+                <div class="filter-sub-row">
+                    <!-- สถานะ (เข้า / ออก) -->
+                    <div class="filter-status-pills" id="status-pills">
+                        <button type="button" class="filter-pill active" onclick="setStatusFilter('ALL', this)">ทั้งหมด</button>
+                        <button type="button" class="filter-pill" onclick="setStatusFilter('IN', this)">🟢 กำลังศึกษา</button>
+                        <button type="button" class="filter-pill" onclick="setStatusFilter('OUT', this)">🔴 ออก</button>
+                    </div>
+
+                    <!-- จำนวนสรุป -->
+                    <div id="student-count-summary-text" class="filter-count-text"></div>
+                </div>
+            </div>
+
+            <!-- 3. Student List Container -->
+            <div id="students-list-container">
+                <!-- Student rows will be injected here -->
+            </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- TAB 3: 🧑‍🏫 ครู (Homeroom Teachers / Advisors)                    -->
+        <!-- ================================================================= -->
+        <section id="tab-content-teachers" class="tab-pane" style="display: none;">
+            <!-- Header Bar -->
+            <div style="background: white; border-radius: 18px; padding: 16px 20px; border: 1px solid #f1f5f9; box-shadow: 0 2px 10px rgba(0,0,0,0.02); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 14px; margin-bottom: 16px;">
+                <div>
+                    <h3 style="margin: 0; font-size: 17px; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-chalkboard-user" style="color: #4f46e5;"></i> จัดการข้อมูลครูที่ปรึกษาประจำชั้น/ห้อง
+                    </h3>
+                    <p style="margin: 3px 0 0; font-size: 12.5px; color: #64748b;">
+                        ระบุชื่อครูที่ปรึกษาของแต่ละห้อง ระบบจะนำชื่อไปแสดงในแดชบอร์ดและพิมพ์ลงในใบรายชื่อ PDF A4 อัตโนมัติ
+                    </p>
+                </div>
+                <div id="teachers-header-actions" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                    <button type="button" class="btn-big-edit" onclick="toggleTeachersEditMode(true)">
+                        <i class="fa-solid fa-pen-to-square"></i> แก้ไขข้อมูล
+                    </button>
+                </div>
+            </div>
+
+            <!-- Teachers Rooms Grid (จัดแยก ม.ต้น และ ม.ปลาย) -->
+            <div id="teachers-rooms-grid" style="display: flex; flex-direction: column; gap: 18px;">
+                <!-- Populated dynamically -->
+            </div>
+
+            <!-- Datalist สำหรับพิมพ์/เลือกรายชื่อครูที่มีอยู่ในระบบ -->
+            <datalist id="teachers-datalist">
+                <!-- Injected dynamically from usr table -->
+            </datalist>
+        </section>
+
+    </main>
+
+    <!-- Modal เพิ่ม / แก้ไขนักเรียน -->
+    <div id="modal-student" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 16px;">
+        <div class="modal-box" style="background: white; border-radius: 20px; max-width: 480px; width: 100%; padding: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;">
+                <h3 id="modal-student-title" style="margin: 0; font-size: 17px; font-weight: 700; color: #1e293b;"><i class="fa-solid fa-user-pen" style="color: #4f46e5;"></i> เพิ่มนักเรียน</h3>
+                <button type="button" onclick="closeStudentModal()" style="background: none; border: none; font-size: 18px; color: #94a3b8; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <form id="form-student" onsubmit="handleSaveStudent(event)">
+                <input type="hidden" id="edit-original-id" value="">
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                    <div>
+                        <label style="font-size: 12px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">รหัสนักเรียน *</label>
+                        <input type="text" id="input-student-id" required style="width: 100%; box-sizing: border-box; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; font-family: inherit;">
+                    </div>
+                    <div>
+                        <label style="font-size: 12px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">สถานะ</label>
+                        <select id="input-student-status" onchange="toggleStudentModalOutFields(this.value)" style="width: 100%; box-sizing: border-box; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; font-family: inherit;">
+                            <option value="เข้า">🟢 เข้า (กำลังศึกษา)</option>
+                            <option value="ออก">🔴 ออก (ย้ายออก/จำหน่าย)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- ช่องกรอกเหตุผลและวันที่ออกในโมดอลหลัก (จะแสดงเมื่อสถานะเป็น ออก) -->
+                <div id="modal-student-out-fields" style="display: none; background: #fff1f2; border: 1.5px dashed #fca5a5; border-radius: 12px; padding: 12px; margin-bottom: 12px;">
+                    <div style="font-weight: 700; font-size: 12px; color: #991b1b; margin-bottom: 8px;">
+                        <i class="fa-solid fa-circle-exclamation"></i> ข้อมูลการย้ายออก / จำหน่าย
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div>
+                            <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 3px;">หมายเหตุ / สาเหตุ</label>
+                            <input type="text" id="input-student-out-reason" placeholder="เช่น ย้าย รร, ลาออก" style="width: 100%; box-sizing: border-box; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; font-family: inherit; background: white;">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 3px;">วันที่ออก</label>
+                            <input type="date" id="input-student-out-date" style="width: 100%; box-sizing: border-box; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; font-family: inherit; background: white;">
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label style="font-size: 12px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">ชื่อ-นามสกุล (มีคำนำหน้า เช่น ด.ช. / ด.ญ. / นาย / น.ส.) *</label>
+                    <input type="text" id="input-student-name" required placeholder="เช่น ด.ช.ธนกฤต มณีรัตน์" style="width: 100%; box-sizing: border-box; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; font-family: inherit;">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 16px;">
+                    <div>
+                        <label style="font-size: 12px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">ชั้น *</label>
+                        <select id="input-student-grade" required style="width: 100%; box-sizing: border-box; padding: 8px 8px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; font-family: inherit;">
+                            <option value="1">ม.1</option>
+                            <option value="2">ม.2</option>
+                            <option value="3">ม.3</option>
+                            <option value="4">ม.4</option>
+                            <option value="5">ม.5</option>
+                            <option value="6">ม.6</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 12px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">ห้อง *</label>
+                        <input type="number" id="input-student-room" min="1" max="15" required value="1" style="width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; font-family: inherit;">
+                    </div>
+                    <div>
+                        <label style="font-size: 12px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">เลขที่ <span style="font-size: 11px; font-weight: 400; color: #64748b;">(รันอัตโนมัติ)</span></label>
+                        <input type="number" id="input-student-no" readonly style="width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; font-family: inherit; background: #f8fafc; color: #64748b; cursor: not-allowed;" title="ระบบจะจัดเรียงและรันเลขที่ให้อัตโนมัติ">
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #f1f5f9; padding-top: 14px;">
+                    <button type="button" onclick="closeStudentModal()" style="padding: 8px 18px; border-radius: 10px; border: 1px solid #cbd5e1; background: white; font-weight: 600; cursor: pointer;">ยกเลิก</button>
+                    <button type="submit" style="padding: 8px 20px; border-radius: 10px; border: none; background: #4f46e5; color: white; font-weight: 700; cursor: pointer;">
+                        <i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูล
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal ระบุเหตุผลและวันที่ออก / จำหน่าย -->
+    <div id="modal-student-out-reason" class="modal-overlay" onclick="if(event.target === this) closeStudentOutModal()" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(4px); z-index: 10000; align-items: center; justify-content: center; padding: 16px;">
+        <div class="modal-box" style="background: white; border-radius: 20px; max-width: 480px; width: 100%; padding: 22px 24px; box-shadow: 0 15px 45px rgba(0,0,0,0.2);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1.5px solid #f1f5f9; padding-bottom: 10px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; background: #fee2e2; color: #ef4444; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+                        <i class="fa-solid fa-user-xmark"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 16.5px; font-weight: 800; color: #1e293b;">บันทึกสถานะ "ย้ายออก / จำหน่าย"</h3>
+                    </div>
+                </div>
+                <button type="button" onclick="closeStudentOutModal()" style="background: none; border: none; font-size: 18px; color: #94a3b8; cursor: pointer; padding: 4px;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <input type="hidden" id="out-modal-student-id" value="">
+
+            <!-- ข้อมูลนักเรียนที่เลือก -->
+            <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 10px 14px; margin-bottom: 16px; display: flex; align-items: center; gap: 12px;">
+                <div id="out-modal-student-avatar" style="font-size: 26px;">👦</div>
+                <div>
+                    <div id="out-modal-student-name" style="font-weight: 800; font-size: 14px; color: #1e293b;">-</div>
+                    <div id="out-modal-student-sub" style="font-size: 12px; color: #64748b; margin-top: 2px;">-</div>
+                </div>
+            </div>
+
+            <!-- 1. หมายเหตุ / สาเหตุการออก -->
+            <div style="margin-bottom: 14px;">
+                <label style="font-size: 12.5px; font-weight: 700; color: #334155; display: block; margin-bottom: 6px;">
+                    <i class="fa-solid fa-comment-dots" style="color: #ef4444;"></i> หมายเหตุ / สาเหตุการออก *
+                </label>
+                <input type="text" id="out-modal-reason-input" placeholder="เช่น ย้าย รร, ลาออก, ย้ายตามผู้ปกครอง" style="width: 100%; box-sizing: border-box; padding: 9px 12px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 13.5px; font-family: inherit; outline: none; transition: border-color 0.15s ease;">
+                
+                <!-- ชิปด่วนสำหรับคลิกเลือก -->
+                <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;">
+                    <button type="button" class="btn-out-chip" onclick="setOutReasonChip('ย้าย รร')">ย้าย รร</button>
+                    <button type="button" class="btn-out-chip" onclick="setOutReasonChip('ย้ายสถานศึกษา')">ย้ายสถานศึกษา</button>
+                    <button type="button" class="btn-out-chip" onclick="setOutReasonChip('ลาออก')">ลาออก</button>
+                    <button type="button" class="btn-out-chip" onclick="setOutReasonChip('ย้ายตามผู้ปกครอง')">ย้ายตามผู้ปกครอง</button>
+                    <button type="button" class="btn-out-chip" onclick="setOutReasonChip('สมรส')">สมรส</button>
+                    <button type="button" class="btn-out-chip" onclick="setOutReasonChip('ไม่ทราบสาเหตุ')">ไม่ทราบสาเหตุ</button>
+                </div>
+            </div>
+
+            <!-- 2. วันที่ออก -->
+            <div style="margin-bottom: 16px;">
+                <label style="font-size: 12.5px; font-weight: 700; color: #334155; display: block; margin-bottom: 6px;">
+                    <i class="fa-solid fa-calendar-day" style="color: #4f46e5;"></i> วันที่ออก *
+                </label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <input type="date" id="out-modal-date-input" style="flex: 1; padding: 8px 12px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 13.5px; font-family: inherit; outline: none;">
+                    <button type="button" onclick="setOutDateToday()" style="padding: 8px 14px; border-radius: 10px; border: 1.5px solid #cbd5e1; background: white; font-size: 12px; font-weight: 700; color: #475569; cursor: pointer; white-space: nowrap;">
+                        วันนี้
+                    </button>
+                </div>
+                <div id="out-modal-date-preview" style="font-size: 12px; color: #0284c7; font-weight: 600; margin-top: 4px;"></div>
+            </div>
+
+            <!-- กล่องพรีวิวตัวอย่างข้อความหลังชื่อ -->
+            <div style="background: #fef2f2; border: 1.5px dashed #fca5a5; border-radius: 12px; padding: 10px 14px; margin-bottom: 18px;">
+                <div style="font-size: 11px; font-weight: 700; color: #991b1b; margin-bottom: 3px;">ตัวอย่างการแสดงผลหลังชื่อในตาราง:</div>
+                <div id="out-modal-preview-text" style="font-size: 13px; font-weight: 700; color: #b91c1c;">
+                    ด.ช. ... (ย้าย รร 20 ก.ย. 2569)
+                </div>
+            </div>
+
+            <!-- ปุ่มกดยืนยัน / ยกเลิก -->
+            <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1.5px solid #f1f5f9; padding-top: 14px;">
+                <button type="button" onclick="closeStudentOutModal()" style="padding: 8px 18px; border-radius: 10px; border: 1.5px solid #cbd5e1; background: white; font-weight: 600; cursor: pointer; font-size: 13px; color: #64748b;">
+                    ยกเลิก
+                </button>
+                <button type="button" onclick="submitStudentOutModal()" style="padding: 8px 22px; border-radius: 10px; border: none; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);">
+                    <i class="fa-solid fa-check"></i> ตกลง (บันทึกสถานะออก)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal ยืนยันเปลี่ยนสถานะกลับเป็น "เข้า" (สวยงามระดับพรีเมียม ไม่ใช้ confirm บราวเซอร์) -->
+    <div id="modal-student-in-confirm" class="modal-overlay" onclick="if(event.target === this) closeStudentInConfirmModal()" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(5px); z-index: 10000; align-items: center; justify-content: center; padding: 16px;">
+        <div class="modal-box" style="background: white; border-radius: 24px; max-width: 440px; width: 100%; padding: 26px 24px 22px; box-shadow: 0 20px 60px rgba(0,0,0,0.22); text-align: center; position: relative; animation: modalPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);">
+            
+            <!-- ปุ่มปิดมุมขวาบน -->
+            <button type="button" onclick="closeStudentInConfirmModal()" style="position: absolute; right: 16px; top: 16px; background: none; border: none; font-size: 18px; color: #94a3b8; cursor: pointer; padding: 6px; border-radius: 8px; transition: all 0.15s ease;" title="ปิดหน้าต่าง">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <!-- ไอคอนวงกลมสีเขียวสดใส -->
+            <div style="width: 64px; height: 64px; border-radius: 20px; background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); color: #16a34a; display: inline-flex; align-items: center; justify-content: center; font-size: 30px; margin-bottom: 14px; box-shadow: 0 8px 22px rgba(22, 163, 74, 0.25);">
+                <i class="fa-solid fa-user-check"></i>
+            </div>
+
+            <!-- หัวข้อ -->
+            <h3 style="margin: 0 0 6px; font-size: 18px; font-weight: 800; color: #0f172a;">
+                เปลี่ยนสถานะเป็น "กำลังศึกษา"
+            </h3>
+            <p style="margin: 0 0 16px; font-size: 13px; color: #64748b;">
+                ยืนยันการนำนักเรียนกลับเข้าสู่รายชื่อปกติ
+            </p>
+
+            <input type="hidden" id="in-confirm-student-id" value="">
+
+            <!-- การ์ดข้อมูลนักเรียน -->
+            <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 16px; padding: 12px 14px; margin-bottom: 14px; text-align: left; display: flex; align-items: center; gap: 12px;">
+                <div id="in-confirm-avatar" style="font-size: 30px; flex-shrink: 0;">👦</div>
+                <div style="flex: 1; min-width: 0;">
+                    <div id="in-confirm-student-name" style="font-weight: 800; font-size: 15px; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">-</div>
+                    <div id="in-confirm-student-sub" style="font-size: 12px; color: #64748b; margin-top: 2px;">-</div>
+                </div>
+            </div>
+
+            <!-- การสลับสถานะ Visual Pill -->
+            <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 14px; padding: 10px 14px; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px;">
+                <span style="background: #fee2e2; color: #dc2626; padding: 4px 10px; border-radius: 8px; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 5px;">
+                    <i class="fa-solid fa-circle-xmark"></i> ออก
+                </span>
+                <i class="fa-solid fa-arrow-right" style="color: #94a3b8; font-size: 12px;"></i>
+                <span style="background: #dcfce7; color: #16a34a; padding: 4px 12px; border-radius: 8px; font-weight: 800; font-size: 12.5px; box-shadow: 0 2px 6px rgba(22, 163, 74, 0.2); display: inline-flex; align-items: center; gap: 5px;">
+                    <i class="fa-solid fa-circle-check"></i> 🟢 กำลังศึกษา (เข้า)
+                </span>
+            </div>
+
+            <!-- กล่องแจ้งเตือนการเคลียร์หมายเหตุ -->
+            <div style="background: #ecfdf5; border: 1.5px dashed #86efac; border-radius: 12px; padding: 10px 14px; margin-bottom: 20px; text-align: left; display: flex; gap: 10px; align-items: flex-start;">
+                <i class="fa-solid fa-circle-info" style="color: #10b981; font-size: 15px; margin-top: 2px; flex-shrink: 0;"></i>
+                <div style="font-size: 12px; color: #065f46; line-height: 1.45;">
+                    ระบบจะนำนักเรียนกลับเข้าสถานะปกติ และ<strong>เคลียร์หมายเหตุกับวันที่ออกเดิมให้อัตโนมัติ</strong>
+                </div>
+            </div>
+
+            <!-- ปุ่มกดยืนยัน / ยกเลิก -->
+            <div style="display: grid; grid-template-columns: 1fr 1.3fr; gap: 10px;">
+                <button type="button" onclick="closeStudentInConfirmModal()" style="padding: 10px 16px; border-radius: 12px; border: 1.5px solid #cbd5e1; background: white; font-weight: 700; cursor: pointer; font-size: 13.5px; color: #475569; transition: all 0.15s ease;">
+                    ยกเลิก
+                </button>
+                <button type="button" onclick="submitStudentInConfirmModal()" style="padding: 10px 20px; border-radius: 12px; border: none; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; font-weight: 800; font-size: 13.5px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35); transition: all 0.15s ease;">
+                    <i class="fa-solid fa-check"></i> ตกลง (เปลี่ยนเป็นเข้า)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal ยืนยันลบนักเรียน (สวยงาม ไม่ใช้ confirm บราวเซอร์) -->
+    <div id="modal-student-delete-confirm" class="modal-overlay" onclick="if(event.target === this) closeStudentDeleteModal()" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(5px); z-index: 10000; align-items: center; justify-content: center; padding: 16px;">
+        <div class="modal-box" style="background: white; border-radius: 24px; max-width: 420px; width: 100%; padding: 26px 24px 22px; box-shadow: 0 20px 60px rgba(0,0,0,0.22); text-align: center; position: relative; animation: modalPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);">
+            
+            <button type="button" onclick="closeStudentDeleteModal()" style="position: absolute; right: 16px; top: 16px; background: none; border: none; font-size: 18px; color: #94a3b8; cursor: pointer; padding: 6px; border-radius: 8px;">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div style="width: 64px; height: 64px; border-radius: 20px; background: #fee2e2; color: #ef4444; display: inline-flex; align-items: center; justify-content: center; font-size: 28px; margin-bottom: 14px; box-shadow: 0 8px 22px rgba(239, 68, 68, 0.25);">
+                <i class="fa-solid fa-trash-can"></i>
+            </div>
+
+            <h3 style="margin: 0 0 6px; font-size: 18px; font-weight: 800; color: #0f172a;">
+                ยืนยันการลบนักเรียน
+            </h3>
+            <p style="margin: 0 0 16px; font-size: 13px; color: #64748b;">
+                คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลนักเรียนนี้ออกจากระบบ?
+            </p>
+
+            <input type="hidden" id="delete-confirm-student-id" value="">
+
+            <div style="background: #fff1f2; border: 1.5px solid #fecaca; border-radius: 14px; padding: 12px 14px; margin-bottom: 20px; text-align: left;">
+                <div id="delete-confirm-name" style="font-weight: 800; font-size: 15px; color: #991b1b;">-</div>
+                <div id="delete-confirm-sub" style="font-size: 12px; color: #b91c1c; margin-top: 3px;">-</div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <button type="button" onclick="closeStudentDeleteModal()" style="padding: 10px 16px; border-radius: 12px; border: 1.5px solid #cbd5e1; background: white; font-weight: 700; cursor: pointer; font-size: 13.5px; color: #475569;">
+                    ยกเลิก
+                </button>
+                <button type="button" onclick="submitStudentDeleteModal()" style="padding: 10px 20px; border-radius: 12px; border: none; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; font-weight: 800; font-size: 13.5px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);">
+                    <i class="fa-solid fa-trash-can"></i> ลบข้อมูล
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal วางข้อมูลจาก Google Sheet / Excel -->
+    <div id="modal-import" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 16px;">
+        <div class="modal-box" style="background: white; border-radius: 20px; max-width: 640px; width: 100%; padding: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 style="margin: 0; font-size: 17px; font-weight: 700; color: #1e293b;"><i class="fa-solid fa-file-import" style="color: #10b981;"></i> นำเข้ารายชื่อจาก Google Sheet / Excel</h3>
+                <button type="button" onclick="closeImportModal()" style="background: none; border: none; font-size: 18px; color: #94a3b8; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <p style="font-size: 13px; color: #64748b; margin-top: 0; line-height: 1.5;">
+                💡 <strong>วิธีใช้งาน:</strong> คัดลอกตารางจาก Google Sheet หรือ Excel แล้วนำมาวางในช่องด้านล่างนี้ได้เลย โดยจัดลำดับคอลัมน์มาตรฐาน: 
+                <br><code>รหัสนักเรียน &nbsp;|&nbsp; ชื่อ-นามสกุล &nbsp;|&nbsp; ชั้น &nbsp;|&nbsp; ห้อง &nbsp;|&nbsp; เลขที่ &nbsp;|&nbsp; เพศ (1=ชาย, 2=หญิง)</code>
+            </p>
+
+            <textarea id="import-paste-area" placeholder="วางข้อมูลที่คัดลอกจาก Excel หรือ Google Sheet ที่นี่..." oninput="previewImportData()" style="width: 100%; height: 160px; box-sizing: border-box; padding: 12px; border: 1px solid #cbd5e1; border-radius: 12px; font-family: monospace; font-size: 12px; line-height: 1.4; margin-bottom: 12px; outline: none;"></textarea>
+
+            <div id="import-preview-summary" style="font-size: 13px; font-weight: 700; color: #0284c7; margin-bottom: 14px;"></div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #f1f5f9; padding-top: 14px;">
+                <button type="button" onclick="closeImportModal()" style="padding: 8px 18px; border-radius: 10px; border: 1px solid #cbd5e1; background: white; font-weight: 600; cursor: pointer;">ยกเลิก</button>
+                <button type="button" id="btn-confirm-import" onclick="confirmImportData()" disabled style="padding: 8px 22px; border-radius: 10px; border: none; background: #10b981; color: white; font-weight: 700; cursor: pointer; opacity: 0.5;">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> ยืนยันบันทึกลงฐานข้อมูล
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal รับลิงก์ Google Sheets & Excel (เปิดแถบใหม่ / คัดลอกลิงก์รายชื่อ นร.) -->
+    <div id="modal-receive-excel-link" class="modal-overlay" onclick="if(event.target === this) closeReceiveExcelLinkModal()" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 16px;">
+        <div class="modal-box" style="background: white; border-radius: 20px; max-width: 660px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 15px 50px rgba(0,0,0,0.25);">
+            <!-- Modal Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 1px solid #f1f5f9; background: #ffffff;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 38px; height: 38px; border-radius: 10px; background: #ecfdf5; color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;">
+                        <i class="fa-solid fa-file-excel"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #1e293b;">ลิงก์ Google Sheets / Excel รายชื่อนักเรียน</h3>
+                        <p style="margin: 2px 0 0; font-size: 11.5px; color: #64748b;">เปิดแถบใหม่หรือคัดลอกลิงก์รายชื่อนักเรียนเพื่อนำไปใช้งานได้อย่างสะดวก</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeReceiveExcelLinkModal()" style="background: none; border: none; font-size: 18px; color: #94a3b8; cursor: pointer; padding: 4px 8px;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body (Scrollable) -->
+            <div style="padding: 16px 20px; overflow-y: auto; flex: 1;">
+                
+                <!-- 1. Master Sheet Card (ลิงก์รวมทั้งโรงเรียน) -->
+                <div style="background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border: 1.5px solid #a7f3d0; border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 42px; height: 42px; border-radius: 10px; background: #10b981; color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);">
+                            <i class="fa-solid fa-table-list"></i>
+                        </div>
+                        <div>
+                            <div style="font-weight: 800; font-size: 14px; color: #065f46;">
+                                ทะเบียนนักเรียนรวมทั้งโรงเรียน (Master Sheet)
+                            </div>
+                            <div id="sheet-modal-master-desc" style="font-size: 12px; color: #047857; margin-top: 2px;">
+                                ข้อมูลนักเรียนทั้งหมดทุกระดับชั้น (ม.1 - ม.6)
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <button type="button" onclick="syncStudentsToGoogleSheet(true)" title="ยิงรายชื่อล่าสุดส่งไปอัปเดตใน Google Sheet ทันที" class="btn" style="background: #4f46e5; color: white; border: none; padding: 8px 13px; border-radius: 10px; font-weight: 700; font-size: 12.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(79,70,229,0.3); transition: all 0.15s ease;">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> ยิงข้อมูลไปชีท
+                        </button>
+                        <button type="button" onclick="openSheetInNewTab('master')" class="btn" style="background: #10b981; color: white; border: none; padding: 8px 14px; border-radius: 10px; font-weight: 700; font-size: 12.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(16,185,129,0.3); transition: all 0.15s ease;">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดแถบใหม่
+                        </button>
+                        <button type="button" onclick="copySheetLink('master')" class="btn" style="background: white; color: #065f46; border: 1.5px solid #a7f3d0; padding: 7px 12px; border-radius: 10px; font-weight: 700; font-size: 12.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s ease;">
+                            <i class="fa-solid fa-copy"></i> คัดลอกลิงก์
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. Grade Selection Grid (ม.1 - ม.6) -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="font-weight: 800; font-size: 13px; color: #334155; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-graduation-cap" style="color: #4f46e5;"></i> รายชื่อนักเรียนแยกตามระดับชั้น:
+                    </div>
+                    <button type="button" onclick="toggleSheetLinkSettings()" style="background: none; border: none; color: #4f46e5; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
+                        <i class="fa-solid fa-gear"></i> <span id="sheet-settings-toggle-text">ตั้งค่า/เปลี่ยนลิงก์</span>
+                    </button>
+                </div>
+
+                <!-- Grade Cards Container (จะถูกเรนเดอร์แบบ Dynamic) -->
+                <div id="sheet-grade-cards-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+                    <!-- Grade cards injected here -->
+                </div>
+
+                <!-- 3. Collapsible Link Configuration Section -->
+                <div id="sheet-link-settings-panel" style="display: none; background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 14px; padding: 14px 16px; margin-bottom: 12px;">
+                    <div style="font-weight: 800; font-size: 13px; color: #1e293b; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-link" style="color: #4f46e5;"></i> กำหนดลิงก์ Google Sheets / Excel ของโรงเรียน
+                    </div>
+                    <p style="font-size: 11.5px; color: #64748b; margin: 0 0 10px; line-height: 1.4;">
+                        วางลิงก์ URL ที่แชร์จาก Google Sheet (หากระบุเพียงชีทหลัก ระบบจะเปิดชีทหลักให้อัตโนมัติทุกชั้น)
+                    </p>
+
+                    <!-- Web App URL for Auto-push -->
+                    <div style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px;">
+                        <label style="font-size: 12px; font-weight: 800; color: #1e40af; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                            <i class="fa-solid fa-bolt" style="color: #3b82f6;"></i> ลิงก์ Google Apps Script Web App (สำหรับยิงรายชื่ออัปเดตอัตโนมัติ)
+                        </label>
+                        <p style="font-size: 11px; color: #475569; margin: 0 0 6px; line-height: 1.4;">
+                            วาง URL ของเว็บแอป (ขึ้นต้นด้วย <code>https://script.google.com/...</code>) ระบบจะยิงรายชื่อล่าสุดส่งไปอัปเดตในชีทให้ทุกครั้งที่กดรับลิงก์
+                        </p>
+                        <input type="url" id="sheet-input-webapp" placeholder="https://script.google.com/macros/s/.../exec" style="width: 100%; box-sizing: border-box; padding: 7px 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 12px; font-family: inherit; background: white;">
+                    </div>
+
+                    <div style="margin-bottom: 8px;">
+                        <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 3px;">
+                            ชีทหลักรวมทุกชั้น (Master Sheet URL) *
+                        </label>
+                        <input type="url" id="sheet-input-master" placeholder="https://docs.google.com/spreadsheets/d/..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 12px; font-family: inherit;">
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                        <div>
+                            <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">ลิงก์ ม.1 (เว้นว่างได้)</label>
+                            <input type="url" id="sheet-input-m1" placeholder="URL ม.1" style="width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 12px; font-family: inherit;">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">ลิงก์ ม.2 (เว้นว่างได้)</label>
+                            <input type="url" id="sheet-input-m2" placeholder="URL ม.2" style="width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 12px; font-family: inherit;">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">ลิงก์ ม.3 (เว้นว่างได้)</label>
+                            <input type="url" id="sheet-input-m3" placeholder="URL ม.3" style="width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 12px; font-family: inherit;">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">ลิงก์ ม.4 (เว้นว่างได้)</label>
+                            <input type="url" id="sheet-input-m4" placeholder="URL ม.4" style="width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 12px; font-family: inherit;">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">ลิงก์ ม.5 (เว้นว่างได้)</label>
+                            <input type="url" id="sheet-input-m5" placeholder="URL ม.5" style="width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 12px; font-family: inherit;">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">ลิงก์ ม.6 (เว้นว่างได้)</label>
+                            <input type="url" id="sheet-input-m6" placeholder="URL ม.6" style="width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 12px; font-family: inherit;">
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                        <button type="button" onclick="resetDefaultSheetLinks()" style="padding: 6px 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: white; font-size: 12px; font-weight: 600; cursor: pointer; color: #64748b;">
+                            คืนค่าเริ่มต้น
+                        </button>
+                        <button type="button" onclick="saveSheetLinksFromInputs()" style="padding: 6px 16px; border-radius: 8px; border: none; background: #4f46e5; color: white; font-size: 12px; font-weight: 700; cursor: pointer;">
+                            <i class="fa-solid fa-floppy-disk"></i> บันทึกลิงก์
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4. Quick Helper Bottom Bar -->
+                <div style="background: #f1f5f9; border-radius: 12px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                    <div style="font-size: 12px; color: #475569; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-circle-info" style="color: #64748b;"></i>
+                        <span>ต้องการไฟล์ลงคอมพิวเตอร์โดยตรง?</span>
+                    </div>
+                    <button type="button" onclick="exportStudentsToCsv()" style="padding: 6px 14px; border-radius: 8px; border: 1.5px solid #cbd5e1; background: white; color: #1e293b; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-file-arrow-down" style="color: #10b981;"></i> ดาวน์โหลด Excel (.CSV) ทันที
+                    </button>
+                </div>
+
+            </div>
+
+            <!-- Modal Footer -->
+            <div style="display: flex; justify-content: flex-end; padding: 12px 20px; border-top: 1px solid #f1f5f9; background: #ffffff;">
+                <button type="button" onclick="closeReceiveExcelLinkModal()" style="padding: 8px 18px; border-radius: 10px; border: 1.5px solid #cbd5e1; background: white; font-weight: 700; cursor: pointer; color: #475569; font-size: 13px;">
+                    ปิดหน้าต่าง
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal เลือกห้องพิมพ์ใบรายชื่อ PDF (แผ่นละ 1 ห้อง) -->
+    <div id="modal-select-pdf-rooms" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 16px;">
+        <div class="modal-box" style="background: white; border-radius: 20px; max-width: 720px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 15px 50px rgba(0,0,0,0.25);">
+            <!-- Modal Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 1px solid #f1f5f9; background: #ffffff;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 38px; height: 38px; border-radius: 10px; background: #fef2f2; color: #ef4444; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;">
+                        <i class="fa-solid fa-file-pdf"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #1e293b;">พิมพ์ใบรายชื่อนักเรียน (แผ่นละ 1 ห้อง)</h3>
+                        <p style="margin: 2px 0 0; font-size: 11.5px; color: #64748b;">เลือกห้องที่ต้องการพิมพ์และกำหนดข้อมูลหัวเอกสาร</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeSelectPdfRoomsModal()" style="background: none; border: none; font-size: 18px; color: #94a3b8; cursor: pointer; padding: 4px 8px;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body (Scrollable if needed, fits screen) -->
+            <div style="padding: 14px 20px; overflow-y: auto; flex: 1;">
+                <!-- Header Configuration (Clean, Organized, Locked 15 channels & Auto Advisor) -->
+                <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 16px; padding: 12px 18px; margin-bottom: 14px;">
+                    <div style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; justify-content: space-between;">
+                        
+                        <!-- 1. ภาคเรียน & ปีการศึกษา -->
+                        <div style="display: flex; gap: 8px; align-items: flex-end;">
+                            <div style="width: 75px;">
+                                <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">
+                                    ภาคเรียน
+                                </label>
+                                <input type="number" id="pdf-input-term" min="1" max="2" value="1" style="width: 100%; box-sizing: border-box; padding: 7px 8px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 13px; font-family: inherit; font-weight: 800; text-align: center; color: #1e293b; background: white; outline: none;">
+                            </div>
+                            <div style="width: 90px;">
+                                <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">
+                                    ปีการศึกษา
+                                </label>
+                                <input type="text" id="pdf-input-year" value="2569" style="width: 100%; box-sizing: border-box; padding: 7px 8px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 13px; font-family: inherit; font-weight: 800; text-align: center; color: #1e293b; background: white; outline: none;">
+                            </div>
+                        </div>
+
+                        <!-- 2. ข้อมูลล็อกมาตรฐาน (15 ช่อง + ครูที่ปรึกษาอัตโนมัติ) -->
+                        <div style="display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap;">
+                            <!-- ล็อก 15 ช่องคะแนน -->
+                            <div>
+                                <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">
+                                    ช่องคะแนน
+                                </label>
+                                <div style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; background: #eef2ff; border: 1.5px solid #c7d2fe; border-radius: 10px; font-size: 12.5px; font-weight: 800; color: #4338ca;">
+                                    <i class="fa-solid fa-lock" style="font-size: 11px;"></i>
+                                    <span>15 ช่อง (เต็มแผ่น A4)</span>
+                                </div>
+                                <input type="hidden" id="pdf-input-check-cols" value="15">
+                            </div>
+
+                            <!-- ครูที่ปรึกษาดึงจากระบบอัตโนมัติ -->
+                            <div>
+                                <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">
+                                    ครูที่ปรึกษา
+                                </label>
+                                <div style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; background: #ecfdf5; border: 1.5px solid #a7f3d0; border-radius: 10px; font-size: 12.5px; font-weight: 700; color: #065f46;" title="ระบบจะใส่ชื่อครูที่ปรึกษาประจำแต่ละห้องลงในใบรายชื่อให้อัตโนมัติ">
+                                    <i class="fa-solid fa-circle-check" style="color: #10b981; font-size: 13px;"></i>
+                                    <span>ดึงตามห้องอัตโนมัติ</span>
+                                </div>
+                                <input type="hidden" id="pdf-input-advisor" value="">
+                            </div>
+                        </div>
+
+                        <!-- 3. ตัวเลือกเพิ่มเติม (รวม นร. ออก) -->
+                        <div>
+                            <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">
+                                ตัวเลือกนักเรียน
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; background: white; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 12.5px; font-weight: 700; color: #334155; cursor: pointer; user-select: none;">
+                                <input type="checkbox" id="pdf-checkbox-include-out" style="width: 15px; height: 15px; accent-color: #4f46e5; cursor: pointer;">
+                                <span>รวม นร. ออก</span>
+                            </label>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Select Rooms Controls -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                    <div style="font-weight: 800; font-size: 12.5px; color: #334155; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-list-check" style="color: #4f46e5;"></i> เลือกห้องเรียนที่ต้องการพิมพ์:
+                    </div>
+                    <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                        <button type="button" class="btn-quick-room" onclick="toggleAllPdfRooms(true)">
+                            <i class="fa-solid fa-check-double" style="color: #10b981;"></i> ทั้งหมด
+                        </button>
+                        <button type="button" class="btn-quick-room" onclick="togglePdfRoomsByLevel('junior')">
+                            ม.ต้น (1-3)
+                        </button>
+                        <button type="button" class="btn-quick-room" onclick="togglePdfRoomsByLevel('senior')">
+                            ม.ปลาย (4-6)
+                        </button>
+                        <button type="button" class="btn-quick-room text-danger" onclick="toggleAllPdfRooms(false)">
+                            <i class="fa-solid fa-xmark"></i> ล้าง
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Room Checkbox Grid Container (Chips in Horizontal Rows) -->
+                <div id="pdf-rooms-checkbox-grid" style="display: flex; flex-direction: column; gap: 2px; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 6px 12px; max-height: 380px; overflow-y: auto;">
+                    <!-- Will be populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 22px; border-top: 1px solid #f1f5f9; background: #ffffff;">
+                <div id="pdf-selected-rooms-count" style="font-size: 13px; font-weight: 700; color: #475569;">
+                    เลือกแล้ว 0 ห้อง
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" onclick="closeSelectPdfRoomsModal()" style="padding: 9px 18px; border-radius: 12px; border: 1.5px solid #cbd5e1; background: white; font-weight: 700; cursor: pointer; color: #475569;">
+                        ยกเลิก
+                    </button>
+                    <button type="button" onclick="generateAndPrintMultiRoomPdf()" style="padding: 9px 22px; border-radius: 12px; border: none; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; font-weight: 800; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);">
+                        <i class="fa-solid fa-print"></i> สร้างใบรายชื่อ (แผ่นละ 1 ห้อง)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal พรีวิว A4 พร้อมสั่งพิมพ์ PDF -->
+    <div id="modal-print-preview" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 16px;">
+        <div class="modal-box" style="background: #cbd5e1; border-radius: 20px; max-width: 900px; width: 100%; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 15px 50px rgba(0,0,0,0.3);">
+            <div class="no-print" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 22px; background: white; border-bottom: 1px solid #cbd5e1; z-index: 10;">
+                <h3 id="print-preview-modal-title" style="margin: 0; font-size: 16px; font-weight: 700; color: #1e293b;">
+                    <i class="fa-solid fa-file-pdf" style="color: #ef4444;"></i> พรีวิวเอกสารใบรายชื่อ (A4)
+                </h3>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button type="button" onclick="downloadPreviewPdf()" style="padding: 8px 20px; border-radius: 10px; background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); color: white; font-weight: 700; font-size: 13px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);">
+                        <i class="fa-solid fa-file-pdf"></i> บันทึก PDF
+                    </button>
+                    <button type="button" onclick="closePrintPdfModal()" style="background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer; padding: 4px 8px;"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+
+            <div style="flex: 1; overflow-y: auto; padding: 24px 12px; display: flex; flex-direction: column; align-items: center; background: #64748b;">
+                <div id="printable-a4-area" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+                    <!-- A4 Header and Table will be injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal กรอกรหัส PIN ยืนยันสิทธิ์สำหรับครูวิชาการ / แอดมิน (Apple Glass PIN Pad) -->
+    <div id="modal-student-auth-pin" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(10px); z-index: 10002; align-items: center; justify-content: center; padding: 16px;" onclick="if(event.target === this) closeAcademicPinModal()">
+        <div class="pin-pad-container" style="position: relative; animation: modalPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);">
+            <button type="button" onclick="closeAcademicPinModal()" style="position: absolute; right: 16px; top: 16px; background: none; border: none; font-size: 18px; color: #94a3b8; cursor: pointer; padding: 4px;" title="ปิดหน้าต่าง">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div style="width: 52px; height: 52px; border-radius: 16px; background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%); color: #4f46e5; display: inline-flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 12px; box-shadow: 0 6px 16px rgba(79, 70, 229, 0.22);">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <h2 id="academic-pin-title" style="margin: 0 0 4px; font-size: 18px; font-weight: 800; color: #1e293b;">ยืนยันรหัส PIN</h2>
+            <p id="academic-pin-subtitle" style="margin: 0 0 16px; font-size: 12.5px; color: #64748b;">เฉพาะแอดมิน (ADMIN) หรือครูวิชาการ (ACADEMIC)</p>
+            
+            <div class="pin-display">
+                <div class="pin-dot"></div>
+                <div class="pin-dot"></div>
+                <div class="pin-dot"></div>
+                <div class="pin-dot"></div>
+            </div>
+            
+            <p id="academic-pin-error" class="error-text" style="min-height: 20px; font-size: 12px; margin-bottom: 12px; font-weight: 700; color: #ef4444; line-height: 1.4;"></p>
+            
+            <div class="pin-keypad">
+                <button type="button" class="key-btn" data-key="1">1</button>
+                <button type="button" class="key-btn" data-key="2">2</button>
+                <button type="button" class="key-btn" data-key="3">3</button>
+                <button type="button" class="key-btn" data-key="4">4</button>
+                <button type="button" class="key-btn" data-key="5">5</button>
+                <button type="button" class="key-btn" data-key="6">6</button>
+                <button type="button" class="key-btn" data-key="7">7</button>
+                <button type="button" class="key-btn" data-key="8">8</button>
+                <button type="button" class="key-btn" data-key="9">9</button>
+                <button type="button" class="key-btn clear" data-key="clear" title="ลบตัวเลข"><i class="fa-solid fa-delete-left"></i></button>
+                <button type="button" class="key-btn" data-key="0">0</button>
+                <button type="button" class="key-btn cancel" data-key="cancel" title="ยกเลิก"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div style="margin-top: 18px; padding-top: 12px; border-top: 1px dashed #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 11px; color: #64748b;"><i class="fa-solid fa-circle-info" style="color: #4f46e5;"></i> ครูทุกท่านดู/โหลด Excel ได้อิสระ</span>
+                <button type="button" onclick="closeAcademicPinModal()" style="background: none; border: none; font-size: 12.5px; font-weight: 700; color: #64748b; cursor: pointer; padding: 4px;">ยกเลิก</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container" style="position: fixed; bottom: 20px; right: 20px; z-index: 10000;"></div>
+
+    <!-- Loader -->
+    <div id="loader-overlay" class="loader-overlay" style="display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.8); backdrop-filter: blur(4px); z-index: 10001; align-items: center; justify-content: center; flex-direction: column; gap: 10px;">
+        <div class="spinner" style="width: 36px; height: 36px; border: 4px solid #e2e8f0; border-top-color: #4f46e5; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+        <div style="font-weight: 700; color: #1e293b; font-size: 14px;">กำลังดำเนินการ...</div>
+    </div>
+
+    <style>
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+
+    <!-- Supabase JS SDK (v2) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- ExcelJS Library for Official XLSX Generation -->
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+    <!-- HTML2Canvas & jsPDF for Direct Clean PDF Generation (No Print Distortion) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="config.js?v=sbwk_v3" charset="utf-8"></script>
+    <script src="documents.js?v=sbwk_v2" charset="utf-8"></script>
+    
+    <!-- Standalone Logic for students.html -->
+    <script src="students.js?v=sbwk_v12" charset="utf-8"></script>
+</body>
+</html>

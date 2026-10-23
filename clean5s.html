@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบประเมินความสะอาด 5ส. - โรงเรียนซับบอนวิทยาคม</title>
+    
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    
+    <!-- Google Fonts (Outfit & Sarabun) -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Flatpickr CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    
+    <!-- Main Style Sheet -->
+    <link rel="stylesheet" href="styles.css?v=sbwk_clean">
+    
+    <style>
+        body {
+            background: var(--bg-main, #f8fafc);
+            font-family: 'Sarabun', sans-serif;
+            margin: 0;
+            padding: 0;
+            color: var(--text-main, #1e293b);
+        }
+        
+        .clean5s-navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 68px;
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color, #e2e8f0);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+        }
+
+        .clean5s-nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+        }
+
+        .clean5s-nav-logo {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+        }
+
+        .clean5s-nav-title h3 {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-main, #1e293b);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .clean5s-nav-title p {
+            margin: 0;
+            font-size: 11px;
+            color: var(--text-muted, #64748b);
+        }
+
+        .nav-back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 12px;
+            background: #f1f5f9;
+            color: #475569;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 700;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s;
+        }
+
+        .nav-back-btn:hover {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+
+        .clean5s-main-wrapper {
+            max-width: 680px;
+            margin: 88px auto 60px auto;
+            padding: 0 16px;
+        }
+
+        /* Toast Styles */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .toast {
+            background: white;
+            color: #1e293b;
+            padding: 12px 20px;
+            border-radius: 14px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            border-left: 5px solid #10b981;
+            pointer-events: auto;
+            animation: toastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .toast.error {
+            border-left-color: #ef4444;
+        }
+
+        @keyframes toastIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* Loader Overlay */
+        .loader-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 99999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .spinner {
+            width: 44px;
+            height: 44px;
+            border: 4px solid #e2e8f0;
+            border-top: 4px solid #06b6d4;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Navbar -->
+    <header class="clean5s-navbar">
+        <a href="index.html" class="clean5s-nav-brand">
+            <img src="logo.png" alt="Logo" class="clean5s-nav-logo">
+            <div class="clean5s-nav-title">
+                <h3><i class="fa-solid fa-clipboard-check" style="color: #06b6d4;"></i> ประเมินความสะอาด 5ส.</h3>
+                <p>โรงเรียนซับบอนวิทยาคม</p>
+            </div>
+        </a>
+
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <a href="index.html" class="nav-back-btn">
+                <i class="fa-solid fa-arrow-left"></i>
+                <span>กลับระบบหลัก</span>
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="clean5s-main-wrapper">
+        <div class="container-app-width" style="max-width: 650px; margin: 0 auto;">
+            <!-- Top Info Card -->
+            <div class="clean5s-top-bar">
+                <div class="clean5s-top-title">
+                    <i class="fa-solid fa-broom" style="color: #FF6B8B;"></i>
+                    <span id="clean5s-header-title">ระบบบันทึกการทำความสะอาด</span>
+                </div>
+                <div style="display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin-top: 4px;">
+                    <div class="clean5s-top-badge">
+                        <i class="fa-solid fa-school" style="font-size: 12px;"></i>
+                        <span id="clean5s-school-name">โรงเรียนซับบอนวิทยาคม</span>
+                    </div>
+                    <div class="clean5s-top-badge" style="background: #E6F2FF; color: #1E40AF;">
+                        <i class="fa-solid fa-award" style="font-size: 12px;"></i>
+                        <span id="clean5s-term-text">ภาคเรียนที่ 1 ปีการศึกษา 2569</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sub Navigation Tabs -->
+            <div class="clean5s-nav-tabs">
+                <button type="button" class="clean5s-tab-btn active" id="clean5s-tab-classroom" onclick="switchClean5sTab('classroom')">
+                    <i class="fa-solid fa-chalkboard"></i>
+                    <span class="clean5s-tab-desktop">ห้องเรียน</span>
+                    <span class="clean5s-tab-mobile">ห้อง</span>
+                </button>
+                <button type="button" class="clean5s-tab-btn" id="clean5s-tab-service" onclick="switchClean5sTab('service')">
+                    <i class="fa-solid fa-broom"></i>
+                    <span class="clean5s-tab-desktop">เขตบริการ</span>
+                    <span class="clean5s-tab-mobile">เขต</span>
+                </button>
+                <button type="button" class="clean5s-tab-btn" id="clean5s-tab-daily" onclick="switchClean5sTab('daily')">
+                    <i class="fa-solid fa-calendar-day"></i>
+                    <span>ประจำวัน</span>
+                </button>
+                <button type="button" class="clean5s-tab-btn" id="clean5s-tab-summary" onclick="switchClean5sTab('summary')">
+                    <i class="fa-solid fa-trophy"></i>
+                    <span class="clean5s-tab-desktop">สรุปผล</span>
+                    <span class="clean5s-tab-mobile">สรุป</span>
+                </button>
+            </div>
+
+            <!-- Date Picker Calendar Wrapper -->
+            <div id="clean5s-date-picker-wrapper" class="clean5s-date-box" onclick="openClean5sDatePicker()" title="คลิกเพื่อเปิดปฏิทินเลือกวันที่">
+                <div class="clean5s-date-icon-circle">
+                    <i class="fa-solid fa-calendar-day"></i>
+                </div>
+                <div style="flex: 1; text-align: center;">
+                    <span id="clean5s-date-display" class="clean5s-date-display-text">กำลังโหลดวันที่...</span>
+                </div>
+                <div class="clean5s-date-indicator">
+                    <i class="fa-solid fa-chevron-down" style="font-size: 13px; color: #FF7597;"></i>
+                </div>
+                <input type="text" id="clean5s-date-picker-input" style="position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0;">
+            </div>
+
+            <!-- TAB 1: บันทึกห้องเรียน -->
+            <div id="clean5s-page-classroom" class="clean5s-page-content" style="display: block;">
+                <div id="clean5s-classroom-container">
+                    <div style="text-align: center; padding: 30px; color: #64748B;">
+                        <div class="spinner" style="margin: 0 auto 10px auto; width: 32px; height: 32px;"></div>
+                        <div>กำลังโหลดข้อมูลห้องเรียน...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: บันทึกเขตบริการ -->
+            <div id="clean5s-page-service" class="clean5s-page-content" style="display: none;">
+                <div id="clean5s-service-container">
+                    <div style="text-align: center; padding: 30px; color: #64748B;">
+                        <div class="spinner" style="margin: 0 auto 10px auto; width: 32px; height: 32px; border-top-color: #10b981;"></div>
+                        <div>กำลังโหลดข้อมูลเขตบริการ...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: หน้ารายงานประจำวัน -->
+            <div id="clean5s-page-daily" class="clean5s-page-content" style="display: none;">
+                <div class="content-card" style="padding: 14px; background: white; border-radius: 14px; border: 1px solid #FFEBE6;">
+                    <div style="text-align: center; border-bottom: 1px solid #F1F5F9; padding-bottom: 8px; margin-bottom: 12px;">
+                        <h3 style="margin: 0; font-size: 1rem; color: #FF6B8B; font-weight: 700;">
+                            <i class="fa-solid fa-list-check"></i> รายงานความสะอาดประจำวัน
+                        </h3>
+                    </div>
+                    <div id="clean5s-daily-list-container"></div>
+                </div>
+            </div>
+
+            <!-- TAB 4: หน้าสรุปผลคะแนนสะสม (Race Track) -->
+            <div id="clean5s-page-summary" class="clean5s-page-content" style="display: none;">
+                <div class="content-card" style="padding: 14px; background: white; border-radius: 14px; border: 1px solid #FFEBE6;">
+                    <div class="filter-section-box" style="display: flex; align-items: center; gap: 8px; background-color: #FFF5F7; padding: 8px 12px; border-radius: 10px; border: 1px dashed #FFB7B2; margin-bottom: 12px;">
+                        <i class="fa-solid fa-sliders" style="color: #FF6B8B;"></i>
+                        <span style="font-weight: 700; font-size: 0.88rem; color: #FF7597; white-space: nowrap;">ช่วงคะแนน:</span>
+                        <select id="clean5s-summary-period-filter" class="form-control" style="flex: 1; border: 1px solid #FFD1DC; border-radius: 8px; font-weight: 700; font-size: 0.88rem; padding: 4px 8px; background: white;" onchange="calculateClean5sAccumulatedScores()">
+                        </select>
+                    </div>
+                    <div id="clean5s-unified-summary-container"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Floating Action Button for Clean 5S -->
+    <button type="button" id="clean5s-fab-btn" class="clean5s-fab-btn is-active-view" onclick="handleClean5sFabClick()" style="display: flex;" title="บันทึก / ถ่ายภาพ">
+        <i id="clean5s-fab-icon" class="fa-solid fa-floppy-disk" style="font-size: 20px;"></i>
+    </button>
+
+    <!-- Hidden Rendering Box for HTML2Canvas -->
+    <div id="secretScreenshotBox" class="secret-screenshot-box"></div>
+
+    <!-- Preview Modal for Clean 5S Rendered Image -->
+    <div class="clean5s-preview-modal-overlay" id="clean5sImagePreviewModal">
+        <div class="clean5s-preview-canvas-render-area" id="clean5sModalRenderArea"></div>
+        <div class="clean5s-preview-bottom-action-bar">
+            <button type="button" class="btn-clean5s-preview-pill" onclick="closeClean5sPreviewModal()">
+                <i class="fa-solid fa-xmark"></i> ปิด
+            </button>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Loader -->
+    <div id="loader-overlay" class="loader-overlay">
+        <div class="spinner"></div>
+        <div style="font-weight: 700; color: #1e293b; font-size: 14px;">กำลังประมวลผล...</div>
+    </div>
+
+    <!-- Flatpickr JS & Thai Locale -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/th.js"></script>
+
+    <!-- Supabase JS SDK (v2) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- html2canvas for Clean 5S Image Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <!-- Config & Clean 5S Module -->
+    <script src="config.js?v=sbwk_clean" charset="utf-8"></script>
+    <script src="clean5s.js?v=sbwk_clean" charset="utf-8"></script>
+
+    <script>
+        // Standalone Core Helpers for clean5s.html
+        window.getSupabase = function() {
+            if (!window._supabaseInstance && typeof window.supabase !== "undefined" && typeof GLOBAL_CONFIG !== "undefined") {
+                window._supabaseInstance = window.supabase.createClient(GLOBAL_CONFIG.supabaseUrl, GLOBAL_CONFIG.supabaseKey);
+            }
+            return window._supabaseInstance;
+        };
+
+        window.showToast = function(message, type = "success") {
+            const container = document.getElementById("toast-container");
+            if (!container) return;
+            const toast = document.createElement("div");
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<i class="fa-solid ${type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i> <span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        };
+
+        window.setLoader = function(isLoading) {
+            const el = document.getElementById("loader-overlay");
+            if (el) el.style.display = isLoading ? "flex" : "none";
+        };
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            if (typeof initClean5sView === 'function') {
+                await initClean5sView();
+            }
+        });
+    </script>
+</body>
+</html>

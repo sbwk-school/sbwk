@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>รีวิวและประเมินโรงอาหาร - โรงเรียนซับบอนวิทยาคม</title>
+    
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    
+    <!-- Google Fonts (Outfit & Sarabun) -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Main Style Sheet -->
+    <link rel="stylesheet" href="styles.css?v=sbwk_clean">
+    
+    <style>
+        body {
+            background: var(--bg-main, #f8fafc);
+            font-family: 'Sarabun', sans-serif;
+            margin: 0;
+            padding: 0;
+            color: var(--text-main, #1e293b);
+        }
+        
+        .canteen-navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 68px;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color, #e2e8f0);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+        }
+
+        .canteen-nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+        }
+
+        .canteen-nav-logo {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+        }
+
+        .canteen-nav-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-main, #1e293b);
+            line-height: 1.2;
+        }
+
+        .canteen-nav-subtitle {
+            font-size: 12px;
+            color: #ea580c;
+            font-weight: 600;
+        }
+
+        .btn-back-home {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: white;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .btn-back-home:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+            border-color: #94a3b8;
+            transform: translateY(-1px);
+        }
+
+        .canteen-page-container {
+            padding-top: 85px;
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- การแจ้งเตือนแบบ Toast -->
+    <div id="toast-container"></div>
+
+    <!-- Navigation Bar -->
+    <header class="canteen-navbar">
+        <div class="canteen-nav-brand">
+            <img src="logo.png" alt="Logo" class="canteen-nav-logo">
+            <div>
+                <div class="canteen-nav-title">โรงเรียนซับบอนวิทยาคม</div>
+                <div class="canteen-nav-subtitle">🍜 รีวิวและประเมินโรงอาหาร</div>
+            </div>
+        </div>
+
+        <a href="index.html" class="btn-back-home">
+            <i class="fa-solid fa-arrow-left"></i>
+            <span>กลับระบบหลัก</span>
+        </a>
+    </header>
+
+    <!-- Main Page Container -->
+    <div class="canteen-page-container">
+        <div id="view-canteen" class="content-view active" style="display: block;">
+            <!-- canteen.js จะวาด UI ทั้งหมดลงในกล่องนี้อัตโนมัติ -->
+        </div>
+    </div>
+
+    <!-- Essential Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js?v=sbwk_clean" charset="utf-8"></script>
+    <script src="canteen.js?v=sbwk_clean" charset="utf-8"></script>
+
+    <script>
+        // เริ่มต้นเรนเดอร์หน้าจอทันทีเมื่อโหลดเสร็จ
+        document.addEventListener("DOMContentLoaded", () => {
+            if (typeof initCanteenView === "function") {
+                initCanteenView();
+            }
+        });
+    </script>
+</body>
+</html>

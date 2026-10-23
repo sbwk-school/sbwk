@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>แจ้งพฤติกรรมนักเรียน - โรงเรียนซับบอนวิทยาคม</title>
+    
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    
+    <!-- Google Fonts (Outfit & Sarabun) -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Main Style Sheet -->
+    <link rel="stylesheet" href="styles.css?v=sbwk_clean">
+    
+    <style>
+        body {
+            background: var(--bg-main, #f8fafc);
+            font-family: 'Sarabun', sans-serif;
+            margin: 0;
+            padding: 0;
+            color: var(--text-main, #1e293b);
+        }
+        
+        .misconduct-navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 68px;
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color, #e2e8f0);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+        }
+
+        .misconduct-nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+        }
+
+        .misconduct-nav-logo {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+        }
+
+        .misconduct-nav-title h3 {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-main, #1e293b);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .misconduct-nav-title p {
+            margin: 0;
+            font-size: 11px;
+            color: var(--text-muted, #64748b);
+        }
+
+        .nav-back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 12px;
+            background: #f1f5f9;
+            color: #475569;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 700;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s;
+        }
+
+        .nav-back-btn:hover {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+
+        .misconduct-main-wrapper {
+            margin-top: 68px;
+            padding: 24px;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .searchable-select-container {
+            position: relative;
+        }
+
+        .search-results-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: none;
+        }
+
+        .search-results-dropdown.active {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f5f9;
+            transition: background 0.15s;
+        }
+
+        .dropdown-item:hover {
+            background: #f8fafc;
+        }
+
+        .selected-student-badge {
+            background: #fef2f2;
+            color: #991b1b;
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: 1px solid #fecaca;
+            font-size: 13px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Loading Spinner */
+        #app-loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 99999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 12px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar -->
+    <header class="misconduct-navbar">
+        <a href="index.html" class="misconduct-nav-brand">
+            <img src="logo.png" alt="Logo" class="misconduct-nav-logo">
+            <div class="misconduct-nav-title">
+                <h3><i class="fa-solid fa-file-pen" style="color: #f59e0b;"></i> แจ้งพฤติกรรมนักเรียน</h3>
+                <p>งานกิจการนักเรียน โรงเรียนซับบอนวิทยาคม</p>
+            </div>
+        </a>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <a href="index.html" class="nav-back-btn">
+                <i class="fa-solid fa-arrow-left"></i>
+                <span>กลับระบบหลัก</span>
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="misconduct-main-wrapper">
+        <div class="view-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+            <div>
+                <h1 style="margin: 0; font-size: 1.5rem; font-weight: 700; color: #1e293b;">บันทึกแจ้งพฤติกรรมนักเรียน</h1>
+                <p style="margin: 4px 0 0 0; color: #64748b; font-size: 13px;">บันทึกการทำผิดระเบียบ สถานะการแก้ไข และการตรวจสอบความถูกต้อง</p>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <select id="misconduct-filter-select" class="form-control" style="width: 150px; padding: 8px; border-radius: 8px;">
+                    <option value="ALL">ทั้งหมด</option>
+                    <option value="RESOLVED">แก้ไขแล้ว</option>
+                    <option value="UNRESOLVED">ยังไม่แก้ไข</option>
+                </select>
+                <button class="btn btn-danger" id="btn-open-add-misconduct" style="padding: 9px 18px; border-radius: 10px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-plus"></i> เพิ่มบันทึก
+                </button>
+            </div>
+        </div>
+
+        <!-- Misconduct Table -->
+        <div class="table-responsive" style="background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); overflow: hidden; border: 1px solid var(--border-color);">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th class="txt-center" style="width: 60px;">สถานะ</th>
+                        <th class="txt-center" style="width: 50px;">ลำดับ</th>
+                        <th class="txt-center">ชื่อ</th>
+                        <th class="txt-center">ชั้น</th>
+                        <th class="txt-center">วันที่</th>
+                        <th class="txt-center">ความผิด</th>
+                        <th class="txt-center">ผู้แจ้ง</th>
+                        <th class="txt-center">การแก้ไข</th>
+                        <th class="txt-center" style="width: 60px;">ลบ</th>
+                    </tr>
+                </thead>
+                <tbody id="misconduct-table-tbody">
+                    <!-- ข้อมูลดึงจาก Supabase และเรนเดอร์โดย misconduct.js -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Modal 1: บันทึกความประพฤติเพิ่มใหม่ -->
+    <div id="modal-add-misconduct" class="modal-overlay">
+        <div class="modal-box" style="max-width: 520px; border-radius: 16px;">
+            <div class="modal-header">
+                <h2>บันทึกข้อมูลการกระทำความผิด</h2>
+                <button class="modal-close-btn close-modal-trigger"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="misconduct-date-input">วันที่เกิดเหตุ</label>
+                    <input type="date" id="misconduct-date-input" class="form-control">
+                </div>
+                
+                <div class="form-group">
+                    <label for="misconduct-student-search">เลือกนักเรียนที่ทำความผิด</label>
+                    <div class="searchable-select-container">
+                        <input type="text" id="misconduct-student-search" class="form-control" placeholder="พิมพ์ชื่อค้นหานักเรียน (เช่น ชาญปรีชา)..." autocomplete="off">
+                        <div class="search-results-dropdown" id="misconduct-student-dropdown">
+                            <!-- รายการค้นหาดึงจาก JS -->
+                        </div>
+                    </div>
+                    <div id="selected-student-display" class="selected-student-badge hidden" style="margin-top: 8px;">
+                        <span>นักเรียนที่เลือก: </span><strong>-</strong>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="misconduct-desc-input">รายละเอียดการทำผิดระเบียบ</label>
+                    <textarea id="misconduct-desc-input" class="form-control" rows="4" placeholder="ระบุการทำผิด เช่น โดดแถวเช้า, ทะเลาะวิวาท, แต่งกายผิดระเบียบ"></textarea>
+                </div>
+
+                <div class="form-actions" style="margin-top: 20px;">
+                    <button class="btn btn-secondary close-modal-trigger">ยกเลิก</button>
+                    <button class="btn btn-danger" id="btn-submit-misconduct">
+                        <i class="fa-solid fa-shield-halved"></i> แจ้งพฤติกรรมนักเรียน
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 2: หน้าต่างแสดงรายละเอียดความประพฤติ (Misconduct Details) -->
+    <div id="modal-misconduct-details" class="modal-overlay">
+        <div class="modal-box" style="max-width: 500px; border-radius: 16px;">
+            <div class="modal-header">
+                <h2>รายละเอียดการทำผิด</h2>
+                <button class="modal-close-btn close-modal-trigger"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-group" style="margin-bottom: 15px;">
+                    <p style="margin-bottom: 5px; color: var(--text-muted); font-size: 13px;">ข้อมูลนักเรียน</p>
+                    <p><strong id="detail-misconduct-student"></strong></p>
+                </div>
+                <div class="detail-group" style="margin-bottom: 15px;">
+                    <p style="margin-bottom: 5px; color: var(--text-muted); font-size: 13px;">วันที่เกิดเหตุ</p>
+                    <p id="detail-misconduct-date"></p>
+                </div>
+                <div class="detail-group" style="margin-bottom: 15px;">
+                    <p style="margin-bottom: 5px; color: var(--text-muted); font-size: 13px;">รายละเอียดการทำผิด</p>
+                    <div style="background-color: var(--bg-body, #f8fafc); padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <p id="detail-misconduct-desc" style="white-space: pre-wrap; margin: 0; font-size: 14px;"></p>
+                    </div>
+                </div>
+                <div class="detail-group" style="margin-bottom: 15px;">
+                    <p style="margin-bottom: 5px; color: var(--text-muted); font-size: 13px;">ผู้แจ้ง</p>
+                    <p id="detail-misconduct-reporter"></p>
+                </div>
+                <div class="detail-group" id="detail-misconduct-resolution-group" style="margin-bottom: 15px; display: none;">
+                    <p style="margin-bottom: 5px; color: var(--color-success); font-size: 13px; font-weight: 600;"><i class="fa-solid fa-circle-check"></i> รายละเอียดการแก้ไข</p>
+                    <div style="background-color: #f0fdf4; border-left: 4px solid var(--color-success); padding: 10px; border-radius: 0 8px 8px 0;">
+                        <p id="detail-misconduct-resolution" style="white-space: pre-wrap; margin: 0; color: #166534;"></p>
+                    </div>
+                </div>
+                
+                <div class="form-actions" style="margin-top: 20px;">
+                    <button class="btn btn-secondary close-modal-trigger">ปิด</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 3: บันทึกการแก้ไขความประพฤติ (Misconduct Resolve Modal) -->
+    <div id="modal-misconduct-resolve" class="modal-overlay" style="z-index: 2400;">
+        <div class="modal-box" style="max-width: 420px; padding: 25px; border-radius: var(--radius-lg); background: var(--bg-card); box-shadow: var(--shadow-lg);">
+            <h2 id="misconduct-resolve-title" style="color: var(--text-main); font-size: 1.3rem; margin-bottom: 15px; font-weight: 700;">บันทึกการแก้ไขความประพฤติ</h2>
+            
+            <div id="misconduct-resolve-input-group" class="form-group" style="margin-bottom: 20px;">
+                <label for="misconduct-resolution-input" style="font-size: 0.9rem; color: var(--text-muted); display: block; margin-bottom: 8px;">ระบุรายละเอียดการแก้ไข (เช่น บำเพ็ญประโยชน์, พบผู้ปกครอง)</label>
+                <textarea id="misconduct-resolution-input" class="form-control" rows="3" placeholder="ตัวอย่าง: บำเพ็ญประโยชน์ทำความสะอาดห้องเรียน" style="width: 100%; border-radius: var(--radius-md); padding: 8px; border: 1px solid var(--border-color);"></textarea>
+            </div>
+            
+            <p id="misconduct-resolve-confirm-text" style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 20px; display: none;">
+                คุณแน่ใจหรือไม่ว่าต้องการยกเลิกสถานะการแก้ไขความประพฤติของนักเรียนท่านนี้?
+            </p>
+            
+            <div class="form-actions" style="justify-content: flex-end; gap: 10px; display: flex; width: 100%;">
+                <button class="btn btn-secondary" id="btn-cancel-misconduct-resolve" style="padding: 10px 15px;">ยกเลิก</button>
+                <button class="btn btn-primary" id="btn-submit-misconduct-resolve" style="padding: 10px 15px; font-weight: 600;">ตกลง</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 4: คีย์บอร์ดกดรหัส PIN 4 หลัก (สำหรับยืนยันสิทธิ์) -->
+    <div id="modal-pin" class="modal-overlay" style="z-index: 2500;">
+        <div class="pin-pad-container">
+            <h2 id="pin-modal-title">กรอกรหัสผ่าน PIN 4 หลัก</h2>
+            <p id="pin-modal-subtitle">เพื่อยืนยันตัวตนครูผู้บันทึกข้อมูล</p>
+            
+            <div class="pin-display">
+                <div class="pin-dot"></div>
+                <div class="pin-dot"></div>
+                <div class="pin-dot"></div>
+                <div class="pin-dot"></div>
+            </div>
+            
+            <p id="pin-error-message" class="error-text"></p>
+            
+            <div class="pin-keypad">
+                <button class="key-btn" data-key="1">1</button>
+                <button class="key-btn" data-key="2">2</button>
+                <button class="key-btn" data-key="3">3</button>
+                <button class="key-btn" data-key="4">4</button>
+                <button class="key-btn" data-key="5">5</button>
+                <button class="key-btn" data-key="6">6</button>
+                <button class="key-btn" data-key="7">7</button>
+                <button class="key-btn" data-key="8">8</button>
+                <button class="key-btn" data-key="9">9</button>
+                <button class="key-btn clear" data-key="clear"><i class="fa-solid fa-delete-left"></i></button>
+                <button class="key-btn" data-key="0">0</button>
+                <button class="key-btn cancel" data-key="cancel"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Loader -->
+    <div id="app-loader">
+        <i class="fa-solid fa-spinner fa-spin" style="font-size: 36px; color: var(--color-primary, #4f46e5);"></i>
+        <span style="font-size: 14px; font-weight: 600; color: #475569;">กำลังประมวลผล...</span>
+    </div>
+
+    <!-- Scripts -->
+    <!-- Supabase JS SDK (v2) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Custom Frontend JavaScript -->
+    <script src="config.js?v=sbwk_clean" charset="utf-8"></script>
+    <script src="misconduct.js?v=sbwk_clean" charset="utf-8"></script>
+</body>
+</html>

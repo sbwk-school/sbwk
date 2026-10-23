@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบผู้ดูแลระบบ (Admin) - โรงเรียนซับบอนวิทยาคม</title>
+    
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    
+    <!-- Google Fonts (Outfit & Sarabun) -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Flatpickr CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    
+    <!-- Main Style Sheet (Same as index.html) -->
+    <link rel="stylesheet" href="styles.css?v=sbwk_clean">
+    
+    <style>
+        /* ==================== APPLE LIQUID GLASS ADMIN THEME ==================== */
+        body {
+            background-color: var(--bg-main, #f8fafc);
+            font-family: 'Sarabun', 'Outfit', sans-serif;
+            color: var(--text-main, #1e293b);
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        .admin-wrapper {
+            max-width: 1040px;
+            margin: 0 auto;
+            width: 100%;
+            padding-bottom: 96px;
+        }
+
+        /* 1. Liquid Glass Content Card (100% matched with index.html) */
+        .content-card {
+            position: relative;
+            backdrop-filter: blur(20px) saturate(130%);
+            -webkit-backdrop-filter: blur(20px) saturate(130%);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.45) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.85);
+            border-radius: 24px;
+            padding: 26px 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05), inset 0 1px 2px rgba(255, 255, 255, 0.6);
+            margin-bottom: 24px;
+            transition: all 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .content-card {
+                padding: 18px 20px;
+                border-radius: 20px;
+            }
+        }
+
+        /* 2. Admin Tab Pills Navigation */
+        .admin-tabs-nav {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 24px;
+            padding-bottom: 6px;
+            flex-wrap: wrap;
+        }
+
+        .admin-tab-btn {
+            padding: 9px 20px;
+            border-radius: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            background: rgba(255, 255, 255, 0.55);
+            backdrop-filter: blur(12px) saturate(120%);
+            -webkit-backdrop-filter: blur(12px) saturate(120%);
+            font-size: 13.5px;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--text-muted, #64748b);
+            box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.4), 0 2px 6px rgba(0, 0, 0, 0.03);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            user-select: none;
+        }
+
+        .admin-tab-btn:hover {
+            background: rgba(255, 255, 255, 0.85);
+            color: var(--text-main, #1e293b);
+            transform: translateY(-1px);
+            box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.5), 0 4px 10px rgba(0, 0, 0, 0.06);
+        }
+
+        .admin-tab-btn.active {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
+            border: 1px solid rgba(255, 255, 255, 0.6) !important;
+            color: #ffffff !important;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(79, 70, 229, 0.35), inset 0 2px 4px rgba(255, 255, 255, 0.4) !important;
+        }
+
+        .tab-pane {
+            display: none;
+            animation: fadeIn 0.25s ease-out;
+        }
+        .tab-pane.active {
+            display: block;
+        }
+
+        /* 3. Sub-box Cards */
+        .sub-box {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            border-radius: 18px;
+            padding: 18px 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+            transition: all 0.2s ease;
+        }
+        .sub-box:hover {
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        /* 4. Active Academic Status Card & iOS Segmented Control */
+        .active-academic-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 16px 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+            margin-bottom: 22px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .active-badge-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: #eef2ff;
+            color: #4f46e5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .active-term-tag {
+            background: #ecfdf5;
+            color: #059669;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 2.5px 10px;
+            border-radius: 9999px;
+            white-space: nowrap;
+            border: 1px solid #d1fae5;
+        }
+
+        .ios-segmented-control {
+            display: inline-flex;
+            background: #f1f5f9;
+            padding: 3px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .segmented-btn {
+            border: none;
+            background: transparent;
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 12.5px;
+            font-weight: 500;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+            font-family: inherit;
+        }
+        .segmented-btn:hover:not(.active) {
+            color: #1e293b;
+        }
+        .segmented-btn.active {
+            background: #ffffff;
+            color: #4f46e5;
+            font-weight: 600;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .manual-term-pills {
+            display: inline-flex;
+            gap: 6px;
+            background: #f8fafc;
+            padding: 3px 6px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            margin-top: 4px;
+        }
+        .manual-term-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            padding: 3px 8px;
+            border-radius: 6px;
+            transition: all 0.15s;
+        }
+        .manual-term-pill input {
+            accent-color: #4f46e5;
+            cursor: pointer;
+        }
+
+        /* 5. Minimalist Clean Table */
+        .table-glass-wrap {
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+            background: #ffffff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+        }
+
+        .min-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13.5px;
+        }
+        .min-table th {
+            background: #f8fafc;
+            padding: 12px 16px;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: #475569;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: left;
+        }
+        .min-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 13.5px;
+            color: #334155;
+            vertical-align: middle;
+        }
+        .min-table tr:last-child td {
+            border-bottom: none;
+        }
+        .min-table tr:hover td {
+            background-color: #f8fafc;
+        }
+        .academic-row-active td {
+            background-color: #f5f7ff !important;
+        }
+
+        /* Clean Year Typography */
+        .year-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .academic-row-active .year-title {
+            color: #4338ca;
+        }
+
+        /* Clean Date Text */
+        .term-date-text {
+            color: #334155;
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        /* Clean Status Badge & Select Button */
+        .status-badge-active {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #ecfdf5;
+            color: #047857;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .status-badge-active .dot {
+            width: 6px;
+            height: 6px;
+            background-color: #10b981;
+            border-radius: 50%;
+        }
+
+        .btn-select-year {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            color: #475569;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+        .btn-select-year:hover {
+            background: #4f46e5;
+            border-color: #4f46e5;
+            color: #ffffff;
+        }
+
+        /* Clean Minimal Action Icon Buttons */
+        .btn-action-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            background: #ffffff;
+            color: #64748b;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .btn-action-icon.edit:hover {
+            color: #4f46e5;
+            border-color: #c7d2fe;
+            background: #eef2ff;
+        }
+        .btn-action-icon.delete:hover:not(:disabled) {
+            color: #ef4444;
+            border-color: #fecaca;
+            background: #fef2f2;
+        }
+        .btn-action-icon:disabled {
+            opacity: 0.25;
+            cursor: not-allowed;
+            background: #f8fafc;
+        }
+
+        /* 6. Action Delete Button (Fallback) */
+        .btn-outline-danger {
+            background: rgba(239, 68, 68, 0.08);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            border-radius: 10px;
+            padding: 6px 14px;
+            font-size: 12.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-outline-danger:hover {
+            background: #ef4444;
+            color: white;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+            transform: translateY(-1px);
+        }
+
+        /* 7. Teacher PIN & Role Elements */
+        .teacher-role-select {
+            padding: 7px 12px;
+            border: 1px solid var(--border-color, #e2e8f0);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.85);
+            color: var(--text-main, #1e293b);
+            font-size: 13px;
+            font-family: inherit;
+            font-weight: 500;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s;
+        }
+        .teacher-role-select:focus {
+            border-color: var(--primary-color, #4f46e5);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+            background: #fff;
+        }
+        .teacher-pin-input {
+            padding: 7px;
+            border: 1px solid var(--border-color, #e2e8f0);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.85);
+            color: var(--text-main, #1e293b);
+            font-family: monospace;
+            letter-spacing: 2px;
+            width: 80px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.2s;
+        }
+        .teacher-pin-input:focus {
+            border-color: var(--primary-color, #4f46e5);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+            background: #fff;
+        }
+
+        /* 8. Mobile Dock Overrides (Keep visible and centered) */
+        @media (max-width: 768px) {
+            .mac-dock {
+                bottom: 16px !important;
+                height: 52px !important;
+                padding: 0 14px !important;
+                border-radius: 26px !important;
+                background: rgba(255, 255, 255, 0.92) !important;
+                box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15) !important;
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+                display: flex !important;
+                justify-content: center !important;
+                align-items: center !important;
+            }
+            .mac-dock .dock-item {
+                display: flex !important;
+                width: 38px !important;
+                height: 38px !important;
+                font-size: 17px !important;
+            }
+            .mac-dock .dock-separator {
+                display: block !important;
+                height: 20px !important;
+                margin: 0 6px !important;
+            }
+        }
+
+        .input-tip {
+            font-size: 12px;
+            color: var(--text-muted, #64748b);
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- การโหลดแบบ Fullscreen (เหมือนหน้า index 100%) -->
+    <div id="app-loading" class="fullscreen-overlay" style="display: none;">
+        <div class="loader-content">
+            <div class="spinner"></div>
+            <p id="app-loading-text" style="font-weight: 600; color: var(--text-main); margin: 0;">กำลังโหลดข้อมูล...</p>
+        </div>
+    </div>
+
+    <!-- 1. Global App Header (Exactly identical to index.html) -->
+    <header class="app-header">
+        <div class="header-left">
+            <button onclick="window.location.href='index.html'" style="background: none; border: none; font-size: 18px; color: var(--color-absent); cursor: pointer; padding: 0 8px; display: flex; align-items: center;" title="กลับหน้าแรก">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <div class="header-logo">
+                <img src="logo.png" alt="Logo">
+            </div>
+            <div class="header-titles">
+                <span class="header-title" id="header-school-name">โรงเรียนซับบอนวิทยาคม</span>
+                <span class="header-divider">/</span>
+                <span class="header-subtitle" id="header-page-title">ระบบผู้ดูแลระบบ (Admin)</span>
+            </div>
+        </div>
+        
+        <!-- User Session Banner inside header -->
+        <div id="user-session-banner" class="header-session">
+            <span style="display: flex; align-items: center;">
+                <i class="fa-solid fa-user-circle" style="color: var(--color-primary); margin-right: 4px; font-size: 16px;"></i> 
+                <span style="color: var(--text-main); font-weight: 500; margin-right: 8px;" id="admin-user-display">ผู้ดูแลระบบ</span>
+                <button onclick="logoutAdmin()" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: inherit; text-decoration: underline; padding: 0;">ออกจากระบบ</button>
+            </span>
+        </div>
+    </header>
+
+    <!-- 2. macOS Style Floating Dock (Liquid Glass - Identical to index.html) -->
+    <div class="mac-dock">
+        <button class="dock-item" id="shortcut-back" onclick="window.location.href='index.html'" title="กลับสู่หน้าแรก" style="color: var(--color-danger);">
+            <i class="fa-solid fa-arrow-left"></i>
+            <span class="dock-tooltip">หน้าหลัก</span>
+            <span class="active-dot"></span>
+        </button>
+        <button class="dock-item" onclick="window.location.href='index.html'" title="หน้าแรก">
+            <i class="fa-solid fa-house"></i>
+            <span class="dock-tooltip">หน้าแรก</span>
+        </button>
+        <div class="dock-separator"></div>
+        <button class="dock-item active" id="shortcut-admin" title="ผู้ดูแลระบบ (Admin)">
+            <i class="fa-solid fa-lock"></i>
+            <span class="dock-tooltip">แอดมิน</span>
+            <span class="active-dot"></span>
+        </button>
+    </div>
+
+    <!-- 3. App Container & Main Content Area -->
+    <div class="app-container">
+        <main class="main-content">
+            <div class="admin-wrapper">
+                
+                <!-- View Header (Design matching index.html) -->
+                <div class="view-header" style="margin-bottom: 24px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 14px;">
+                            <button onclick="window.location.href='index.html'" class="btn-back-to-home" style="background: rgba(255,255,255,0.7); border: 1px solid var(--border-color); border-radius: 50%; width: 42px; height: 42px; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; color: var(--color-absent); cursor: pointer; transition: all 0.2s;" onmouseover="this.style.transform='scale(1.08)'; this.style.background='#fff';" onmouseout="this.style.transform='scale(1)'; this.style.background='rgba(255,255,255,0.7)';" title="กลับหน้าหลัก">
+                                <i class="fa-solid fa-arrow-left"></i>
+                            </button>
+                            <div>
+                                <h1 style="margin: 0; font-size: clamp(18px, 4vw, 24px); color: var(--text-main); font-weight: 700;">ระบบควบคุมสำหรับผู้ดูแลระบบ (Admin)</h1>
+                                <p style="margin: 2px 0 0; font-size: 12.5px; color: var(--text-muted);" id="banner-date-range-text">ตั้งค่าปีการศึกษา วันหยุด บัญชีครู และฐานข้อมูล</p>
+                            </div>
+                        </div>
+
+                        <!-- Interactive Academic Pill (Same design as index.html date pill) -->
+                        <div class="interactive-date-pill is-workday" style="cursor: default; margin-top: 0; flex-shrink: 0;">
+                            <div class="date-icon"><i class="fa-solid fa-graduation-cap"></i></div>
+                            <div class="date-text">
+                                <span class="date-label">ภาคเรียนที่ใช้งาน</span>
+                                <strong id="banner-academic-title" style="font-size: 13.5px;">ภาคเรียนที่ 1 ปีการศึกษา 2569</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin Tabs Navigation (Liquid Glass Pills) -->
+                <div class="admin-tabs-nav">
+                    <button class="admin-tab-btn active" data-tab="academic">
+                        <i class="fa-solid fa-calendar-days"></i> <span>ปีการศึกษา & ภาคเรียน</span>
+                    </button>
+                    <button class="admin-tab-btn" data-tab="holidays">
+                        <i class="fa-solid fa-umbrella-beach"></i> <span>วันหยุด</span>
+                    </button>
+                    <button class="admin-tab-btn" data-tab="teachers">
+                        <i class="fa-solid fa-users"></i> <span>จัดการครู</span>
+                    </button>
+                    <button class="admin-tab-btn" data-tab="maintenance">
+                        <i class="fa-solid fa-server"></i> <span>จัดการระบบ</span>
+                    </button>
+                </div>
+
+                <!-- ============================================================= -->
+                <!-- TAB 1: ⚙️ ปีการศึกษา & ภาคเรียน (Centralized Academic Settings & Table) -->
+                <!-- ============================================================= -->
+                <section id="tab-academic" class="tab-pane active">
+                    <div class="content-card">
+                        
+                        <!-- 1. กล่องสรุปสถานะปีการศึกษาและภาคเรียนที่เปิดใช้งานขณะนี้ (Clean Minimalist Design) -->
+                        <div class="active-academic-card">
+                            <div style="display: flex; align-items: center; gap: 14px;">
+                                <div class="active-badge-icon">
+                                    <i class="fa-solid fa-graduation-cap"></i>
+                                </div>
+                                <div>
+                                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                        <span style="font-size: 16px; font-weight: 700; color: #0f172a;">
+                                            ปีการศึกษา <span id="quick-active-year" style="color: #4f46e5;">2569</span>
+                                        </span>
+                                        <span class="active-term-tag" id="quick-active-term">ภาคเรียนที่ 1</span>
+                                    </div>
+                                    <div style="font-size: 12.5px; color: #64748b; margin-top: 3px; display: flex; align-items: center; gap: 6px;">
+                                        <i class="fa-regular fa-calendar-check" style="color: #10b981;"></i>
+                                        <span id="quick-active-range">16 พ.ค. 2569 – 10 ต.ค. 2569</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- ปุ่มสลับโหมด Auto / Manual (Apple Segmented Style) -->
+                            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <span style="font-size: 12px; font-weight: 500; color: #64748b;">โหมดเลือกเทอม:</span>
+                                    <div class="ios-segmented-control">
+                                        <button type="button" id="mode-btn-auto" class="segmented-btn active" onclick="setTermMode(true)">
+                                            <i class="fa-solid fa-wand-magic-sparkles"></i> <span>สลับตามวันอัตโนมัติ</span>
+                                        </button>
+                                        <button type="button" id="mode-btn-manual" class="segmented-btn" onclick="setTermMode(false)">
+                                            <i class="fa-solid fa-sliders"></i> <span>กำหนดเอง</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- กล่องเลือกเทอมเมื่อใช้โหมด Manual -->
+                                <div id="manual-term-selector-box" style="display: none;">
+                                    <div class="manual-term-pills">
+                                        <label class="manual-term-pill">
+                                            <input type="radio" name="manual_term" value="1" onchange="setManualTerm(1)" checked>
+                                            <span>เทอม 1</span>
+                                        </label>
+                                        <label class="manual-term-pill">
+                                            <input type="radio" name="manual_term" value="2" onchange="setManualTerm(2)">
+                                            <span>เทอม 2</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2. ตารางกำหนดปีการศึกษาและช่วงวันเปิด-ปิดภาคเรียน (ตารางหลักที่ผู้ใช้ต้องการ) -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+                            <div>
+                                <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                                    <i class="fa-solid fa-table-list" style="color: var(--primary-color);"></i> ตารางปีการศึกษาและวันเปิด-ปิดภาคเรียน
+                                </h3>
+                                <p style="margin: 3px 0 0; font-size: 12.5px; color: var(--text-muted);">
+                                    เพิ่มปีการศึกษาถัดไปได้เรื่อยๆ ปรับวันเปิด-ปิดเทอม 1 และเทอม 2 และคลิก <strong>"เลือกใช้"</strong> เพื่อปรับใช้ทั้งระบบได้ทันที
+                                </p>
+                            </div>
+                            <button type="button" class="btn btn-primary" onclick="openAddAcademicYearModal()" style="border-radius: 12px; padding: 9px 18px; font-size: 13.5px; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.25);">
+                                <i class="fa-solid fa-plus"></i> เพิ่มปีการศึกษาใหม่
+                            </button>
+                        </div>
+
+                        <div class="table-responsive table-glass-wrap" style="margin-bottom: 16px;">
+                            <table class="min-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 130px;">ปีการศึกษา</th>
+                                        <th>ภาคเรียนที่ 1</th>
+                                        <th>ภาคเรียนที่ 2</th>
+                                        <th class="txt-center" style="width: 130px;">สถานะ</th>
+                                        <th class="txt-center" style="width: 100px;">จัดการ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="academic-years-table-body">
+                                    <tr>
+                                        <td>
+                                            <span class="year-title">2568</span>
+                                        </td>
+                                        <td>
+                                            <span class="term-date-text">16 พ.ค. 2568 – 10 ต.ค. 2568</span>
+                                        </td>
+                                        <td>
+                                            <span class="term-date-text">1 พ.ย. 2568 – 31 มี.ค. 2569</span>
+                                        </td>
+                                        <td style="text-align: center; white-space: nowrap;">
+                                            <button type="button" class="btn-select-year" onclick="activateAcademicYear('2568')">เลือกใช้</button>
+                                        </td>
+                                        <td style="text-align: center; white-space: nowrap;">
+                                            <div style="display: inline-flex; align-items: center; gap: 6px;">
+                                                <button type="button" class="btn-action-icon edit" onclick="openEditAcademicYearModal('2568')" title="แก้ไข">
+                                                    <i class="fa-solid fa-pen-to-square"></i>
+                                                </button>
+                                                <button type="button" class="btn-action-icon delete" onclick="deleteAcademicYear('2568')" title="ลบ">
+                                                    <i class="fa-solid fa-trash-can"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr class="academic-row-active">
+                                        <td>
+                                            <span class="year-title">2569</span>
+                                        </td>
+                                        <td>
+                                            <span class="term-date-text">16 พ.ค. 2569 – 10 ต.ค. 2569</span>
+                                        </td>
+                                        <td>
+                                            <span class="term-date-text">28 ต.ค. 2569 – 31 มี.ค. 2570</span>
+                                        </td>
+                                        <td style="text-align: center; white-space: nowrap;">
+                                            <span class="status-badge-active"><span class="dot"></span> ใช้งานอยู่</span>
+                                        </td>
+                                        <td style="text-align: center; white-space: nowrap;">
+                                            <div style="display: inline-flex; align-items: center; gap: 6px;">
+                                                <button type="button" class="btn-action-icon edit" onclick="openEditAcademicYearModal('2569')" title="แก้ไข">
+                                                    <i class="fa-solid fa-pen-to-square"></i>
+                                                </button>
+                                                <button type="button" class="btn-action-icon delete" disabled title="ไม่สามารถลบปีการศึกษาที่กำลังเปิดใช้งานอยู่ได้">
+                                                    <i class="fa-solid fa-trash-can"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <span class="year-title">2570</span>
+                                        </td>
+                                        <td>
+                                            <span class="term-date-text">16 พ.ค. 2570 – 10 ต.ค. 2570</span>
+                                        </td>
+                                        <td>
+                                            <span class="term-date-text">1 พ.ย. 2570 – 31 มี.ค. 2571</span>
+                                        </td>
+                                        <td style="text-align: center; white-space: nowrap;">
+                                            <button type="button" class="btn-select-year" onclick="activateAcademicYear('2570')">เลือกใช้</button>
+                                        </td>
+                                        <td style="text-align: center; white-space: nowrap;">
+                                            <div style="display: inline-flex; align-items: center; gap: 6px;">
+                                                <button type="button" class="btn-action-icon edit" onclick="openEditAcademicYearModal('2570')" title="แก้ไข">
+                                                    <i class="fa-solid fa-pen-to-square"></i>
+                                                </button>
+                                                <button type="button" class="btn-action-icon delete" onclick="deleteAcademicYear('2570')" title="ลบ">
+                                                    <i class="fa-solid fa-trash-can"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- แถบแนะนำการใช้งาน -->
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: rgba(254, 243, 199, 0.45); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 12px; font-size: 12.5px; color: #92400e; margin-bottom: 24px;">
+                            <i class="fa-solid fa-lightbulb" style="color: #f59e0b; font-size: 16px; flex-shrink: 0;"></i>
+                            <div>
+                                เมื่อกด <strong>"เลือกใช้ปีนี้"</strong> ข้อมูลทั้งระบบ (หน้าเช็คชื่อ, ใบรายชื่อนักเรียน 15 ช่อง PDF, สถิติมาเรียน, และเอกสารทางการทั้งหมด) จะเปลี่ยนมาทำงานตามปีการศึกษาและช่วงวันนั้นอัตโนมัติ
+                            </div>
+                        </div>
+
+                        <!-- 3. ข้อมูลหัวเอกสารและโรงเรียน -->
+                        <div style="padding-top: 18px; border-top: 1px solid var(--border-color);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                                <h4 style="margin: 0; font-size: 14.5px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                                    <i class="fa-solid fa-school" style="color: var(--primary-color);"></i> ข้อมูลหัวเอกสารและโรงเรียน
+                                </h4>
+                                <button type="button" class="btn btn-sm btn-outline" onclick="saveSchoolMetadata()" style="border-radius: 10px; font-size: 12px; padding: 6px 14px;">
+                                    <i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลโรงเรียน
+                                </button>
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px;">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label for="input-school-name">ชื่อโรงเรียน</label>
+                                    <input type="text" id="input-school-name" class="form-control" value="โรงเรียนซับบอนวิทยาคม">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label for="input-work-group">กลุ่มงาน / ฝ่ายบริหาร</label>
+                                    <input type="text" id="input-work-group" class="form-control" value="กลุ่มงานบริหารทั่วไป">
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+
+                <!-- ============================================================= -->
+                <!-- TAB 2: 📅 วันหยุดโรงเรียน (School Holidays)                    -->
+                <!-- ============================================================= -->
+                <section id="tab-holidays" class="tab-pane">
+                    <div class="content-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <h3 style="margin: 0; font-size: 16px; font-weight: 700;">
+                                <i class="fa-solid fa-calendar-xmark" style="color: var(--color-late); margin-right: 6px;"></i> รายการวันหยุดปัจจุบัน
+                            </h3>
+                            <button type="button" class="btn btn-sm btn-outline" onclick="loadHolidays()" style="border-radius: 10px; font-size: 12.5px;">
+                                <i class="fa-solid fa-rotate"></i> รีเฟรช
+                            </button>
+                        </div>
+                        
+                        <div class="table-responsive table-glass-wrap" style="margin-bottom: 25px;">
+                            <table class="min-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 70px; text-align: center;">ลำดับ</th>
+                                        <th style="width: 200px;">วันที่</th>
+                                        <th>ชื่อวันหยุด / หมายเหตุ</th>
+                                        <th class="txt-center" style="width: 100px;">จัดการ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="holiday-table-body">
+                                    <tr>
+                                        <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 30px;">กำลังโหลดรายการวันหยุด...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- ฟอร์มเพิ่มวันหยุดใหม่ -->
+                        <div class="sub-box">
+                            <h4 style="margin: 0 0 14px; font-size: 14.5px; font-weight: 700;">
+                                <i class="fa-solid fa-plus-circle" style="color: var(--primary-color); margin-right: 6px;"></i> เพิ่มวันหยุดใหม่
+                            </h4>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; align-items: flex-end;">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label for="holiday-date-input">วันที่หยุด *</label>
+                                    <input type="date" id="holiday-date-input" class="form-control">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label for="holiday-name-input">ชื่อวันหยุด / หมายเหตุ *</label>
+                                    <input type="text" id="holiday-name-input" class="form-control" placeholder="เช่น วันขึ้นปีใหม่, วันเข้าพรรษา">
+                                </div>
+                                <div>
+                                    <button type="button" class="btn btn-primary" onclick="addHolidayFromAdmin()" style="width: 100%; height: 42px; justify-content: center; border-radius: 12px;">
+                                        <i class="fa-solid fa-plus"></i> เพิ่มวันหยุด
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ============================================================= -->
+                <!-- TAB 3: 👨‍🏫 ครูและผู้ใช้งาน (Teachers & Roles)                 -->
+                <!-- ============================================================= -->
+                <section id="tab-teachers" class="tab-pane">
+                    <div class="content-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+                            <div>
+                                <h3 style="margin: 0; font-size: 16px; font-weight: 700;">
+                                    <i class="fa-solid fa-chalkboard-user" style="color: var(--color-present); margin-right: 6px;"></i> รายชื่อครูและสิทธิ์การใช้งาน
+                                </h3>
+                                <p style="margin: 2px 0 0; font-size: 12.5px; color: var(--text-muted);">
+                                    กำหนดรหัส PIN 4 หลัก และระดับสิทธิ์ในการใช้งานระบบ
+                                </p>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline" onclick="openAddTeacherModal()" style="border-radius: 12px; padding: 8px 16px;">
+                                <i class="fa-solid fa-user-plus"></i> เพิ่มครูใหม่
+                            </button>
+                        </div>
+
+                        <div class="table-responsive table-glass-wrap">
+                            <table class="min-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 80px; text-align: center;">รหัส</th>
+                                        <th>ชื่อครู</th>
+                                        <th style="width: 130px; text-align: center;">รหัส PIN</th>
+                                        <th>บทบาทการใช้งาน</th>
+                                        <th class="txt-center" style="width: 90px;">ลบครู</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="teachers-table-body">
+                                    <tr>
+                                        <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">กำลังโหลดรายชื่อครู...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                            <span id="teachers-unsaved-alert" style="color: #f57c00; font-size: 0.9rem; display: none; align-items: center; gap: 6px; font-weight: 600;">
+                                <i class="fa-solid fa-circle-info"></i> มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก
+                            </span>
+                            <button class="btn btn-primary" id="btn-save-teachers" onclick="saveAllTeachersFromAdmin()" style="margin-left: auto; border-radius: 12px; padding: 10px 22px;">
+                                <i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลครูทั้งหมด
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ============================================================= -->
+                <!-- TAB 4: 🛠️ จัดการระบบ (Maintenance)                           -->
+                <!-- ============================================================= -->
+                <section id="tab-maintenance" class="tab-pane">
+                    <div class="content-card">
+                        <!-- สถานะฐานข้อมูล Supabase -->
+                        <div class="sub-box" style="background: rgba(239, 246, 255, 0.7); border-color: #bfdbfe; margin-bottom: 20px;">
+                            <h4 style="margin-top: 0; margin-bottom: 6px; color: #1d4ed8; display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-server"></i> สถานะฐานข้อมูล Supabase Cloud
+                            </h4>
+                            <p style="font-size: 13px; color: #1e40af; margin-bottom: 10px;" id="db-health-desc">
+                                ระบบเชื่อมต่อกับ Online Database (Supabase Cloud) เรียบร้อยแล้ว ข้อมูลทั้งหมดได้รับการบันทึกแบบ Real-time
+                            </p>
+                            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                <span id="db-health-badge" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #10b981;"></span>
+                                <span style="font-size: 12.5px; font-weight: 700; color: #1d4ed8;" id="db-health-title">สถานะ: เชื่อมต่อสำเร็จ (Online)</span>
+                                <span style="font-size: 12px; color: #64748b; margin-left: auto;" id="db-ping-display">ความเร็ว: ~65 ms</span>
+                            </div>
+                        </div>
+
+                        <!-- แปลงลายเซ็น Cloud Storage -->
+                        <div class="sub-box" style="margin-bottom: 20px;">
+                            <h4 style="margin-top: 0; margin-bottom: 6px; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-cloud-arrow-up" style="color: #2563eb;"></i> จัดการพื้นที่จัดเก็บลายเซ็น (Cloud Storage)
+                            </h4>
+                            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+                                แปลงลายเซ็น Base64 ในฐานข้อมูลขึ้น Supabase Storage (Bucket: signatures) เพื่อลดขนาดฐานข้อมูลลงกว่า 99%
+                            </p>
+                            <button class="btn btn-outline" onclick="migrateSignaturesFromAdmin()" style="font-size: 13px; border-color: #2563eb; color: #2563eb; background: #eff6ff; border-radius: 10px;">
+                                <i class="fa-solid fa-file-export"></i> แปลงลายเซ็นทั้งหมดขึ้น Storage (One-Time)
+                            </button>
+                        </div>
+
+                        <!-- ล้างข้อมูลเพื่อเริ่มเทอมใหม่ -->
+                        <div class="sub-box" style="background: rgba(254, 242, 242, 0.6); border-color: rgba(239, 68, 68, 0.3);">
+                            <h4 style="margin-top: 0; margin-bottom: 8px; color: var(--color-danger); display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-triangle-exclamation"></i> ล้างข้อมูลเพื่อเริ่มเทอมใหม่
+                            </h4>
+                            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">
+                                การล้างข้อมูลนี้จะลบ **บันทึกเวลาเรียน (att)** ทั้งหมดออก เพื่อให้พร้อมใช้งานสำหรับเทอมใหม่ (ข้อมูลรายชื่อนักเรียน ครู และวันหยุดจะไม่ถูกลบ)
+                            </p>
+                            <button class="btn btn-danger" onclick="openConfirmClearModal()" style="border-radius: 10px;">
+                                <i class="fa-solid fa-trash-can"></i> ล้างประวัติเวลาเรียนทั้งหมด
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- ============================================================= -->
+    <!-- MODALS (Identical to index.html design)                       -->
+    <!-- ============================================================= -->
+
+    <!-- 1. คีย์บอร์ดกดรหัส PIN 4 หลัก (ดีไซน์เดียวกับหน้า index 100%) -->
+    <div id="modal-pin" class="modal-overlay" style="z-index: 2000;">
+        <div class="pin-pad-container">
+            <h2 id="pin-modal-title">กรอกรหัสผ่าน PIN 4 หลัก</h2>
+            <p id="pin-modal-subtitle">กรุณากรอกรหัสผู้ดูแลระบบ</p>
+            
+            <div class="pin-display">
+                <div class="pin-dot"></div>
+                <div class="pin-dot"></div>
+                <div class="pin-dot"></div>
+                <div class="pin-dot"></div>
+            </div>
+            
+            <p id="pin-error-message" class="error-text"></p>
+            
+            <div class="pin-keypad">
+                <button class="key-btn" data-key="1">1</button>
+                <button class="key-btn" data-key="2">2</button>
+                <button class="key-btn" data-key="3">3</button>
+                <button class="key-btn" data-key="4">4</button>
+                <button class="key-btn" data-key="5">5</button>
+                <button class="key-btn" data-key="6">6</button>
+                <button class="key-btn" data-key="7">7</button>
+                <button class="key-btn" data-key="8">8</button>
+                <button class="key-btn" data-key="9">9</button>
+                <button class="key-btn clear" data-key="clear"><i class="fa-solid fa-delete-left"></i></button>
+                <button class="key-btn" data-key="0">0</button>
+                <button class="key-btn cancel" data-key="cancel"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div style="margin-top: 25px; border-top: 1px solid #eee; padding-top: 20px; text-align: center;">
+                <button class="btn btn-secondary" onclick="window.location.href='index.html'" style="width: 100%; justify-content: center; background: #f8fafc; color: var(--color-primary); border: 1px solid #e2e8f0; font-weight: 700; font-size: 13px; padding: 10px 14px; border-radius: 12px; cursor: pointer;"><i class="fa-solid fa-arrow-left"></i> กลับสู่หน้าหลัก</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Modal เพิ่มครูท่านใหม่ (ดีไซน์ modal-box ของ index.html) -->
+    <div id="modal-add-teacher" class="modal-overlay" style="z-index: 3000;" onclick="if(event.target === this) closeAddTeacherModal()">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2>เพิ่มครูและผู้ใช้งานระบบ</h2>
+                <button class="modal-close-btn" onclick="closeAddTeacherModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="new-teacher-name">ชื่อ-นามสกุล ครูท่านใหม่</label>
+                    <input type="text" id="new-teacher-name" class="form-control" placeholder="ระบุ ชื่อ และ นามสกุล">
+                </div>
+
+                <div class="form-group">
+                    <label for="new-teacher-pin">ตั้งรหัส PIN 4 หลัก</label>
+                    <input type="text" id="new-teacher-pin" class="form-control" placeholder="ตัวเลข 4 หลัก เช่น 1234" maxlength="4" pattern="[0-9]{4}">
+                </div>
+
+                <div class="form-group">
+                    <label for="new-teacher-role">บทบาทสิทธิ์การใช้งาน</label>
+                    <select id="new-teacher-role" class="form-control">
+                        <option value="TEACHER">TEACHER (ครูผู้สอน / ครูที่ปรึกษา)</option>
+                        <option value="ACADEMIC">ACADEMIC (ครูวิชาการ)</option>
+                        <option value="STUDENT_AFFAIRS">STUDENT_AFFAIRS (ฝ่ายกิจการนักเรียน)</option>
+                        <option value="ADMIN">ADMIN (ผู้ดูแลระบบ)</option>
+                    </select>
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn btn-secondary" onclick="closeAddTeacherModal()">ยกเลิก</button>
+                    <button class="btn btn-primary" onclick="submitNewTeacher()">บันทึกครูใหม่</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Modal ยืนยันล้างข้อมูลเวลาเรียน -->
+    <div id="modal-confirm-clear" class="modal-overlay" style="z-index: 3000;" onclick="if(event.target === this) closeConfirmClearModal()">
+        <div class="modal-box" style="max-width: 440px;">
+            <div class="modal-header" style="border-bottom: 1px solid #fee2e2;">
+                <h2 style="color: var(--color-danger);"><i class="fa-solid fa-triangle-exclamation"></i> ยืนยันล้างข้อมูลเวลาเรียน?</h2>
+                <button class="modal-close-btn" onclick="closeConfirmClearModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 13.5px; color: var(--text-main); line-height: 1.5; margin-bottom: 20px;">
+                    ข้อมูลการเช็คชื่อเวลาเรียน (att) ทั้งหมดจะถูกลบออกจากฐานข้อมูลอย่างถาวร เพื่อเตรียมความพร้อมเริ่มเทอมใหม่ ข้อมูลรายชื่อนักเรียนและครูจะไม่ถูกลบ
+                </p>
+                <div class="form-actions">
+                    <button class="btn btn-secondary" onclick="closeConfirmClearModal()">ยกเลิก</button>
+                    <button class="btn btn-danger" onclick="executeClearAttendance()" style="background-color: var(--color-danger); border: none;">
+                        ยืนยันล้างข้อมูลทั้งหมด
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Modal เพิ่ม/แก้ไขปีการศึกษาและช่วงวันเปิด-ปิดเทอม -->
+    <div id="modal-academic-year" class="modal-overlay" style="z-index: 3000;" onclick="if(event.target === this) closeAcademicYearModal()">
+        <div class="modal-box" style="max-width: 560px;">
+            <div class="modal-header">
+                <h2 id="academic-modal-title"><i class="fa-solid fa-calendar-plus" style="color: var(--primary-color);"></i> เพิ่มปีการศึกษาใหม่</h2>
+                <button class="modal-close-btn" onclick="closeAcademicYearModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="modal-academic-editing-year" value="">
+                
+                <div class="form-group">
+                    <label for="modal-academic-year-input">ปีการศึกษา (พ.ศ.) *</label>
+                    <input type="text" id="modal-academic-year-input" class="form-control" placeholder="เช่น 2570" maxlength="4" style="font-weight: 700; font-size: 15px;">
+                    <div class="input-tip">ระบุเลข พ.ศ. 4 หลัก เช่น 2569, 2570, 2571</div>
+                </div>
+
+                <!-- กล่องช่วงวันเปิด-ปิดเทอม 1 & 2 -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 16px;">
+                    <!-- ภาคเรียนที่ 1 -->
+                    <div class="sub-box" style="padding: 14px;">
+                        <div style="font-weight: 700; font-size: 13px; color: var(--color-leave); margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
+                            <span><i class="fa-solid fa-calendar-week"></i> ภาคเรียนที่ 1</span>
+                            <span style="font-size: 11px; color: var(--text-muted);">(พ.ค. - ต.ค.)</span>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 10px;">
+                            <label for="modal-academic-t1-start" style="font-size: 12px;">วันเปิดเทอม 1 *</label>
+                            <input type="date" id="modal-academic-t1-start" class="form-control">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="modal-academic-t1-end" style="font-size: 12px;">วันปิดเทอม 1 *</label>
+                            <input type="date" id="modal-academic-t1-end" class="form-control">
+                        </div>
+                    </div>
+
+                    <!-- ภาคเรียนที่ 2 -->
+                    <div class="sub-box" style="padding: 14px;">
+                        <div style="font-weight: 700; font-size: 13px; color: var(--color-present); margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
+                            <span><i class="fa-solid fa-calendar-week"></i> ภาคเรียนที่ 2</span>
+                            <span style="font-size: 11px; color: var(--text-muted);">(พ.ย. - มี.ค.)</span>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 10px;">
+                            <label for="modal-academic-t2-start" style="font-size: 12px;">วันเปิดเทอม 2 *</label>
+                            <input type="date" id="modal-academic-t2-start" class="form-control">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="modal-academic-t2-end" style="font-size: 12px;">วันปิดเทอม 2 *</label>
+                            <input type="date" id="modal-academic-t2-end" class="form-control">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Option: ตั้งเป็นปีที่ใช้งานปัจจุบันทันที -->
+                <div style="background: rgba(238, 242, 255, 0.6); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 12px; padding: 12px 14px; margin-bottom: 18px;">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 700; font-size: 13px; color: var(--primary-color);">
+                        <input type="checkbox" id="modal-academic-set-active" style="width: 18px; height: 18px; accent-color: var(--primary-color);">
+                        <span>ตั้งเป็นปีการศึกษาที่ใช้งานปัจจุบันทันที (Set as active system year)</span>
+                    </label>
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn btn-secondary" onclick="closeAcademicYearModal()">ยกเลิก</button>
+                    <button class="btn btn-primary" onclick="saveAcademicYearModalSubmit()">
+                        <i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลปีการศึกษา
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div id="toast-container"></div>
+
+    <!-- Flatpickr & Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/th.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Config & Admin Logic -->
+    <script src="config.js?v=sbwk_v3" charset="utf-8"></script>
+    <script src="admin.js?v=sbwk_v2" charset="utf-8"></script>
+</body>
+</html>
