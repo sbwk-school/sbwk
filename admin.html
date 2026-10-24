@@ -810,7 +810,7 @@
                                     <i class="fa-solid fa-chalkboard-user" style="color: var(--color-present); margin-right: 6px;"></i> รายชื่อครูและสิทธิ์การใช้งาน
                                 </h3>
                                 <p style="margin: 2px 0 0; font-size: 12.5px; color: var(--text-muted);">
-                                    กำหนดรหัส PIN 4 หลัก และระดับสิทธิ์ในการใช้งานระบบ
+                                    กำหนดรหัส PIN 4 หลัก (เว้นว่างได้เพื่อให้ครูไปลงทะเบียนตั้งรหัสเอง) และระดับสิทธิ์ในการใช้งานระบบ
                                 </p>
                             </div>
                             <button type="button" class="btn btn-sm btn-outline" onclick="openAddTeacherModal()" style="border-radius: 12px; padding: 8px 16px;">
@@ -953,8 +953,8 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="new-teacher-pin">ตั้งรหัส PIN 4 หลัก</label>
-                    <input type="text" id="new-teacher-pin" class="form-control" placeholder="ตัวเลข 4 หลัก เช่น 1234" maxlength="4" pattern="[0-9]{4}">
+                    <label for="new-teacher-pin">ตั้งรหัส PIN 4 หลัก <span style="font-weight: 400; color: #64748b; font-size: 12px;">(เว้นว่างได้ เพื่อให้ครูไปลงทะเบียนตั้งรหัสเอง)</span></label>
+                    <input type="text" id="new-teacher-pin" class="form-control" placeholder="เว้นว่างได้ หรือระบุ 4 หลัก เช่น 1234" maxlength="4" pattern="[0-9]{4}">
                 </div>
 
                 <div class="form-group">
@@ -1075,6 +1075,6 @@
     
     <!-- Config & Admin Logic -->
     <script src="config.js?v=sbwk_v3" charset="utf-8"></script>
-    <script src="admin.js?v=sbwk_v2" charset="utf-8"></script>
+    <script src="admin.js?v=sbwk_v3" charset="utf-8"></script>
 </body>
 </html>

@@ -448,7 +448,7 @@ function getStudentGenderSortKey(s) {
     return 1;
 }
 
-// ฟังก์ชันจัดเรียงนักเรียน: ชั้น -> ห้อง -> เพศ (ชายก่อน หญิง) -> เลขประจำตัว นร. (น้อยไปมาก)
+// ฟังก์ชันจัดเรียงนักเรียน: ชั้น -> ห้อง -> สถานะ (เข้าก่อน ออกทีหลัง) -> เพศ (ชายก่อน หญิง) -> เลขประจำตัว นร. (น้อยไปมาก)
 function sortStudentsRoster(list) {
     return list.slice().sort((a, b) => {
         // 1. ระดับชั้น (Grade: ม.1 - ม.6)
@@ -461,19 +461,75 @@ function sortStudentsRoster(list) {
         const rB = parseInt(String(b.room || "").replace(/[^0-9]/g, ""), 10) || 0;
         if (rA !== rB) return rA - rB;
 
-        // 3. เพศ (ชาย = 1 ขึ้นก่อน, หญิง = 2 ตามหลัง ตามมาตรฐานทะเบียน)
+        // ⭐️ 3. สถานะ: นร. ที่ "เข้า" (กำลังศึกษา) ต้องมาก่อนคน "ออก" (คนออกไปอยู่ท้ายห้องเสมอ)
+        const isOutA = (a.status === "ออก");
+        const isOutB = (b.status === "ออก");
+        if (isOutA !== isOutB) {
+            return isOutA ? 1 : -1;
+        }
+
+        // 4. เพศ (ชาย = 1 ขึ้นก่อน, หญิง = 2 ตามหลัง ตามมาตรฐานทะเบียน)
         const genA = getStudentGenderSortKey(a);
         const genB = getStudentGenderSortKey(b);
         if (genA !== genB) return genA - genB;
 
-        // 4. เลขประจำตัวนักเรียน (Student ID เรียงจากน้อยไปมาก)
+        // 5. เลขประจำตัวนักเรียน (Student ID เรียงจากน้อยไปมาก)
         const idA = parseInt(String(a.studentId || "").replace(/[^0-9]/g, ""), 10) || 0;
         const idB = parseInt(String(b.studentId || "").replace(/[^0-9]/g, ""), 10) || 0;
         if (idA !== idB) return idA - idB;
 
-        // 5. fallback: เลขที่เดิม
+        // 6. fallback: เลขที่เดิม
         return (parseInt(a.no, 10) || 0) - (parseInt(b.no, 10) || 0);
     });
+}
+
+// ⭐️ ฟังก์ชันรันเลขที่ใหม่ในห้อง: คนที่กำลังศึกษาได้เลข 1, 2, 3... ต่อเนื่อง และคนที่ออกจะได้เลขที่ 99 อยู่ท้าย
+function resequenceRoomNumbers(grade, room) {
+    const cleanG = String(grade || "").replace(/[^0-9]/g, "");
+    const cleanR = String(room || "").replace(/[^0-9]/g, "");
+
+    const roomStudents = (window.studentsRoster || []).filter(s => {
+        const g = String(s.grade || "").replace(/[^0-9]/g, "");
+        const r = String(s.room || "").replace(/[^0-9]/g, "");
+        return g === cleanG && r === cleanR;
+    });
+
+    // เรียง: คนเข้ามาก่อน (เพศ -> รหัส นร.), คนออกไปอยู่ท้าย
+    roomStudents.sort((a, b) => {
+        const outA = (a.status === "ออก");
+        const outB = (b.status === "ออก");
+        if (outA !== outB) return outA ? 1 : -1;
+        const genA = getStudentGenderSortKey(a);
+        const genB = getStudentGenderSortKey(b);
+        if (genA !== genB) return genA - genB;
+        const idA = parseInt(String(a.studentId || "").replace(/[^0-9]/g, ""), 10) || 0;
+        const idB = parseInt(String(b.studentId || "").replace(/[^0-9]/g, ""), 10) || 0;
+        if (idA !== idB) return idA - idB;
+        return (parseInt(a.no, 10) || 0) - (parseInt(b.no, 10) || 0);
+    });
+
+    let activeNo = 1;
+    const updates = [];
+    roomStudents.forEach(s => {
+        if (s.status === "ออก") {
+            s.no = 99;
+        } else {
+            s.no = activeNo++;
+        }
+        updates.push({
+            student_id: s.studentId,
+            full_name: s.fullName,
+            grade: s.grade,
+            room: s.room,
+            no: s.no,
+            gender: s.gender,
+            status: s.status || "เข้า",
+            out_reason: s.outReason || null,
+            out_date: s.outDate || null
+        });
+    });
+
+    return updates;
 }
 
 // =========================================================================
@@ -502,18 +558,24 @@ window.loadStudents = async function() {
         const rawList = (data || []).map(r => {
             const sId = String(r.student_id);
             const cachedInfo = getStudentStatusInfo(sId);
-            const currentStatus = r.status || cachedInfo.status || "เข้า";
+            // ตรวจสอบสถานะ: ถ้าไม่มีระบุไว้ แต่ r.no เคยเป็น 99 ให้ถือว่าเป็น "ออก" เพื่อรักษาประวัติเดิม
+            const currentStatus = r.status || cachedInfo.status || (parseInt(r.no, 10) === 99 ? "ออก" : "เข้า");
             const currentReason = r.out_reason || cachedInfo.outReason || "";
             const currentDate = r.out_date || cachedInfo.outDate || "";
             const rawG = String(r.grade || "").trim();
             const normG = rawG.startsWith("ม.") ? rawG : `ม.${rawG.replace(/[^0-9]/g, "") || "1"}`;
             
+            let currentNo = parseInt(r.no, 10) || 1;
+            if (currentStatus === "ออก") {
+                currentNo = 99;
+            }
+
             return {
                 studentId: sId,
                 fullName: r.full_name || "",
                 grade: normG,
                 room: String(r.room || "").trim(),
-                no: parseInt(r.no, 10) || 1,
+                no: currentNo,
                 gender: r.gender || "1",
                 status: currentStatus, // "เข้า" หรือ "ออก"
                 outReason: currentReason,
@@ -521,8 +583,23 @@ window.loadStudents = async function() {
             };
         });
 
-        // จัดเรียงตามเพศและเลขประจำตัวนักเรียนทันที
+        // จัดเรียงตามเกณฑ์: เข้าก่อน ออกทีหลัง -> เพศ -> เลขประจำตัวนักเรียน
         window.studentsRoster = sortStudentsRoster(rawList);
+
+        // จัดการรันเลขที่ 1..N สำหรับคนเข้า และเลขที่ 99 สำหรับคนออกในแต่ละห้อง
+        const roomActiveCounters = {};
+        window.studentsRoster.forEach(s => {
+            const cleanG = String(s.grade || "").replace(/[^0-9]/g, "") || "1";
+            const cleanR = String(s.room || "").replace(/[^0-9]/g, "") || "1";
+            const key = `${cleanG}_${cleanR}`;
+
+            if (s.status === "ออก") {
+                s.no = 99;
+            } else {
+                if (!roomActiveCounters[key]) roomActiveCounters[key] = 1;
+                s.no = roomActiveCounters[key]++;
+            }
+        });
 
         populateClassRoomDropdown();
         updateSummaryCounters();
@@ -1180,7 +1257,7 @@ window.renderStudentsDashboard = function() {
     const data = calculateStudentDemographics();
 
     // 1. KPI Cards
-    if (document.getElementById("dash-kpi-total")) document.getElementById("dash-kpi-total").innerHTML = `${data.total.toLocaleString()} <span style="font-size: 14px; font-weight: 600; color: #64748b;">คน</span>`;
+    if (document.getElementById("dash-kpi-total")) document.getElementById("dash-kpi-total").innerHTML = `${data.inCount.toLocaleString()} <span style="font-size: 14px; font-weight: 600; color: #64748b;">คน</span>`;
     if (document.getElementById("dash-kpi-in")) document.getElementById("dash-kpi-in").innerText = data.inCount.toLocaleString();
     if (document.getElementById("dash-kpi-out")) document.getElementById("dash-kpi-out").innerText = data.outCount.toLocaleString();
 
@@ -1268,7 +1345,7 @@ window.renderStudentsDashboard = function() {
                         <td style="padding: 8px; text-align: center; color: #ea580c; font-weight: 700; vertical-align: middle;">${rInf.female}</td>
                         <td style="padding: 8px; text-align: center; color: #16a34a; font-weight: 700; vertical-align: middle;">${rInf.in}</td>
                         <td style="padding: 8px; text-align: center; color: ${rInf.out > 0 ? '#dc2626' : '#94a3b8'}; font-weight: ${rInf.out > 0 ? '700' : 'normal'}; vertical-align: middle;">${rInf.out}</td>
-                        <td style="padding: 8px; text-align: center; font-weight: 800; color: #0f172a; vertical-align: middle; font-size: 13.5px;">${rInf.total}</td>
+                        <td style="padding: 8px; text-align: center; font-weight: 800; color: #0f172a; vertical-align: middle; font-size: 13.5px;">${rInf.in}</td>
                         <td style="padding: 8px 16px; text-align: left; color: #334155; vertical-align: middle;">
                             ${teacherDisplay}
                         </td>
@@ -1277,15 +1354,15 @@ window.renderStudentsDashboard = function() {
             });
 
             // แถวสรุประดับชั้น (รวม ม.g)
-            tHtml += renderSubtotalRow(`⚡ รวมระดับชั้น ม.${g}`, gInf.male, gInf.female, gInf.in, gInf.out, gInf.total, st.subBg, st.subText, st.border);
+            tHtml += renderSubtotalRow(`⚡ รวมระดับชั้น ม.${g}`, gInf.male, gInf.female, gInf.in, gInf.out, gInf.in, st.subBg, st.subText, st.border);
 
             // แถวสรุปช่วงชั้น ม.ต้น (หลังจบ ม.3)
             if (g === 3) {
-                tHtml += renderSubtotalRow(`🎒 รวม ม.ต้น`, data.junior.male, data.junior.female, data.junior.in, data.junior.out, data.junior.total, "#bbf7d0", "#14532d", "#16a34a", "font-size: 14.5px; border-top: 2.5px solid #16a34a; border-bottom: 2.5px solid #16a34a;");
+                tHtml += renderSubtotalRow(`🎒 รวม ม.ต้น`, data.junior.male, data.junior.female, data.junior.in, data.junior.out, data.junior.in, "#bbf7d0", "#14532d", "#16a34a", "font-size: 14.5px; border-top: 2.5px solid #16a34a; border-bottom: 2.5px solid #16a34a;");
             }
             // แถวสรุปช่วงชั้น ม.ปลาย (หลังจบ ม.6)
             if (g === 6) {
-                tHtml += renderSubtotalRow(`🎓 รวม ม.ปลาย`, data.senior.male, data.senior.female, data.senior.in, data.senior.out, data.senior.total, "#fde68a", "#78350f", "#d97706", "font-size: 14.5px; border-top: 2.5px solid #d97706; border-bottom: 2.5px solid #d97706;");
+                tHtml += renderSubtotalRow(`🎓 รวม ม.ปลาย`, data.senior.male, data.senior.female, data.senior.in, data.senior.out, data.senior.in, "#fde68a", "#78350f", "#d97706", "font-size: 14.5px; border-top: 2.5px solid #d97706; border-bottom: 2.5px solid #d97706;");
             }
         }
 
@@ -1299,7 +1376,7 @@ window.renderStudentsDashboard = function() {
                 <td style="padding: 12px 8px; text-align: center; color: #c2410c;">${data.totalFemale}</td>
                 <td style="padding: 12px 8px; text-align: center; color: #15803d;">${data.inCount}</td>
                 <td style="padding: 12px 8px; text-align: center; color: #b91c1c;">${data.outCount}</td>
-                <td style="padding: 12px 8px; text-align: center; font-size: 16px; color: #312e81;">${data.total}</td>
+                <td style="padding: 12px 8px; text-align: center; font-size: 16px; color: #312e81;">${data.inCount}</td>
                 <td style="padding: 12px 16px; text-align: center; font-size: 12.5px; font-weight: 700; color: #6366f1;">ทุกระดับชั้น (ม.1 - ม.6)</td>
             </tr>
         `;
@@ -1346,7 +1423,7 @@ window.printDashboardA4Report = function() {
                     <td style="border: 0.6px solid black; text-align: center; vertical-align: middle;">${rInf.female}</td>
                     <td style="border: 0.6px solid black; text-align: center; font-weight: bold; vertical-align: middle;">${rInf.in}</td>
                     <td style="border: 0.6px solid black; text-align: center; color: ${rInf.out > 0 ? 'red' : 'black'}; vertical-align: middle;">${rInf.out}</td>
-                    <td style="border: 0.6px solid black; text-align: center; font-weight: bold; vertical-align: middle;">${rInf.total}</td>
+                    <td style="border: 0.6px solid black; text-align: center; font-weight: bold; vertical-align: middle;">${rInf.in}</td>
                     <td style="border: 0.6px solid black; text-align: left; padding: 3px 8px; vertical-align: middle; line-height: 1.3;">${teacherDisplay}</td>
                 </tr>
             `;
@@ -1360,7 +1437,7 @@ window.printDashboardA4Report = function() {
                 <td style="border: 0.6px solid black; text-align: center;">${gInf.female}</td>
                 <td style="border: 0.6px solid black; text-align: center;">${gInf.in}</td>
                 <td style="border: 0.6px solid black; text-align: center;">${gInf.out}</td>
-                <td style="border: 0.6px solid black; text-align: center;">${gInf.total}</td>
+                <td style="border: 0.6px solid black; text-align: center;">${gInf.in}</td>
                 <td style="border: 0.6px solid black; text-align: center;">-</td>
             </tr>
         `;
@@ -1373,7 +1450,7 @@ window.printDashboardA4Report = function() {
                     <td style="border: 0.6px solid black; text-align: center;">${data.junior.female}</td>
                     <td style="border: 0.6px solid black; text-align: center;">${data.junior.in}</td>
                     <td style="border: 0.6px solid black; text-align: center;">${data.junior.out}</td>
-                    <td style="border: 0.6px solid black; text-align: center;">${data.junior.total}</td>
+                    <td style="border: 0.6px solid black; text-align: center;">${data.junior.in}</td>
                     <td style="border: 0.6px solid black; text-align: center;">-</td>
                 </tr>
             `;
@@ -1385,7 +1462,7 @@ window.printDashboardA4Report = function() {
                     <td style="border: 0.6px solid black; text-align: center;">${data.senior.female}</td>
                     <td style="border: 0.6px solid black; text-align: center;">${data.senior.in}</td>
                     <td style="border: 0.6px solid black; text-align: center;">${data.senior.out}</td>
-                    <td style="border: 0.6px solid black; text-align: center;">${data.senior.total}</td>
+                    <td style="border: 0.6px solid black; text-align: center;">${data.senior.in}</td>
                     <td style="border: 0.6px solid black; text-align: center;">-</td>
                 </tr>
             `;
@@ -1399,7 +1476,7 @@ window.printDashboardA4Report = function() {
             <td style="border: 0.8px solid black; text-align: center;">${data.totalFemale}</td>
             <td style="border: 0.8px solid black; text-align: center;">${data.inCount}</td>
             <td style="border: 0.8px solid black; text-align: center;">${data.outCount}</td>
-            <td style="border: 0.8px solid black; text-align: center;">${data.total}</td>
+            <td style="border: 0.8px solid black; text-align: center;">${data.inCount}</td>
             <td style="border: 0.8px solid black; text-align: center;">ทุกระดับชั้น</td>
         </tr>
     `;
@@ -1426,7 +1503,7 @@ window.printDashboardA4Report = function() {
                         <th style="border: 0.6px solid black; width: 55px; text-align: center;">หญิง</th>
                         <th style="border: 0.6px solid black; width: 70px; text-align: center;">กำลังศึกษา</th>
                         <th style="border: 0.6px solid black; width: 50px; text-align: center;">ออก</th>
-                        <th style="border: 0.6px solid black; width: 70px; text-align: center;">รวม</th>
+                        <th style="border: 0.6px solid black; width: 70px; text-align: center;">รวม (ปกติ)</th>
                         <th style="border: 0.6px solid black; text-align: center;">ครูที่ปรึกษา</th>
                     </tr>
                 </thead>
@@ -1479,7 +1556,7 @@ window.exportDashboardSummaryExcel = async function() {
         sheet.getRow(1).height = 36;
 
         sheet.mergeCells('A2:G2');
-        sheet.getCell('A2').value = `ข้อมูล ณ วันที่ ${formatThaiDateDisplay(getTodayIsoDate())} (นักเรียนทั้งหมด ${data.total} คน)`;
+        sheet.getCell('A2').value = `ข้อมูล ณ วันที่ ${formatThaiDateDisplay(getTodayIsoDate())} (นักเรียนทั้งหมด ${data.inCount} คน)`;
         sheet.getCell('A2').font = { name: 'TH SarabunPSK', size: 14, italic: true };
         sheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
         sheet.getRow(2).height = 26;
@@ -1496,7 +1573,7 @@ window.exportDashboardSummaryExcel = async function() {
         };
 
         // 2. Headers
-        const headers = ["ระดับชั้น / ห้อง", "ชาย (คน)", "หญิง (คน)", "กำลังศึกษา (คน)", "ย้ายออก (คน)", "รวมทั้งสิ้น (คน)", "ครูที่ปรึกษา"];
+        const headers = ["ระดับชั้น / ห้อง", "ชาย (คน)", "หญิง (คน)", "กำลังศึกษา (คน)", "ย้ายออก (คน)", "รวม (ปกติ) (คน)", "ครูที่ปรึกษา"];
         const headerRow = sheet.addRow(headers);
         headerRow.font = { name: 'TH SarabunPSK', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
         fillRowAG(headerRow, 'FF4F46E5');
@@ -1538,7 +1615,7 @@ window.exportDashboardSummaryExcel = async function() {
                     rInf.female,
                     rInf.in,
                     rInf.out,
-                    rInf.total,
+                    rInf.in,
                     teacherDisplay
                 ]);
                 row.font = { name: 'TH SarabunPSK', size: 16 };
@@ -1564,7 +1641,7 @@ window.exportDashboardSummaryExcel = async function() {
                 gInf.female,
                 gInf.in,
                 gInf.out,
-                gInf.total,
+                gInf.in,
                 "-"
             ]);
             subRow.font = { name: 'TH SarabunPSK', size: 16, bold: true };
@@ -1581,7 +1658,7 @@ window.exportDashboardSummaryExcel = async function() {
                     data.junior.female,
                     data.junior.in,
                     data.junior.out,
-                    data.junior.total,
+                    data.junior.in,
                     "-"
                 ]);
                 junRow.font = { name: 'TH SarabunPSK', size: 16.5, bold: true };
@@ -1597,7 +1674,7 @@ window.exportDashboardSummaryExcel = async function() {
                     data.senior.female,
                     data.senior.in,
                     data.senior.out,
-                    data.senior.total,
+                    data.senior.in,
                     "-"
                 ]);
                 senRow.font = { name: 'TH SarabunPSK', size: 16.5, bold: true };
@@ -1616,7 +1693,7 @@ window.exportDashboardSummaryExcel = async function() {
             data.totalFemale,
             data.inCount,
             data.outCount,
-            data.total,
+            data.inCount,
             "ทุกระดับชั้น"
         ]);
         grandRow.font = { name: 'TH SarabunPSK', size: 17, bold: true, color: { argb: 'FF312E81' } };
@@ -1721,27 +1798,31 @@ window.submitStudentInConfirmModal = async function() {
     target.outDate = "";
     setLocalStatus(sId, "เข้า", "", "");
 
-    renderSingleStudentRowView(target);
+    // ⭐️ รันเลขที่ในห้องนั้นใหม่ (ดึงกลับมาเป็น 1..N ต่อเนื่อง) และจัดเรียง
+    const updates = resequenceRoomNumbers(target.grade, target.room);
+    window.studentsRoster = sortStudentsRoster(window.studentsRoster);
+
+    renderStudentList();
     updateSummaryCounters();
     closeStudentInConfirmModal();
 
     const db = getStudentsSupabase();
     if (db) {
         try {
-            const { error } = await db.from('std').update({
-                status: 'เข้า',
-                out_reason: null,
-                out_date: null
-            }).eq('student_id', sId);
-            if (error) {
-                console.warn("Supabase std status column notice:", error.message);
+            for (let u of updates) {
+                await db.from('std').update({
+                    no: u.no,
+                    status: u.status,
+                    out_reason: u.out_reason,
+                    out_date: u.out_date
+                }).eq('student_id', u.student_id);
             }
         } catch (e) {
             console.warn("submitStudentInConfirmModal sync error:", e);
         }
     }
 
-    showToast(`เปลี่ยนสถานะ ${target.fullName}: กำลังศึกษา (เข้า) 🟢 เรียบร้อย`, "success");
+    showToast(`เปลี่ยนสถานะ ${target.fullName}: กำลังศึกษา (เข้า) ได้เลขที่ ${target.no} 🟢 เรียบร้อย`, "success");
 };
 
 // =========================================================================
@@ -1837,22 +1918,27 @@ window.submitStudentOutModal = async function() {
     target.status = "ออก";
     target.outReason = reason;
     target.outDate = date;
+    target.no = 99; // ⭐️ ตั้งเลขที่ 99 ทันที
     setLocalStatus(sId, "ออก", reason, date);
 
-    renderSingleStudentRowView(target);
+    // ⭐️ รันเลขที่ในห้องนั้นใหม่ (คนเข้าได้ 1..N ต่อเนื่อง คนออกได้ 99 ไปอยู่ท้าย)
+    const updates = resequenceRoomNumbers(target.grade, target.room);
+    window.studentsRoster = sortStudentsRoster(window.studentsRoster);
+
+    renderStudentList();
     updateSummaryCounters();
     closeStudentOutModal();
 
     const db = getStudentsSupabase();
     if (db) {
         try {
-            const { error } = await db.from('std').update({
-                status: 'ออก',
-                out_reason: reason,
-                out_date: date
-            }).eq('student_id', sId);
-            if (error) {
-                console.warn("Supabase std status column notice:", error.message);
+            for (let u of updates) {
+                await db.from('std').update({
+                    no: u.no,
+                    status: u.status,
+                    out_reason: u.out_reason,
+                    out_date: u.out_date
+                }).eq('student_id', u.student_id);
             }
         } catch (e) {
             console.warn("submitStudentOutModal sync error:", e);
@@ -1860,7 +1946,7 @@ window.submitStudentOutModal = async function() {
     }
 
     const thaiDate = formatThaiDateDisplay(date);
-    showToast(`บันทึกสถานะออก ${target.fullName} (${reason} ${thaiDate}) เรียบร้อย 🔴`, "info");
+    showToast(`เปลี่ยนสถานะ ${target.fullName} เป็นออก (เลขที่ 99 ย้ายไปอยู่ท้ายห้อง) เรียบร้อย 🔴`, "info");
 };
 
 window.toggleStudentModalOutFields = function(statusVal) {
@@ -2040,7 +2126,7 @@ window.hasUnsavedSheetChanges = function() {
     return false;
 };
 
-// คำนวณเลขที่ถัดไปตามห้องและระดับชั้นจริง (ไม่ใช้จำนวนรวมทั้งโรงเรียน)
+// คำนวณเลขที่ถัดไปตามห้องและระดับชั้นจริง (ไม่ใช้จำนวนรวมทั้งโรงเรียน และข้ามคนออก/เลขที่ 99)
 window.getNextClassStudentNumber = function(targetGrade, targetRoom) {
     const cleanG = String(targetGrade || "").replace(/[^0-9]/g, "");
     const cleanR = String(targetRoom || "").replace(/[^0-9]/g, "");
@@ -2051,8 +2137,10 @@ window.getNextClassStudentNumber = function(targetGrade, targetRoom) {
         const sg = String(s.grade || "").replace(/[^0-9]/g, "");
         const sr = String(s.room || "").replace(/[^0-9]/g, "");
         if (sg === cleanG && sr === cleanR) {
-            count++;
             const n = parseInt(s.no, 10);
+            // ⭐️ ข้ามคนที่สถานะ "ออก" หรือเลขที่ >= 99 เพื่อไม่ให้เลขที่กระโดดเป็น 100
+            if (s.status === "ออก" || (!isNaN(n) && n >= 99)) return;
+            count++;
             if (!isNaN(n) && n > maxNo) maxNo = n;
         }
     });
@@ -2061,6 +2149,8 @@ window.getNextClassStudentNumber = function(targetGrade, targetRoom) {
     newRows.forEach(tr => {
         const gSel = tr.querySelector("[data-field='grade']");
         const rInput = tr.querySelector("[data-field='room']");
+        const stSel = tr.querySelector("[data-field='status']");
+        if (stSel && stSel.value === "ออก") return;
         const rowG = gSel ? String(gSel.value || "").replace(/[^0-9]/g, "") : "";
         const rowR = rInput ? String(rInput.value || "").replace(/[^0-9]/g, "") : "";
         if (rowG === cleanG && rowR === cleanR) {
@@ -2691,8 +2781,10 @@ window.saveAllSheetChanges = async function() {
                     const sg = String(s.grade || "").replace(/[^0-9]/g, "");
                     const sr = String(s.room || "").replace(/[^0-9]/g, "");
                     if (sg === cleanG && sr === cleanR) {
-                        countInClass++;
                         const n = parseInt(s.no, 10);
+                        // ⭐️ ข้ามคนที่สถานะ "ออก" หรือเลขที่ >= 99 ไม่นำมาคิดเลขที่ถัดไป
+                        if (s.status === "ออก" || (!isNaN(n) && n >= 99)) return;
+                        countInClass++;
                         if (!isNaN(n) && n > maxNoInClass) maxNoInClass = n;
                     }
                 });
@@ -2700,6 +2792,13 @@ window.saveAllSheetChanges = async function() {
             }
             batchClassCounters[classKey]++;
             finalNo = batchClassCounters[classKey];
+        }
+
+        if (status === "ออก") {
+            finalNo = 99;
+        } else if (finalNo >= 99) {
+            // ⭐️ หากสถานะเป็น "เข้า" แต่เลขที่ยังค้าง 99 ให้หาเลขที่ถัดไปของห้องให้อัตโนมัติ
+            finalNo = window.getNextClassStudentNumber(grade, room);
         }
 
         const existingStd = (window.studentsRoster || []).find(it => it.studentId === studentId);
@@ -2794,10 +2893,10 @@ async function executeAutoSortAndRenumberStudents() {
         return;
     }
 
-    // 1. จัดเรียงตามเกณฑ์: ชั้น -> ห้อง -> เพศ (ชายก่อน หญิง) -> เลขประจำตัวนักเรียน
+    // 1. จัดเรียงตามเกณฑ์: ชั้น -> ห้อง -> สถานะ (เข้าก่อน ออกทีหลัง) -> เพศ -> เลขประจำตัวนักเรียน
     const sorted = sortStudentsRoster(window.studentsRoster);
 
-    // 2. รันเลขที่ 1, 2, 3... ใหม่อัตโนมัติในแต่ละห้อง
+    // 2. รันเลขที่ 1, 2, 3... ใหม่อัตโนมัติในแต่ละห้อง (คนเข้าได้ 1..N คนออกได้ 99 ไปอยู่ท้าย)
     const classCounters = {};
     const updatedPayload = [];
 
@@ -2806,8 +2905,13 @@ async function executeAutoSortAndRenumberStudents() {
         const cleanR = String(s.room || "").replace(/[^0-9]/g, "") || "1";
         const key = `${cleanG}_${cleanR}`;
 
-        if (!classCounters[key]) classCounters[key] = 1;
-        const newNo = classCounters[key]++;
+        let newNo;
+        if (s.status === "ออก") {
+            newNo = 99;
+        } else {
+            if (!classCounters[key]) classCounters[key] = 1;
+            newNo = classCounters[key]++;
+        }
 
         s.no = newNo;
         updatedPayload.push({
@@ -2827,9 +2931,9 @@ async function executeAutoSortAndRenumberStudents() {
     renderStudentList();
 
     const doSave = confirm(
-        `จัดเรียงลำดับและรันเลขที่ (1..N) ในแต่ละห้องใหม่เรียบร้อยแล้ว!\n\n` +
-        `• เพศชาย (ด.ช. / นาย) ขึ้นก่อน ➡️ ตามด้วยเพศหญิง (ด.ญ. / น.ส.)\n` +
-        `• ในแต่ละเพศเรียงตามเลขประจำตัวนักเรียนจากน้อยไปหามาก\n\n` +
+        `จัดเรียงลำดับและรันเลขที่ในแต่ละห้องใหม่เรียบร้อยแล้ว!\n\n` +
+        `• นร. กำลังศึกษา: รันเลขที่ 1..N ต่อเนื่อง (เพศชายขึ้นก่อน ➡️ ตามด้วยเพศหญิง)\n` +
+        `• นร. ย้ายออก/จำหน่าย: กำหนดเป็นเลขที่ 99 ย้ายไปอยู่ท้ายห้องเสมอ\n\n` +
         `ต้องการบันทึกการจัดเรียงเลขที่ใหม่นี้ลงฐานข้อมูล Supabase ทันทีเลยหรือไม่?`
     );
 
@@ -2996,12 +3100,16 @@ window.saveInlineEditRow = async function(studentId) {
     const statusInput = tr.querySelector("[data-inline-field='status']");
 
     const fullName = nameInput ? nameInput.value.trim() : s.fullName;
-    const no = noInput ? parseInt(noInput.value, 10) || s.no : s.no;
+    let no = noInput ? parseInt(noInput.value, 10) || s.no : s.no;
     const rawG = gradeInput ? gradeInput.value.trim() : s.grade;
     const grade = rawG.startsWith("ม.") ? rawG : `ม.${String(rawG).replace(/[^0-9]/g, "") || "1"}`;
     const room = roomInput ? roomInput.value.trim() : s.room;
     const gender = genderInput ? genderInput.value.trim() : s.gender;
     const status = statusInput ? statusInput.value.trim() : s.status;
+
+    if (status === "ออก") {
+        no = 99;
+    }
 
     if (!fullName) {
         showToast("กรุณากรอกชื่อ-นามสกุล", "error");
@@ -3045,6 +3153,7 @@ window.saveInlineEditRow = async function(studentId) {
             }
         }
 
+        const isStatusChanged = (s.status !== status);
         const isRoomOrGradeOrGenderChanged = (s.grade !== grade || s.room !== room || s.gender !== gender);
 
         s.fullName = fullName;
@@ -3063,7 +3172,8 @@ window.saveInlineEditRow = async function(studentId) {
         populateClassRoomDropdown();
         updateSummaryCounters();
 
-        if (isRoomOrGradeOrGenderChanged) {
+        if (isRoomOrGradeOrGenderChanged || isStatusChanged || status === "ออก") {
+            resequenceRoomNumbers(grade, room);
             window.studentsRoster = sortStudentsRoster(window.studentsRoster || []);
             renderStudentList();
         } else {
@@ -3173,12 +3283,8 @@ function executeOpenAddStudentModal() {
     document.getElementById("input-student-grade").value = g;
     document.getElementById("input-student-room").value = r;
 
-    // คำนวณเลขที่ถัดไปในห้องนั้นให้อัตโนมัติ
-    const sameRoomCount = (window.studentsRoster || []).filter(s => {
-        const cleanG = String(s.grade || "").replace(/[^0-9]/g, "");
-        return cleanG === String(g) && String(s.room) === String(r);
-    }).length;
-    document.getElementById("input-student-no").value = sameRoomCount + 1;
+    // คำนวณเลขที่ถัดไปในห้องนั้นให้อัตโนมัติ (ข้ามคนออก เพื่อไม่ให้เลขที่กระโดด)
+    document.getElementById("input-student-no").value = window.getNextClassStudentNumber(g, r);
     document.getElementById("input-student-status").value = "เข้า";
 
     if (document.getElementById("modal-student-out-fields")) {
@@ -3270,12 +3376,17 @@ window.handleSaveStudent = async function(e) {
     setLoader(true);
     const db = getStudentsSupabase();
 
+    let finalNo = (status === "ออก") ? 99 : no;
+    if (status === "เข้า" && finalNo >= 99) {
+        finalNo = window.getNextClassStudentNumber(grade, room);
+    }
+
     const payload = {
         student_id: studentId,
         full_name: fullName,
         grade: grade,
         room: room,
-        no: no,
+        no: finalNo,
         gender: gender,
         status: status,
         out_reason: outReason,
@@ -3729,15 +3840,18 @@ window.generateAndPrintMultiRoomPdf = function() {
 
         checkedBoxes.forEach(box => {
             const [g, r] = box.value.split("/");
-            // กรองนักเรียนในห้องนั้น
+            // กรองนักเรียนในห้องนั้น (เอาเฉพาะคนมีตัวตน คนออกไม่ใส่)
             const studentsInRoom = (window.studentsRoster || []).filter(s => {
                 if (!isGradeMatch(s.grade, g) || !isRoomMatch(s.room, r)) return false;
                 if (!includeOut && s.status === "ออก") return false;
                 return true;
             });
 
-            // จัดเรียง: ชาย (1) ก่อน หญิง (2) และตามด้วยรหัสนักเรียน
+            // จัดเรียง: นร.กำลังศึกษามาก่อน (คนออกไปอยู่ท้าย) -> ชาย (1) ก่อน หญิง (2) และตามด้วยรหัส นร.
             const sorted = studentsInRoom.slice().sort((a, b) => {
+                const outA = (a.status === "ออก");
+                const outB = (b.status === "ออก");
+                if (outA !== outB) return outA ? 1 : -1;
                 const genA = getStudentGenderSortKey(a);
                 const genB = getStudentGenderSortKey(b);
                 if (genA !== genB) return genA - genB;
@@ -3807,10 +3921,11 @@ window.generateAndPrintMultiRoomPdf = function() {
                         const isOut = (student.status === "ออก");
                         const statusNote = isOut ? getStudentOutRemark(student) : '';
                         const nameDisplay = isOut ? `${student.fullName} (${statusNote})` : student.fullName;
+                        const displayNo = isOut ? 99 : (student.no || globalNo);
 
                         pagesHtml += `
                             <tr style="height: 23.5px;">
-                                <td style="border: 1px solid black; text-align: center; font-size: 13px; font-weight: normal; padding: 1px 2px;">${globalNo}</td>
+                                <td style="border: 1px solid black; text-align: center; font-size: 13px; font-weight: normal; padding: 1px 2px;">${displayNo}</td>
                                 <td style="border: 1px solid black; text-align: center; font-size: 13px; font-weight: normal; padding: 1px 2px; font-family: 'Sarabun', sans-serif;">${student.studentId}</td>
                                 <td style="border: 1px solid black; text-align: left; padding: 1px 8px; font-size: 13.5px; font-weight: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${nameDisplay}</td>
                                 ${Array(checkCols).fill(0).map(() => '<td style="border: 1px solid black; padding: 0;"></td>').join('')}
@@ -3994,35 +4109,30 @@ window.downloadPreviewPdf = async function() {
 };
 
 // =========================================================================
-// ส่งออกไฟล์ Excel (CSV)
+// ส่งออกไฟล์ Excel (CSV) - เอาเฉพาะคนมีตัวตน (กำลังศึกษา) คนออกไม่ใส่
 // =========================================================================
 window.exportStudentsToCsv = function() {
-    const list = window.studentsRoster || [];
+    const list = (window.studentsRoster || []).filter(s => s.status !== "ออก");
     if (list.length === 0) {
-        showToast("ไม่พบข้อมูลนักเรียนเพื่อส่งออก", "error");
+        showToast("ไม่พบข้อมูลนักเรียนที่มีตัวตน (กำลังศึกษา) เพื่อส่งออก", "error");
         return;
     }
 
     let csvContent = "\uFEFF"; // UTF-8 BOM
-    csvContent += "เลขที่,รหัสนักเรียน,คำนำหน้าชื่อ-นามสกุล,ชั้น,ห้อง,ครูที่ปรึกษา,เพศ,สถานะ,หมายเหตุ,วันที่ออก\n";
+    csvContent += "เลขที่,รหัสนักเรียน,คำนำหน้าชื่อ-นามสกุล,ชั้น,ห้อง,ครูที่ปรึกษา,เพศ,สถานะ\n";
 
-    list.forEach(s => {
-        const isOut = (s.status === "ออก");
-        const remark = isOut ? getStudentOutRemark(s) : "";
-        const nameDisplay = isOut ? `${s.fullName} (${remark})` : s.fullName;
+    list.forEach((s, idx) => {
         const advInfo = typeof getRoomAdvisorInfo === "function" ? getRoomAdvisorInfo(s.grade, s.room) : null;
         const advText = advInfo ? [advInfo.teacher1, advInfo.teacher2].filter(Boolean).join(" และ ") : "";
         const row = [
-            s.no,
+            s.no || (idx + 1),
             `"${s.studentId}"`,
-            `"${nameDisplay}"`,
+            `"${s.fullName}"`,
             s.grade,
             s.room,
             `"${advText}"`,
             s.gender === "1" ? "ชาย" : "หญิง",
-            s.status || "เข้า",
-            `"${s.outReason || ""}"`,
-            `"${formatThaiDateDisplay(s.outDate)}"`
+            s.status || "เข้า"
         ];
         csvContent += row.join(",") + "\n";
     });
@@ -4042,6 +4152,7 @@ window.exportStudentsToCsv = function() {
 
 // =========================================================================
 // ส่งออกไฟล์ Excel แท้ (.xlsx) ด้วยฟอนต์ TH Sarabun PSK และจัดรูปแบบตรงตามชีท 100%
+// (เอาเฉพาะคนมีตัวตน กำลังศึกษาอยู่ คนออกไม่นำมาใส่)
 // =========================================================================
 window.exportStudentsToExcel = async function() {
     const list = window.studentsRoster || [];
@@ -4059,9 +4170,10 @@ window.exportStudentsToExcel = async function() {
         if (typeof setLoader === "function") setLoader(true);
         showToast("กำลังสร้างไฟล์ Excel (.xlsx) ฟอนต์ TH SarabunPSK... 📊", "info");
 
-        // 1. จัดกลุ่มนักเรียนแยกตามห้อง
+        // 1. จัดกลุ่มนักเรียนแยกตามห้อง (เอาเฉพาะคนมีตัวตน กำลังศึกษา status !== "ออก" คนออกไม่ใส่)
+        const activeList = list.filter(s => s.status !== "ออก");
         const roomGroups = {};
-        list.forEach(s => {
+        activeList.forEach(s => {
             const g = String(s.grade || "").replace(/[^0-9]/g, "").trim() || "1";
             const r = String(s.room || "").replace(/[^0-9]/g, "").trim() || "1";
             const key = `${g}/${r}`;
@@ -4082,7 +4194,7 @@ window.exportStudentsToExcel = async function() {
             return Number(a.room) - Number(b.room);
         });
 
-        // จัดเรียงนักเรียนในแต่ละห้อง: ชาย (1) ก่อน หญิง (2) และตามด้วยรหัส นร. เหมือน PDF 100%
+        // จัดเรียงนักเรียนในแต่ละห้อง: ชาย (1) ก่อน หญิง (2) และตามด้วยรหัส นร.
         sortedRooms.forEach(rm => {
             rm.students.sort((a, b) => {
                 const genA = typeof getStudentGenderSortKey === "function" ? getStudentGenderSortKey(a) : (a.gender === "1" ? 1 : 2);
@@ -4184,16 +4296,13 @@ window.exportStudentsToExcel = async function() {
                 const row = ws.getRow(rowNum);
                 row.height = 24;
                 const s = rm.students[i];
-                const isOut = s && s.status === "ออก";
-                const outRemark = isOut ? getStudentOutRemark(s) : "";
-                const fullNameDisplay = s ? (isOut ? `${s.fullName} (${outRemark})` : String(s.fullName || "")) : "";
 
                 row.values = [
                     i + 1,
                     s ? String(s.studentId || "") : "",
-                    fullNameDisplay,
+                    s ? String(s.fullName || "") : "",
                     "", "", "", "", "", "", "", "", "", "",
-                    outRemark
+                    ""
                 ];
 
                 for (let c = 1; c <= 14; c++) {
@@ -4294,9 +4403,10 @@ window.syncStudentsToGoogleSheet = async function(showFeedback = true) {
             showToast("🚀 กำลังยิงรายชื่อล่าสุดไปยัง Google Sheet...", "info");
         }
 
-        // จัดกลุ่มและเรียงลำดับนักเรียนแยกตามห้องเรียน (ตรงตามมาตรฐาน PDF)
+        // จัดกลุ่มและเรียงลำดับนักเรียนแยกตามห้องเรียน (เอาเฉพาะคนมีตัวตน/กำลังศึกษา คนออกไม่ใส่)
+        const activeStudents = (students || []).filter(s => s.status !== "ออก");
         const roomGroups = {};
-        students.forEach(s => {
+        activeStudents.forEach(s => {
             const g = String(s.grade || "").replace(/[^0-9]/g, "").trim();
             const r = String(s.room || "").replace(/[^0-9]/g, "").trim();
             if (g && r) {
@@ -4319,7 +4429,7 @@ window.syncStudentsToGoogleSheet = async function(showFeedback = true) {
             return Number(a.room) - Number(b.room);
         });
 
-        // จัดเรียงนักเรียนในแต่ละห้อง: ชาย (1) ก่อน หญิง (2) และตามด้วยรหัส นร. เหมือน PDF 100%
+        // จัดเรียงนักเรียนในแต่ละห้อง: ชาย (1) ก่อน หญิง (2) และตามด้วยรหัส นร.
         sortedRooms.forEach(rm => {
             rm.students.sort((a, b) => {
                 const genA = getStudentGenderSortKey(a);
@@ -4344,7 +4454,7 @@ window.syncStudentsToGoogleSheet = async function(showFeedback = true) {
             checkColsCount: 10,
             fontFamily: "Sarabun",
             timestamp: new Date().toISOString(),
-            totalStudents: students.length,
+            totalStudents: activeStudents.length,
             totalRooms: sortedRooms.length,
             advisors: window.roomAdvisorsMap || (typeof getStoredAdvisorsMap === "function" ? getStoredAdvisorsMap() : {}),
             rooms: sortedRooms.map(rm => {
@@ -4368,21 +4478,21 @@ window.syncStudentsToGoogleSheet = async function(showFeedback = true) {
                         studentId: s.studentId,
                         fullName: s.fullName,
                         gender: s.gender,
-                        status: s.status || "เข้า"
+                        status: "เข้า"
                     }))
                 };
             }),
-            students: students.map(s => {
+            students: activeStudents.map((s, idx) => {
                 const advInfo = typeof getRoomAdvisorInfo === "function" ? getRoomAdvisorInfo(s.grade, s.room) : null;
                 const advText = advInfo ? [advInfo.teacher1, advInfo.teacher2].filter(Boolean).join(" และ ") : "";
                 return {
-                    no: s.no,
+                    no: s.no || (idx + 1),
                     studentId: s.studentId,
                     fullName: s.fullName,
                     grade: s.grade,
                     room: s.room,
                     gender: s.gender,
-                    status: s.status || "เข้า",
+                    status: "เข้า",
                     advisor: advText,
                     advisor1: (advInfo && advInfo.teacher1) || "",
                     advisor2: (advInfo && advInfo.teacher2) || "",

@@ -151,6 +151,8 @@ CREATE TABLE IF NOT EXISTS public.evaluations (
     is_classroom_saved BOOLEAN DEFAULT false,
     a_clean INT DEFAULT 5,
     sw_tls INT DEFAULT 0,
+    sw_leaf INT DEFAULT 0,
+    sw_garb INT DEFAULT 0,
     service_note TEXT DEFAULT '',
     is_service_saved BOOLEAN DEFAULT false,
     PRIMARY KEY (eval_date, room_name)
@@ -370,4 +372,9 @@ CREATE POLICY "Allow public read-write for school_settings" ON public.school_set
 INSERT INTO public.school_settings (id, academic_year, current_term, term1_start, term1_end, term2_start, term2_end, auto_term)
 VALUES ('current', '2569', '1', '2026-05-16', '2026-10-10', '2026-11-01', '2027-03-31', true)
 ON CONFLICT (id) DO NOTHING;
+
+-- อัปเดตฟิลด์ใหม่สำหรับ 5ส. เขตบริการ (sw_leaf, sw_garb)
+ALTER TABLE public.evaluations ADD COLUMN IF NOT EXISTS sw_leaf INT DEFAULT 0;
+ALTER TABLE public.evaluations ADD COLUMN IF NOT EXISTS sw_garb INT DEFAULT 0;
+
 

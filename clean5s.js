@@ -28,6 +28,70 @@ let clean5sIsDragging = false;
 let clean5sStartTouchX = 0, clean5sStartTouchY = 0;
 let clean5sCurrentX = 0, clean5sCurrentY = 0;
 
+let clean5sActiveYear = "2569";
+let clean5sActiveTerm = "1";
+let clean5sActiveAcademicTitle = "ภาคเรียนที่ 1 ปีการศึกษา 2569";
+
+function updateClean5sAcademicHeaderUI() {
+    clean5sActiveAcademicTitle = `ภาคเรียนที่ ${clean5sActiveTerm} ปีการศึกษา ${clean5sActiveYear}`;
+    const termBadgeEl = document.getElementById("clean5s-term-text");
+    if (termBadgeEl) {
+        termBadgeEl.innerText = clean5sActiveAcademicTitle;
+    }
+}
+
+window.syncClean5sAcademicSettings = async function(db) {
+    // 1. ซิงค์จาก localStorage ก่อนเพื่อแสดงผลทันทีแบบ Zero-Delay
+    let localYear = "";
+    let localTerm = "";
+    try {
+        const saved = localStorage.getItem("sbwk_system_settings");
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed.academic_year) localYear = String(parsed.academic_year);
+            if (parsed.current_term) localTerm = String(parsed.current_term);
+        }
+    } catch (e) {
+        console.warn("Could not read local academic settings in clean5s", e);
+    }
+
+    if (localYear) clean5sActiveYear = localYear;
+    if (localTerm) clean5sActiveTerm = localTerm;
+    updateClean5sAcademicHeaderUI();
+
+    // 2. ซิงค์จาก Supabase Cloud (ตาราง academic_years แถวที่ is_current = true)
+    if (db) {
+        try {
+            const { data, error } = await db.from('academic_years').select('*').eq('is_current', true).limit(1);
+            if (!error && data && data.length > 0) {
+                const actYear = data[0];
+                clean5sActiveYear = String(actYear.year || clean5sActiveYear);
+
+                const today = new Date();
+                const yyyy = today.getFullYear();
+                const mm = String(today.getMonth() + 1).padStart(2, '0');
+                const dd = String(today.getDate()).padStart(2, '0');
+                const todayStr = `${yyyy}-${mm}-${dd}`;
+
+                let computedTerm = "1";
+                if (actYear.term2_start && actYear.term2_end && todayStr >= actYear.term2_start && todayStr <= actYear.term2_end) {
+                    computedTerm = "2";
+                }
+
+                // หากมีการระบุใน admin settings ให้ยึดค่าที่ admin กำหนดไว้
+                if (localTerm) {
+                    computedTerm = localTerm;
+                }
+
+                clean5sActiveTerm = computedTerm;
+                updateClean5sAcademicHeaderUI();
+            }
+        } catch (err) {
+            console.warn("Could not sync academic_years in clean5s:", err);
+        }
+    }
+};
+
 let clean5sFlatpickrInstance = null;
 let clean5sEvaluatedDatesSet = new Set();
 
@@ -140,13 +204,36 @@ window.initClean5sView = async function() {
     clean5sSelectedDate = `${yyyy}-${mm}-${dd}`;
 
     const db = getSupabase();
+    await syncClean5sAcademicSettings(db);
     if (db) {
         try {
-            const { data } = await db.from('std').select('grade, room');
+            const { data } = await db.from('std').select('grade, room, status');
             if (data && data.length > 0) {
-                const uniqueRooms = [...new Set(data.map(s => `${s.grade}/${s.room}`))].filter(Boolean);
-                if (uniqueRooms.length > 0) {
-                    clean5sRoomsArray = uniqueRooms;
+                const roomSet = new Set();
+                data.forEach(s => {
+                    if (s.status === 'ออก') return;
+                    if (!s.grade || !s.room) return;
+                    const gNum = String(s.grade).replace(/[^0-9]/g, '');
+                    const rNum = String(s.room).replace(/[^0-9]/g, '') || String(s.room).trim();
+                    if (gNum && rNum) {
+                        roomSet.add(`ม.${gNum}/${rNum}`);
+                    }
+                });
+
+                if (roomSet.size > 0) {
+                    const sortedRooms = Array.from(roomSet).sort((a, b) => {
+                        const matchA = a.match(/ม\.(\d+)\/(\d+)/);
+                        const matchB = b.match(/ม\.(\d+)\/(\d+)/);
+                        if (matchA && matchB) {
+                            const gA = parseInt(matchA[1], 10);
+                            const gB = parseInt(matchB[1], 10);
+                            if (gA !== gB) return gA - gB;
+                            return parseInt(matchA[2], 10) - parseInt(matchB[2], 10);
+                        }
+                        return a.localeCompare(b, 'th');
+                    });
+                    clean5sRoomsArray = sortedRooms;
+                    window.clean5sRoomsArray = clean5sRoomsArray;
                 }
             }
         } catch (e) {
@@ -204,8 +291,9 @@ window.fetchClean5sDateDataAndRender = async function(targetDate) {
         const dayEvals = dayRes.data || [];
 
         const existingData = {
-            rClean: {}, swFan: {}, swBrd: {}, swTsh: {}, swChr: {},
-            aClean: {}, swTls: {}, roomNotes: {}
+            rClean: {}, swFan: {}, swBrd: {}, swTsh: {}, swChr: {}, classNotes: {},
+            aClean: {}, swTls: {}, swLeaf: {}, swGarb: {}, serviceNotes: {},
+            roomNotes: {}
         };
 
         dayEvals.forEach(row => {
@@ -219,15 +307,23 @@ window.fetchClean5sDateDataAndRender = async function(targetDate) {
                 existingData.swBrd[room] = (row.sw_brd === -1);
                 existingData.swTsh[room] = (row.sw_tsh === -1);
                 existingData.swChr[room] = (row.sw_chr === -1);
-                if (row.classroom_note) existingData.roomNotes[room] = row.classroom_note;
+                const cNote = (row.classroom_note || "").trim();
+                existingData.classNotes[room] = cNote;
+                if (cNote) existingData.roomNotes[room] = cNote;
             }
             if (isServSaved) {
                 existingData.aClean[room] = row.a_clean;
-                existingData.swTls[room] = (row.sw_tls === -2);
-                if (row.service_note) {
+                existingData.swTls[room]  = (row.sw_tls === -2);
+                existingData.swLeaf[room] = (row.sw_leaf === -1 || (row.service_note && row.service_note.includes("[ไม่กวาดใบไม้]")));
+                existingData.swGarb[room] = (row.sw_garb === -1 || (row.service_note && row.service_note.includes("[ไม่เก็บขยะ]")));
+
+                let cleanServNote = (row.service_note || "").replace(/\[ไม่กวาดใบไม้\]/g, '').replace(/\[ไม่เก็บขยะ\]/g, '').trim();
+                existingData.serviceNotes[room] = cleanServNote;
+
+                if (cleanServNote) {
                     existingData.roomNotes[room] = existingData.roomNotes[room] 
-                        ? `${existingData.roomNotes[room]} | ${row.service_note}` 
-                        : row.service_note;
+                        ? `${existingData.roomNotes[room]} | ${cleanServNote}` 
+                        : cleanServNote;
                 }
             }
         });
@@ -236,6 +332,7 @@ window.fetchClean5sDateDataAndRender = async function(targetDate) {
 
         const processedReport = processClean5sEvaluationsReport(allEvals, targetDate);
         clean5sCachedRawRecords = processedReport.rawRecords;
+        window.clean5sCachedRawRecords = clean5sCachedRawRecords;
 
         setupClean5sSummaryFilterOptions(processedReport.monthsFilterList);
         renderClean5sClassroomForm(clean5sRoomsArray);
@@ -292,24 +389,37 @@ function processClean5sEvaluationsReport(allEvals, targetDateStr) {
 
         const aClean = isServSaved ? (parseInt(row.a_clean, 10) || 0) : 0;
         const swTls  = isServSaved ? (parseInt(row.sw_tls, 10) || 0) : 0;
-        const assignTotal = isServSaved ? (aClean + swTls) : 0;
+        const swLeaf = isServSaved ? (row.sw_leaf !== undefined && row.sw_leaf !== null ? (parseInt(row.sw_leaf, 10) || 0) : ((row.service_note && row.service_note.includes("[ไม่กวาดใบไม้]")) ? -1 : 0)) : 0;
+        const swGarb = isServSaved ? (row.sw_garb !== undefined && row.sw_garb !== null ? (parseInt(row.sw_garb, 10) || 0) : ((row.service_note && row.service_note.includes("[ไม่เก็บขยะ]")) ? -1 : 0)) : 0;
+        const assignTotal = isServSaved ? (aClean + swTls + swLeaf + swGarb) : 0;
 
-        const missedItems = [];
+        const classMissed = [];
         if (isClassSaved) {
-            if (swFan === -2) missedItems.push("ไม่ปิดไฟ/พัดลม");
-            if (swBrd === -1) missedItems.push("ไม่ลบกระดาน");
-            if (swTsh === -1) missedItems.push("ไม่เทขยะ");
-            if (swChr === -1) missedItems.push("ไม่เก็บเก้าอี้");
+            if (swFan === -2) classMissed.push("ไม่ปิดไฟ/พัดลม");
+            if (swBrd === -1) classMissed.push("ไม่ลบกระดาน");
+            if (swTsh === -1) classMissed.push("ไม่เทขยะ");
+            if (swChr === -1) classMissed.push("ไม่เก็บเก้าอี้");
         }
-        if (isServSaved && swTls === -2) {
-            missedItems.push("ไม่เก็บอุปกรณ์");
+
+        const servMissed = [];
+        if (isServSaved) {
+            if (swTls === -2) servMissed.push("ไม่เก็บอุปกรณ์");
+            if (swLeaf === -1) servMissed.push("ไม่กวาดใบไม้");
+            if (swGarb === -1) servMissed.push("ไม่เก็บขยะ");
         }
+
+        const missedItems = [...classMissed, ...servMissed];
+
+        let servNote = row.service_note || "";
+        servNote = servNote.replace(/\[ไม่กวาดใบไม้\]/g, '').replace(/\[ไม่เก็บขยะ\]/g, '').trim();
+
+        let classNote = (row.classroom_note || '').trim();
 
         let note = "";
-        if (row.classroom_note && row.service_note) {
-            note = `${row.classroom_note} | ${row.service_note}`;
+        if (classNote && servNote) {
+            note = `${classNote} | ${servNote}`;
         } else {
-            note = row.classroom_note || row.service_note || "";
+            note = classNote || servNote || "";
         }
 
         dateMap[dStr].rooms[room] = {
@@ -319,7 +429,11 @@ function processClean5sEvaluationsReport(allEvals, targetDateStr) {
             roomScore: roomTotal,
             assignScore: assignTotal,
             totalScore: roomTotal + assignTotal,
+            classMissed: classMissed,
+            servMissed: servMissed,
             missedList: missedItems,
+            classNote: classNote,
+            servNote: servNote,
             note: note
         };
     });
@@ -330,6 +444,18 @@ function processClean5sEvaluationsReport(allEvals, targetDateStr) {
     for (const dStr in dateMap) {
         const roomsDataList = Object.values(dateMap[dStr].rooms);
         if (roomsDataList.length > 0) {
+            roomsDataList.sort((a, b) => {
+                const matchA = (a.roomName || '').match(/ม\.(\d+)\/(\d+)/);
+                const matchB = (b.roomName || '').match(/ม\.(\d+)\/(\d+)/);
+                if (matchA && matchB) {
+                    const gA = parseInt(matchA[1], 10);
+                    const gB = parseInt(matchB[1], 10);
+                    if (gA !== gB) return gA - gB;
+                    return parseInt(matchA[2], 10) - parseInt(matchB[2], 10);
+                }
+                return (a.roomName || '').localeCompare(b.roomName || '', 'th');
+            });
+
             rawRecords.push({
                 dateStr: dStr,
                 monthKey: dateMap[dStr].monthKey,
@@ -363,7 +489,7 @@ function setupClean5sSummaryFilterOptions(monthsList) {
 
     const optTerm = document.createElement("option");
     optTerm.value = "all";
-    optTerm.innerText = "รวมภาคเรียนที่ 1 ปีการศึกษา 2569";
+    optTerm.innerText = "รวม" + (clean5sActiveAcademicTitle || "ภาคเรียนที่ 1 ปีการศึกษา 2569");
     filterSelect.appendChild(optTerm);
 
     if (monthsList && monthsList.length > 0) {
@@ -392,12 +518,13 @@ window.calculateClean5sAccumulatedScores = function() {
 
     clean5sRoomsArray.forEach(room => {
         summaryMap[room] = 0;
-        roomIncidentMap[room] = { fan: 0, brd: 0, tsh: 0, chr: 0, tls: 0 };
+        roomIncidentMap[room] = { fan: 0, brd: 0, tsh: 0, chr: 0, tls: 0, leaf: 0, garb: 0 };
         roomDaysMap[room] = { classDays: 0, servDays: 0, totalDays: 0 };
     });
 
-    if (clean5sCachedRawRecords && clean5sCachedRawRecords.length > 0) {
-        clean5sCachedRawRecords.forEach(record => {
+    const activeRecords = (clean5sCachedRawRecords && clean5sCachedRawRecords.length > 0) ? clean5sCachedRawRecords : (window.clean5sCachedRawRecords || []);
+    if (activeRecords && activeRecords.length > 0) {
+        activeRecords.forEach(record => {
             if (filterMode !== "all" && record.monthKey !== filterMode) return;
 
             if (record.roomsData && Array.isArray(record.roomsData)) {
@@ -405,7 +532,7 @@ window.calculateClean5sAccumulatedScores = function() {
                     const rName = (rData.roomName || '').trim();
                     if (summaryMap[rName] === undefined) {
                         summaryMap[rName] = 0;
-                        roomIncidentMap[rName] = { fan: 0, brd: 0, tsh: 0, chr: 0, tls: 0 };
+                        roomIncidentMap[rName] = { fan: 0, brd: 0, tsh: 0, chr: 0, tls: 0, leaf: 0, garb: 0 };
                         roomDaysMap[rName] = { classDays: 0, servDays: 0, totalDays: 0 };
                     }
 
@@ -421,9 +548,12 @@ window.calculateClean5sAccumulatedScores = function() {
                             const str = txt.toString();
                             if (str.includes("พัดลม") || str.includes("ไฟ")) roomIncidentMap[rName].fan++;
                             else if (str.includes("กระดาน")) roomIncidentMap[rName].brd++;
-                            else if (str.includes("ขยะ")) roomIncidentMap[rName].tsh++;
+                            else if (str.includes("เทขยะ")) roomIncidentMap[rName].tsh++;
                             else if (str.includes("เก้าอี้")) roomIncidentMap[rName].chr++;
                             else if (str.includes("อุปกรณ์") || str.includes("เก็บของ")) roomIncidentMap[rName].tls++;
+                            else if (str.includes("ใบไม้")) roomIncidentMap[rName].leaf++;
+                            else if (str.includes("เก็บขยะ")) roomIncidentMap[rName].garb++;
+                            else if (str.includes("ขยะ")) roomIncidentMap[rName].tsh++;
                         });
                     }
                 });
@@ -441,7 +571,7 @@ window.calculateClean5sAccumulatedScores = function() {
         scoredRoomsList.push({
             roomName: room,
             score: scr,
-            stat: roomIncidentMap[room] || { fan: 0, brd: 0, tsh: 0, chr: 0, tls: 0 },
+            stat: roomIncidentMap[room] || { fan: 0, brd: 0, tsh: 0, chr: 0, tls: 0, leaf: 0, garb: 0 },
             days: roomDaysMap[room] || { classDays: 0, servDays: 0, totalDays: 0 }
         });
     });
@@ -476,7 +606,7 @@ window.calculateClean5sAccumulatedScores = function() {
         const currentRoomObj = scoredRoomsList.find(x => x.roomName === roomName);
         const currentScore = currentRoomObj ? currentRoomObj.score : 0;
         const currentRankNum = currentRoomObj ? currentRoomObj.rank : "-";
-        const currentStatObj = currentRoomObj ? currentRoomObj.stat : { fan: 0, brd: 0, tsh: 0, chr: 0, tls: 0 };
+        const currentStatObj = currentRoomObj ? currentRoomObj.stat : { fan: 0, brd: 0, tsh: 0, chr: 0, tls: 0, leaf: 0, garb: 0 };
         const currentDaysObj = currentRoomObj ? currentRoomObj.days : { classDays: 0, servDays: 0, totalDays: 0 };
 
         let runPercent = Math.floor((currentScore / maxScore) * 100);
@@ -528,6 +658,14 @@ window.calculateClean5sAccumulatedScores = function() {
                         <div class="sc-badge-unit">
                             <span class="sc-badge-circle ${currentStatObj.tls > 0 ? 'circle-orange' : 'circle-grey'}">🧹</span>
                             <span class="sc-badge-label">ไม่เก็บอุปกรณ์ (<span class="sum-orange-num">${currentStatObj.tls}</span>)</span>
+                        </div>
+                        <div class="sc-badge-unit">
+                            <span class="sc-badge-circle ${currentStatObj.leaf > 0 ? 'circle-orange' : 'circle-grey'}">🍂</span>
+                            <span class="sc-badge-label">ไม่กวาดใบไม้ (<span class="sum-orange-num">${currentStatObj.leaf}</span>)</span>
+                        </div>
+                        <div class="sc-badge-unit">
+                            <span class="sc-badge-circle ${currentStatObj.garb > 0 ? 'circle-orange' : 'circle-grey'}">🚮</span>
+                            <span class="sc-badge-label">ไม่เก็บขยะ (<span class="sum-orange-num">${currentStatObj.garb}</span>)</span>
                         </div>
                         
                         <div class="sc-badge-unit">
@@ -614,7 +752,7 @@ window.renderClean5sClassroomForm = function(rooms) {
             if (swBrdEl) swBrdEl.checked = (clean5sExistingData.swBrd[room] === true);
             if (swTshEl) swTshEl.checked = (clean5sExistingData.swTsh[room] === true);
             if (swChrEl) swChrEl.checked = (clean5sExistingData.swChr[room] === true);
-            if (noteEl) noteEl.value = clean5sExistingData.roomNotes[room] || "";
+            if (noteEl) noteEl.value = (clean5sExistingData.classNotes && clean5sExistingData.classNotes[room] !== undefined) ? clean5sExistingData.classNotes[room] : (clean5sExistingData.roomNotes[room] || "");
         }
     });
 };
@@ -647,10 +785,18 @@ window.renderClean5sServiceForm = function(rooms) {
                 <label class="clean5s-score-btn btn-score-low" for="clean5s_ac_0_${room}">ปรับปรุง (0)</label>
             </div>
             
-            <div class="clean5s-switch-grid" style="grid-template-columns: 1fr;">
-                <div>
+            <div class="clean5s-switch-grid">
+                <div style="grid-column: span 2;">
                     <input type="checkbox" id="clean5s_sw_tls_${room}">
                     <label class="clean5s-switch-btn" for="clean5s_sw_tls_${room}">🧹 ไม่เก็บอุปกรณ์ (-2)</label>
+                </div>
+                <div>
+                    <input type="checkbox" id="clean5s_sw_leaf_${room}">
+                    <label class="clean5s-switch-btn" for="clean5s_sw_leaf_${room}">🍂 ไม่กวาดใบไม้ (-1)</label>
+                </div>
+                <div>
+                    <input type="checkbox" id="clean5s_sw_garb_${room}">
+                    <label class="clean5s-switch-btn" for="clean5s_sw_garb_${room}">🗑️ ไม่เก็บขยะ (-1)</label>
                 </div>
             </div>
             
@@ -665,11 +811,15 @@ window.renderClean5sServiceForm = function(rooms) {
             const radA = document.querySelector(`input[name="clean5s_a_clean_${room}"][value="${aVal}"]`);
             if (radA) radA.checked = true;
 
-            const swTlsEl = document.getElementById(`clean5s_sw_tls_${room}`);
-            const noteEl  = document.getElementById(`clean5s_note_service_${room}`);
+            const swTlsEl  = document.getElementById(`clean5s_sw_tls_${room}`);
+            const swLeafEl = document.getElementById(`clean5s_sw_leaf_${room}`);
+            const swGarbEl = document.getElementById(`clean5s_sw_garb_${room}`);
+            const noteEl   = document.getElementById(`clean5s_note_service_${room}`);
 
-            if (swTlsEl) swTlsEl.checked = (clean5sExistingData.swTls[room] === true);
-            if (noteEl) noteEl.value = clean5sExistingData.roomNotes[room] || "";
+            if (swTlsEl) swTlsEl.checked   = (clean5sExistingData.swTls && clean5sExistingData.swTls[room] === true);
+            if (swLeafEl) swLeafEl.checked = (clean5sExistingData.swLeaf && clean5sExistingData.swLeaf[room] === true);
+            if (swGarbEl) swGarbEl.checked = (clean5sExistingData.swGarb && clean5sExistingData.swGarb[room] === true);
+            if (noteEl) noteEl.value = (clean5sExistingData.serviceNotes && clean5sExistingData.serviceNotes[room] !== undefined) ? clean5sExistingData.serviceNotes[room] : "";
         }
     });
 };
@@ -715,17 +865,6 @@ window.renderClean5sDailyReport = function(data) {
             const cardBox = document.createElement("div");
             cardBox.className = "compact-daily-card";
 
-            let missedHtml = "";
-            if (item.missedList && Array.isArray(item.missedList) && item.missedList.length > 0) {
-                missedHtml += `<div class="missed-badge-box">`;
-                item.missedList.forEach(mItem => {
-                    missedHtml += `<span class="missed-item-pill">❌ ${escapeClean5sHtml(mItem)}</span>`;
-                });
-                missedHtml += `</div>`;
-            } else {
-                missedHtml = `<div style="color: #10B981; margin-top: 4px; font-size: 0.8rem; font-weight: 700;">✨ สะอาดเรียบร้อยครบถ้วน</div>`;
-            }
-
             const roomScoreNum = parseInt(item.roomScore, 10) || 0;
             const assignScoreNum = parseInt(item.assignScore, 10) || 0;
             const totalScoreNum = parseInt(item.totalScore, 10) || (roomScoreNum + assignScoreNum);
@@ -737,17 +876,82 @@ window.renderClean5sDailyReport = function(data) {
                 scoreColorClass = "score-total-low";
             }
 
+            // Subcard 1: ห้องเรียน
+            let classContentHtml = "";
+            let classScorePill = "";
+            if (item.isClassSaved) {
+                classScorePill = `<span class="compact-score-pill score-pill-main">${roomScoreNum} คะแนน</span>`;
+                if (item.classMissed && item.classMissed.length > 0) {
+                    classContentHtml = `<div class="missed-badge-box">` + 
+                        item.classMissed.map(m => `<span class="missed-item-pill">❌ ${escapeClean5sHtml(m)}</span>`).join('') + 
+                        `</div>`;
+                } else {
+                    classContentHtml = `<div class="subcard-clean-pass">✨ สะอาดเรียบร้อย</div>`;
+                }
+            } else {
+                classScorePill = `<span class="compact-score-pill subcard-pill-unsaved">ยังไม่บันทึก</span>`;
+                classContentHtml = `<div class="subcard-unsaved-text">⏳ ยังไม่มีการตรวจห้อง</div>`;
+            }
+            if (item.classNote) {
+                classContentHtml += `<div class="subcard-note"><i class="fa-solid fa-pen-clip"></i> ${escapeClean5sHtml(item.classNote)}</div>`;
+            }
+
+            // Subcard 2: เขตบริการ
+            let servContentHtml = "";
+            let servScorePill = "";
+            if (item.isServSaved) {
+                servScorePill = `<span class="compact-score-pill score-pill-sub">${assignScoreNum} คะแนน</span>`;
+                if (item.servMissed && item.servMissed.length > 0) {
+                    servContentHtml = `<div class="missed-badge-box">` + 
+                        item.servMissed.map(m => `<span class="missed-item-pill">❌ ${escapeClean5sHtml(m)}</span>`).join('') + 
+                        `</div>`;
+                } else {
+                    servContentHtml = `<div class="subcard-clean-pass">✨ สะอาดเรียบร้อย</div>`;
+                }
+            } else {
+                servScorePill = `<span class="compact-score-pill subcard-pill-unsaved">ยังไม่บันทึก</span>`;
+                servContentHtml = `<div class="subcard-unsaved-text">⏳ ยังไม่มีการตรวจเขต</div>`;
+            }
+            if (item.servNote) {
+                servContentHtml += `<div class="subcard-note"><i class="fa-solid fa-pen-clip"></i> ${escapeClean5sHtml(item.servNote)}</div>`;
+            }
+
             cardBox.innerHTML = `
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-                    <div style="font-weight: 700; color: #1E293B; font-size: 0.95rem;">ห้อง ${escapeClean5sHtml(item.roomName)}</div>
+                <div class="daily-card-top-header">
+                    <div class="daily-room-title">
+                        <span class="daily-room-badge"><i class="fa-solid fa-school"></i></span>
+                        <span>ห้อง ${escapeClean5sHtml(item.roomName)}</span>
+                    </div>
                     <div style="display: flex; gap: 4px; align-items: center;">
-                        <span class="compact-score-pill score-pill-main">ห้อง: ${roomScoreNum}</span>
-                        <span class="compact-score-pill score-pill-sub">เขต: ${assignScoreNum}</span>
-                        <span class="score-pill-total-large ${scoreColorClass}">รวม: ${totalScoreNum}</span>
+                        <span class="score-pill-total-large ${scoreColorClass}">รวม: ${totalScoreNum} คะแนน</span>
                     </div>
                 </div>
-                <div>${missedHtml}</div>
-                ${item.note ? `<div class="dash-note-box-themed"><i class="fa-solid fa-thumbtack" style="font-size: 13px; margin-top: 2px;"></i><span>${escapeClean5sHtml(item.note)}</span></div>` : ""}
+
+                <div class="daily-subcard-grid">
+                    <div class="daily-subcard subcard-classroom ${item.isClassSaved ? '' : 'subcard-unsaved'}">
+                        <div class="subcard-header">
+                            <div class="subcard-title">
+                                <i class="fa-solid fa-chalkboard-user"></i> ในห้องเรียน
+                            </div>
+                            ${classScorePill}
+                        </div>
+                        <div class="subcard-body">
+                            ${classContentHtml}
+                        </div>
+                    </div>
+
+                    <div class="daily-subcard subcard-service ${item.isServSaved ? '' : 'subcard-unsaved'}">
+                        <div class="subcard-header">
+                            <div class="subcard-title">
+                                <i class="fa-solid fa-broom"></i> เขตบริการ
+                            </div>
+                            ${servScorePill}
+                        </div>
+                        <div class="subcard-body">
+                            ${servContentHtml}
+                        </div>
+                    </div>
+                </div>
             `;
             dailyContainer.appendChild(cardBox);
         });
@@ -874,20 +1078,45 @@ window.saveClean5sData = async function(type) {
                 const radChecked = document.querySelector(`input[name="clean5s_a_clean_${roomName}"]:checked`);
                 const aClean = radChecked ? parseInt(radChecked.value, 10) : 5;
                 const swTls  = document.getElementById(`clean5s_sw_tls_${roomName}`)?.checked ? -2 : 0;
+                const swLeaf = document.getElementById(`clean5s_sw_leaf_${roomName}`)?.checked ? -1 : 0;
+                const swGarb = document.getElementById(`clean5s_sw_garb_${roomName}`)?.checked ? -1 : 0;
                 const note   = document.getElementById(`clean5s_note_service_${roomName}`)?.value.trim() || "";
+
+                // Embed tags in service_note as fallback if database doesn't have sw_leaf / sw_garb columns yet
+                const tags = [];
+                if (swLeaf === -1) tags.push("[ไม่กวาดใบไม้]");
+                if (swGarb === -1) tags.push("[ไม่เก็บขยะ]");
+                let serviceNoteWithTags = note;
+                if (tags.length > 0) {
+                    serviceNoteWithTags = serviceNoteWithTags ? `${serviceNoteWithTags} ${tags.join(" ")}` : tags.join(" ");
+                }
 
                 recordsToUpsert.push({
                     eval_date: clean5sSelectedDate,
                     room_name: roomName,
                     a_clean: aClean,
                     sw_tls: swTls,
-                    service_note: note,
+                    sw_leaf: swLeaf,
+                    sw_garb: swGarb,
+                    service_note: serviceNoteWithTags,
                     is_service_saved: true
                 });
             }
         });
 
-        const { data, error } = await db.from('evaluations').upsert(recordsToUpsert, { onConflict: 'eval_date,room_name' });
+        let { data, error } = await db.from('evaluations').upsert(recordsToUpsert, { onConflict: 'eval_date,room_name' });
+
+        if (error && (error.code === 'PGRST204' || (error.message && (error.message.includes('sw_leaf') || error.message.includes('sw_garb'))))) {
+            console.warn("Retrying evaluations upsert without new columns (saving via service_note tags)...", error);
+            const fallbackRecords = recordsToUpsert.map(r => {
+                const copy = { ...r };
+                delete copy.sw_leaf;
+                delete copy.sw_garb;
+                return copy;
+            });
+            const retryRes = await db.from('evaluations').upsert(fallbackRecords, { onConflict: 'eval_date,room_name' });
+            error = retryRes.error;
+        }
 
         if (error) {
             console.error("Supabase Evaluations Save Error:", error);
@@ -983,7 +1212,7 @@ window.generateClean5sScreenshot = function(type) {
             const currentRoomObj = scoredList.find(x => x.roomName === roomName);
             const currentScore = currentRoomObj ? currentRoomObj.score : 0;
             const currentRankNum = currentRoomObj ? currentRoomObj.rank : "-";
-            const currentStatObj = currentRoomObj ? currentRoomObj.stat : { fan: 0, brd: 0, tsh: 0, chr: 0, tls: 0 };
+            const currentStatObj = currentRoomObj ? currentRoomObj.stat : { fan: 0, brd: 0, tsh: 0, chr: 0, tls: 0, leaf: 0, garb: 0 };
 
             let runPercent = Math.floor((currentScore / maxScore) * 100);
             if (runPercent < 0) runPercent = 0;
@@ -1043,6 +1272,14 @@ window.generateClean5sScreenshot = function(type) {
                     <div class="sc-badge-unit">
                         <span class="sc-badge-circle ${currentStatObj.tls > 0 ? 'circle-orange' : 'circle-grey'}">🧹</span>
                         <span class="sc-badge-label">ไม่เก็บอุปกรณ์ (<span class="sum-orange-num">${currentStatObj.tls}</span>)</span>
+                    </div>
+                    <div class="sc-badge-unit">
+                        <span class="sc-badge-circle ${currentStatObj.leaf > 0 ? 'circle-orange' : 'circle-grey'}">🍂</span>
+                        <span class="sc-badge-label">ไม่กวาดใบไม้ (<span class="sum-orange-num">${currentStatObj.leaf}</span>)</span>
+                    </div>
+                    <div class="sc-badge-unit">
+                        <span class="sc-badge-circle ${currentStatObj.garb > 0 ? 'circle-orange' : 'circle-grey'}">🚮</span>
+                        <span class="sc-badge-label">ไม่เก็บขยะ (<span class="sum-orange-num">${currentStatObj.garb}</span>)</span>
                     </div>
                     <div class="sc-badge-unit">
                         <span class="sc-badge-circle circle-green-star">⭐</span>

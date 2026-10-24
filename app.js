@@ -2608,8 +2608,11 @@ function handleRegisterSubmit() {
     
     document.getElementById("modal-register").classList.remove("active");
     
-    // ตั้งรหัสผ่าน PIN ของคุณครูคนนั้นโดยตรง โดยนำไปบันทึกเลย (ส่งค่า code เป็นว่างไปเพราะเราไม่ได้ใช้รหัสครูแล้ว)
-    saveUserRegistration(name, "", pinVal, "TEACHER");
+    // ตั้งรหัสผ่าน PIN ของคุณครูคนนั้น โดยรักษาบทบาท (Role) และรหัสครู (Code) เดิมไว้
+    const existingUser = users.find(u => u.name === name);
+    const existingRole = existingUser ? (existingUser.role || 'TEACHER') : 'TEACHER';
+    const existingCode = existingUser ? (existingUser.code || '') : '';
+    saveUserRegistration(name, existingCode, pinVal, existingRole);
 }
 
 async function saveUserRegistration(name, code, pinCode, role) {
@@ -2684,7 +2687,7 @@ function renderAdminTeachers() {
             <td style="text-align: center; font-family: monospace; font-weight: 700; color: #2563eb;">${u.code || '-'}</td>
             <td><strong>${u.name}</strong></td>
             <td>
-                <input type="text" class="admin-pin-input form-control" data-name="${u.name}" value="${u.pin || ''}" maxlength="4" style="font-family: monospace; letter-spacing: 2px; width: 80px; text-align: center; padding: 4px; display: inline-block; font-size: 0.9rem;" pattern="[0-9]{4}">
+                <input type="text" class="admin-pin-input form-control" data-name="${u.name}" value="${u.pin || ''}" placeholder="ยังไม่ตั้ง" maxlength="4" style="font-family: monospace; letter-spacing: 2px; width: 85px; text-align: center; padding: 4px; display: inline-block; font-size: 0.9rem;" pattern="[0-9]{4}">
             </td>
             <td>${roleSelectHtml}</td>
             <td class="txt-center">
@@ -2754,15 +2757,16 @@ function renderAdminTeachers() {
 document.getElementById("btn-save-all-teachers").onclick = async () => {
     const selects = document.querySelectorAll(".admin-role-select");
     const updates = [];
-    let pinError = false;
+    let invalidPinUser = null;
     
     selects.forEach(sel => {
         const name = sel.getAttribute("data-name");
         const pinInput = document.querySelector(`.admin-pin-input[data-name="${name}"]`);
         const pinVal = pinInput ? pinInput.value.trim() : "";
         
-        if (!pinVal || pinVal.length !== 4 || isNaN(pinVal)) {
-            pinError = true;
+        // รหัส PIN ไม่บังคับ (หากเว้นว่างไว้คือรอให้ครูไปลงทะเบียนตั้งรหัสเอง)
+        if (pinVal && (pinVal.length !== 4 || !/^\d{4}$/.test(pinVal))) {
+            invalidPinUser = name;
             return;
         }
         
@@ -2773,24 +2777,21 @@ document.getElementById("btn-save-all-teachers").onclick = async () => {
         });
     });
     
-    if (pinError) {
-        showToast("กรุณาระบุรหัส PIN 4 หลักที่เป็นตัวเลขให้ถูกต้องสำหรับทุกคน", "error");
+    if (invalidPinUser) {
+        showToast(`รหัส PIN ของ ${invalidPinUser} ต้องเป็นตัวเลข 4 หลัก (หรือเว้นว่างไว้ให้ครูตั้งเอง)`, "error");
         return;
     }
     
-    // ตรวจสอบ PIN ซ้ำกันในการแก้ไขรอบนี้
+    // ตรวจสอบ PIN ซ้ำกันเฉพาะคนที่มีการระบุ PIN ไม่นับคนที่เว้นว่าง
     const pinsSeen = {};
-    let pinDuplicate = false;
     for (let u of updates) {
-        if (pinsSeen[u.pin]) {
-            pinDuplicate = true;
-            break;
+        if (u.pin) {
+            if (pinsSeen[u.pin]) {
+                showToast(`พบรหัส PIN (${u.pin}) ซ้ำกันสำหรับ ${pinsSeen[u.pin]} และ ${u.name}`, "error");
+                return;
+            }
+            pinsSeen[u.pin] = u.name;
         }
-        pinsSeen[u.pin] = u.name;
-    }
-    if (pinDuplicate) {
-        showToast("พบรหัส PIN ซ้ำกันสำหรับผู้ใช้งานต่างคนกัน กรุณาแก้ไขรหัสไม่ให้ซ้ำกัน", "error");
-        return;
     }
     
     if (updates.length === 0) return;

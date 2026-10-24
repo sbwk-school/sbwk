@@ -922,7 +922,7 @@ function renderTeachersTable() {
             <td style="text-align: center; font-family: monospace; font-weight: 700; color: #4f46e5;">${u.code || ('T' + String(index + 1).padStart(3, '0'))}</td>
             <td><strong>${u.name}</strong></td>
             <td style="text-align: center;">
-                <input type="text" class="admin-input teacher-pin-input" data-name="${u.name}" value="${u.pin || ''}" maxlength="4" pattern="[0-9]{4}" style="font-family: monospace; letter-spacing: 2px; width: 90px; text-align: center; padding: 6px; font-weight: 700;">
+                <input type="text" class="admin-input teacher-pin-input" data-name="${u.name}" value="${u.pin || ''}" placeholder="ยังไม่ตั้ง" maxlength="4" pattern="[0-9]{4}" style="font-family: monospace; letter-spacing: 2px; width: 95px; text-align: center; padding: 6px; font-weight: 700;">
             </td>
             <td>${roleSelectHtml}</td>
             <td style="text-align: center;">
@@ -954,7 +954,7 @@ function renderTeachersTable() {
 window.saveAllTeachersFromAdmin = async function() {
     const rows = document.querySelectorAll("#teachers-table-body tr");
     const updates = [];
-    let pinError = false;
+    let invalidPinUser = null;
 
     rows.forEach(tr => {
         const pinInput = tr.querySelector(".teacher-pin-input");
@@ -965,8 +965,10 @@ window.saveAllTeachersFromAdmin = async function() {
         const pinVal = pinInput.value.trim();
         const roleVal = roleSelect.value;
 
-        if (!pinVal || pinVal.length !== 4 || isNaN(pinVal)) {
-            pinError = true;
+        // รหัส PIN ไม่บังคับ (หากเว้นว่างไว้คือรอให้ครูไปลงทะเบียนตั้งรหัสเอง)
+        // แต่หากมีการกรอก ต้องเป็นตัวเลข 4 หลักเท่านั้น
+        if (pinVal && (pinVal.length !== 4 || !/^\d{4}$/.test(pinVal))) {
+            invalidPinUser = name;
             return;
         }
 
@@ -977,19 +979,21 @@ window.saveAllTeachersFromAdmin = async function() {
         });
     });
 
-    if (pinError) {
-        showToast("กรุณาระบุรหัส PIN 4 หลักที่เป็นตัวเลขให้ถูกต้องสำหรับทุกคน", "error");
+    if (invalidPinUser) {
+        showToast(`รหัส PIN ของ ${invalidPinUser} ต้องเป็นตัวเลข 4 หลัก (หรือเว้นว่างไว้ให้ครูตั้งเอง)`, "error");
         return;
     }
 
-    // Check duplicate PINs
+    // ตรวจสอบ PIN ซ้ำ (เฉพาะคนที่มีการระบุ PIN ไม่นับคนที่เว้นว่าง)
     const pinMap = {};
     for (let u of updates) {
-        if (pinMap[u.pin]) {
-            showToast(`พบรหัส PIN (${u.pin}) ซ้ำกันระหว่าง ${pinMap[u.pin]} และ ${u.name}`, "error");
-            return;
+        if (u.pin) {
+            if (pinMap[u.pin]) {
+                showToast(`พบรหัส PIN (${u.pin}) ซ้ำกันระหว่าง ${pinMap[u.pin]} และ ${u.name}`, "error");
+                return;
+            }
+            pinMap[u.pin] = u.name;
         }
-        pinMap[u.pin] = u.name;
     }
 
     setLoader(true, "กำลังบันทึกข้อมูลครูทั้งหมด...");
@@ -1006,7 +1010,7 @@ window.saveAllTeachersFromAdmin = async function() {
                     code: code
                 }, { onConflict: 'name' });
             }
-            showToast("บันทึกข้อมูลครูและรหัส PIN สำเร็จเรียบร้อย ⚡", "success");
+            showToast("บันทึกข้อมูลครูและบทบาทเรียบร้อยแล้ว ⚡", "success");
             document.getElementById("teachers-unsaved-alert").style.display = "none";
             await loadTeachers();
         } catch (err) {
@@ -1035,16 +1039,27 @@ window.closeAddTeacherModal = function() {
 
 window.submitNewTeacher = async function() {
     const nameVal = document.getElementById("new-teacher-name")?.value.trim();
-    const pinVal = document.getElementById("new-teacher-pin")?.value.trim();
+    const pinVal = document.getElementById("new-teacher-pin")?.value.trim() || "";
     const roleVal = document.getElementById("new-teacher-role")?.value || "TEACHER";
 
     if (!nameVal) {
         showToast("กรุณาระบุชื่อ-นามสกุลครู", "warning");
         return;
     }
-    if (!pinVal || pinVal.length !== 4 || isNaN(pinVal)) {
-        showToast("กรุณาระบุรหัส PIN ตัวเลข 4 หลัก", "warning");
+
+    // รหัส PIN ไม่บังคับ เพื่อให้คุณครูไปลงทะเบียนตั้งรหัสเองได้
+    if (pinVal && (pinVal.length !== 4 || !/^\d{4}$/.test(pinVal))) {
+        showToast("หากต้องการกำหนดรหัส PIN กรุณาระบุเป็นตัวเลข 4 หลัก (หรือเว้นว่างไว้ให้ครูลงทะเบียนเอง)", "warning");
         return;
+    }
+
+    // ตรวจสอบ PIN ซ้ำเฉพาะเมื่อมีการระบุ PIN
+    if (pinVal) {
+        const dup = adminTeachers.find(t => t.pin && String(t.pin).trim() === pinVal && t.name !== nameVal);
+        if (dup) {
+            showToast(`รหัส PIN (${pinVal}) นี้ถูกใช้งานแล้วโดย ${dup.name}`, "error");
+            return;
+        }
     }
 
     setLoader(true, "กำลังเพิ่มครูท่านใหม่...");
@@ -1060,7 +1075,7 @@ window.submitNewTeacher = async function() {
             }, { onConflict: 'name' });
 
             if (error) throw error;
-            showToast(`เพิ่มคุณครู ${nameVal} (${nextCode}) สำเร็จ ⚡`, "success");
+            showToast(pinVal ? `เพิ่มคุณครู ${nameVal} (${nextCode}) สำเร็จ ⚡` : `เพิ่มคุณครู ${nameVal} (${nextCode}) เรียบร้อย (คุณครูสามารถไปลงทะเบียนตั้งรหัสเองได้) ⚡`, "success");
             closeAddTeacherModal();
             await loadTeachers();
         } catch (err) {

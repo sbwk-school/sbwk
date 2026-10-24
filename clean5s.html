@@ -21,7 +21,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     
     <!-- Main Style Sheet -->
-    <link rel="stylesheet" href="styles.css?v=sbwk_clean">
+    <link rel="stylesheet" href="styles.css?v=sbwk_clean_v7">
     
     <style>
         body {
@@ -167,6 +167,125 @@
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+
+        /* Daily Sub-Cards Backup Styles (Inline fallback for Zero-Cache issues) */
+        .daily-card-top-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .daily-room-title {
+            font-weight: 700;
+            color: #1E293B;
+            font-size: 0.98rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .daily-room-badge {
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+            background: linear-gradient(135deg, #FF6B8B, #FF8E9E);
+            color: #FFFFFF;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+        }
+        .daily-subcard-grid {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 8px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+        }
+        .daily-subcard {
+            border-radius: 10px !important;
+            padding: 8px 10px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+            transition: all 0.2s ease;
+        }
+        .subcard-classroom {
+            background: #F0F9FF !important;
+            border: 1.5px solid #BAE6FD !important;
+        }
+        .subcard-service {
+            background: #F0FDF4 !important;
+            border: 1.5px solid #BBF7D0 !important;
+        }
+        .subcard-unsaved {
+            background: #F8FAFC !important;
+            border: 1.5px dashed #CBD5E1 !important;
+            opacity: 0.85;
+        }
+        .subcard-header {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            margin-bottom: 6px !important;
+            gap: 4px !important;
+        }
+        .subcard-title {
+            font-size: 0.82rem !important;
+            font-weight: 700 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 5px !important;
+            white-space: nowrap !important;
+        }
+        .subcard-classroom .subcard-title { color: #0369A1 !important; }
+        .subcard-service .subcard-title { color: #15803D !important; }
+        .subcard-unsaved .subcard-title { color: #64748B !important; }
+        .subcard-body {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 4px !important;
+            font-size: 0.78rem !important;
+        }
+        .subcard-clean-pass {
+            color: #16A34A !important;
+            font-weight: 700 !important;
+            font-size: 0.78rem !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 4px !important;
+            padding: 2px 0 !important;
+        }
+        .subcard-unsaved-text {
+            color: #94A3B8 !important;
+            font-size: 0.75rem !important;
+            padding: 2px 0 !important;
+        }
+        .subcard-pill-unsaved {
+            background-color: #F1F5F9 !important;
+            color: #94A3B8 !important;
+            border: 1px solid #E2E8F0 !important;
+        }
+        .subcard-note {
+            font-size: 0.74rem !important;
+            color: #9A3412 !important;
+            background: #FFFBEB !important;
+            border: 1px dashed #FDE68A !important;
+            border-radius: 6px !important;
+            padding: 3px 6px !important;
+            margin-top: 4px !important;
+            display: flex !important;
+            align-items: flex-start !important;
+            gap: 4px !important;
+            line-height: 1.3 !important;
+        }
+        @media (max-width: 480px) {
+            .compact-daily-card { padding: 10px 8px !important; }
+            .daily-subcard { padding: 6px 6px !important; }
+            .subcard-title { font-size: 0.76rem !important; }
+            .compact-score-pill { font-size: 0.72rem !important; padding: 2px 5px !important; }
+            .missed-item-pill { font-size: 0.7rem !important; padding: 2px 4px !important; }
         }
     </style>
 </head>
@@ -334,7 +453,7 @@
 
     <!-- Config & Clean 5S Module -->
     <script src="config.js?v=sbwk_clean" charset="utf-8"></script>
-    <script src="clean5s.js?v=sbwk_clean" charset="utf-8"></script>
+    <script src="clean5s.js?v=sbwk_clean_v7" charset="utf-8"></script>
 
     <script>
         // Standalone Core Helpers for clean5s.html

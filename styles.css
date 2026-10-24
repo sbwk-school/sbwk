@@ -3909,7 +3909,7 @@ table.at-risk-table {
 .score-total-med { background-color: #FFF3E0; color: #B65300; border: 1px solid #FFE0B2; }
 .score-total-low { background-color: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2; }
 
-.missed-badge-box { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.missed-badge-box { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .missed-item-pill {
     font-size: 0.75rem;
     font-weight: 700;
@@ -3918,6 +3918,7 @@ table.at-risk-table {
     border: 1px solid #FEB2B2;
     padding: 2px 6px;
     border-radius: 5px;
+    line-height: 1.25;
 }
 .dash-note-box-themed {
     font-size: 0.82rem;
@@ -3933,6 +3934,144 @@ table.at-risk-table {
     gap: 6px;
 }
 
+/* Daily Sub-Cards (Mini Dashboard: ห้องเรียน vs เขตบริการ) */
+.daily-card-top-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+.daily-room-title {
+    font-weight: 700;
+    color: #1E293B;
+    font-size: 0.98rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.daily-room-badge {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #FF6B8B, #FF8E9E);
+    color: #FFFFFF;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+}
+.daily-subcard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+}
+.daily-subcard {
+    border-radius: 10px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+}
+.subcard-classroom {
+    background: #F0F9FF;
+    border: 1.5px solid #BAE6FD;
+}
+.subcard-service {
+    background: #F0FDF4;
+    border: 1.5px solid #BBF7D0;
+}
+.subcard-unsaved {
+    background: #F8FAFC !important;
+    border: 1.5px dashed #CBD5E1 !important;
+    opacity: 0.85;
+}
+.subcard-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    gap: 4px;
+}
+.subcard-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+.subcard-classroom .subcard-title {
+    color: #0369A1;
+}
+.subcard-service .subcard-title {
+    color: #15803D;
+}
+.subcard-unsaved .subcard-title {
+    color: #64748B;
+}
+.subcard-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.78rem;
+}
+.subcard-clean-pass {
+    color: #16A34A;
+    font-weight: 700;
+    font-size: 0.78rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 0;
+}
+.subcard-unsaved-text {
+    color: #94A3B8;
+    font-size: 0.75rem;
+    padding: 2px 0;
+}
+.subcard-pill-unsaved {
+    background-color: #F1F5F9;
+    color: #94A3B8;
+    border: 1px solid #E2E8F0;
+}
+.subcard-note {
+    font-size: 0.74rem;
+    color: #9A3412;
+    background: #FFFBEB;
+    border: 1px dashed #FDE68A;
+    border-radius: 6px;
+    padding: 3px 6px;
+    margin-top: 4px;
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    line-height: 1.3;
+}
+
+@media (max-width: 480px) {
+    .compact-daily-card {
+        padding: 10px 8px !important;
+    }
+    .daily-subcard {
+        padding: 6px 6px !important;
+    }
+    .subcard-title {
+        font-size: 0.76rem !important;
+    }
+    .compact-score-pill {
+        font-size: 0.72rem !important;
+        padding: 2px 5px !important;
+    }
+    .missed-item-pill {
+        font-size: 0.7rem !important;
+        padding: 2px 4px !important;
+    }
+}
+
 /* Race Track Stadium */
 .race-stadium-card {
     background: #FFFFFF;
@@ -3941,6 +4080,8 @@ table.at-risk-table {
     border: 2px dashed #FFB7B2;
     box-shadow: 0px 4px 12px rgba(255,183,178,0.12);
     margin-bottom: 8px;
+    box-sizing: border-box;
+    max-width: 100%;
 }
 .stadium-title {
     font-size: 1.05rem;
@@ -4067,6 +4208,8 @@ table.at-risk-table {
     background: #FFFFFF;
     padding: 10px 12px;
     border-top: 1px dashed #E2E8F0;
+    box-sizing: border-box !important;
+    max-width: 100% !important;
 }
 .lane-collapsed-details.show-details { display: block !important; }
 
@@ -4075,9 +4218,11 @@ table.at-risk-table {
     border-radius: 12px;
     border: 1.5px dashed #CBD5E1;
     width: 100%;
+    max-width: 100%;
+    box-sizing: border-box !important;
     padding: 8px;
     display: grid !important;
-    grid-template-columns: repeat(3, 1fr) !important;
+    grid-template-columns: repeat(4, 1fr) !important;
     gap: 8px 4px !important;
     justify-items: center;
     align-items: center;
@@ -4089,6 +4234,8 @@ table.at-risk-table {
     justify-content: center;
     text-align: center;
     width: 100%;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
 }
 .sc-badge-circle {
     width: 28px;
@@ -4107,6 +4254,34 @@ table.at-risk-table {
 .sum-orange-num { color: #E65100 !important; font-weight: 700 !important; }
 .circle-green-star { background-color: #E8F5E9 !important; color: #1B5E20 !important; border: 1.5px solid #81C784 !important; }
 .label-green-star { color: #1B5E20 !important; }
+
+@media (max-width: 768px) {
+    .race-stadium-card {
+        padding: 10px 8px !important;
+    }
+    .lane-collapsed-details {
+        padding: 8px 6px !important;
+    }
+    .lane-collapsed-details .sc-horizontal-badge-row {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px 6px !important;
+        padding: 8px 6px !important;
+    }
+    .lane-collapsed-details .sc-badge-unit {
+        min-width: 0 !important;
+    }
+    .lane-collapsed-details .sc-badge-label {
+        font-size: 0.72rem !important;
+        white-space: nowrap !important;
+    }
+    .lane-car-badge {
+        min-width: 90px !important;
+        padding: 3px 6px !important;
+    }
+    .runner-line-room {
+        font-size: 0.82rem !important;
+    }
+}
 
 /* Clean 5S Action Circular Button (Aligned horizontally with bottom dock) */
 .clean5s-fab-btn {
